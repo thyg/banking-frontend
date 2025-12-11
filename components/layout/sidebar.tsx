@@ -1,3 +1,16 @@
+/**
+ * @file components/layout/sidebar.tsx
+ * @description Sidebar principale de l'application avec navigation par modules.
+ * 
+ * CHANGEMENTS v3.0.1:
+ * - Ajout import Landmark (icône Trésorerie)
+ * - Ajout tresorerie dans moduleIcons
+ * - Ajout case 'tresorerie' dans handleCompose
+ * - Fix: Suppression de onCancel sur CustomerForm et ProductForm
+ * 
+ * @version 3.0.1 - Ajout module Trésorerie + Fix props formulaires
+ */
+
 "use client";
 
 import { MainNav } from "./main-nav";
@@ -6,16 +19,25 @@ import { useSidebar } from "@/hooks/useSidebar";
 import { useNavigationStore } from "@/hooks/use-navigation-store";
 import { modules } from "@/config/navigation";
 import { Button } from "../ui/button";
-import { PenSquare, ShoppingCart, Warehouse, UserCog, Settings } from "lucide-react";
+import { 
+  PenSquare, 
+  ShoppingCart, 
+  Warehouse, 
+  UserCog, 
+  Settings,
+  Landmark  // ← AJOUTÉ pour Trésorerie
+} from "lucide-react";
 import { Separator } from "../ui/separator";
 import { useCompose } from "@/hooks/use-compose-store";
 import { CustomerForm } from "../customers/customer-form";
 import { ProductForm } from "../products/product-form";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 
+// ← MODIFIÉ: Ajout de tresorerie
 const moduleIcons = {
     ventes: ShoppingCart,
     stock: Warehouse,
+    tresorerie: Landmark,  // ← AJOUTÉ
     personnel: UserCog,
     parametres: Settings
 };
@@ -30,10 +52,22 @@ export function Sidebar() {
   const handleCompose = () => {
     switch(activeModule) {
       case 'ventes':
-        onOpen({ title: 'Nouveau Client', content: <CustomerForm initialData={null} onSave={() => {}} onCancel={() => {}} />});
+        // FIX: Suppression de onCancel qui n'existe pas sur CustomerFormProps
+        onOpen({ 
+          title: 'Nouveau Client', 
+          content: <CustomerForm initialData={null} onSave={() => {}} />
+        });
         break;
       case 'stock':
-        onOpen({ title: 'Nouvel Article', content: <ProductForm initialData={null} onSave={() => {}} onCancel={() => {}} />});
+        // FIX: Suppression de onCancel qui n'existe pas sur ProductFormProps
+        onOpen({ 
+          title: 'Nouvel Article', 
+          content: <ProductForm initialData={null} onSave={() => {}} />
+        });
+        break;
+      // ← AJOUTÉ: Cas pour trésorerie
+      case 'tresorerie':
+        console.log("Nouvelle transaction - à implémenter");
         break;
       default:
         console.log("Aucune action 'Nouveau' pour ce module.");

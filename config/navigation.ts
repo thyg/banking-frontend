@@ -1,85 +1,174 @@
+/**
+ * @file config/navigation.ts
+ * @description Configuration de la navigation pour l'ERP.
+ * 
+ * @version 4.0.0 - Incrément 4 : Ajout pages rapprochement
+ */
+
+import { LucideIcon } from 'lucide-react';
 import {
   ShoppingCart,
-  Users,
-  Truck,
-  FileText,
+  Warehouse,
   UserCog,
   Settings,
-  LayoutDashboard,
-  BookOpen,
-  PackagePlus,
-  PackageSearch,
-  Warehouse,
-  FileClock,
-  ShieldCheck,
-  History,
-  PenSquare,
-  ArrowRightLeft,
-  Replace
-} from "lucide-react";
+  Landmark,
+  Users,
+  Package,
+  FileText,
+  BarChart3,
+  Building2,
+  ArrowLeftRight,
+  ClipboardList,
+  FileCheck,
+  Receipt,
+  Wallet,
+  CircleDollarSign,
+  Truck,
+  Calendar,
+  DollarSign,
+  PieChart,
+  Briefcase,
+  Bell,
+  Shield,
+  Database,
+} from 'lucide-react';
 
-export type SidebarLink = {
+// =============================================================================
+// TYPES
+// =============================================================================
+
+export interface SidebarLink {
   title: string;
-  label?: string;
-  icon: React.ElementType;
   href: string;
-};
+  icon: LucideIcon;
+  badge?: string | number;
+  disabled?: boolean;
+}
 
-export type Module = {
+export interface ModuleConfig {
   name: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   composeActionLabel: string;
   sidebarLinks: SidebarLink[];
-};
+}
 
-export const moduleKeys = ["ventes", "stock", "personnel", "parametres"] as const;
-export type ModuleKey = typeof moduleKeys[number];
+export type ModuleKey = 'ventes' | 'stock' | 'tresorerie' | 'personnel' | 'parametres';
 
-export const modules: Record<ModuleKey, Module> = {
+// =============================================================================
+// CONFIGURATION DES MODULES
+// =============================================================================
+
+export const modules: Record<ModuleKey, ModuleConfig> = {
+  // ---------------------------------------------------------------------------
+  // MODULE VENTES
+  // ---------------------------------------------------------------------------
   ventes: {
-    name: "Ventes",
+    name: 'Ventes',
     icon: ShoppingCart,
-    composeActionLabel: "Nouveau",
+    composeActionLabel: 'Nouveau Client',
     sidebarLinks: [
-      { title: "Tableau de Bord", icon: LayoutDashboard, href: "/dashboard" },
-      { title: "Saisie Commande", icon: PenSquare, href: "/sales/new-order" },
-      { title: "Journal Commandes", icon: BookOpen, href: "/sales/order-journal" },
-      { title: "Factures", icon: FileText, href: "/invoices" },
-      { title: "Clients", icon: Users, href: "/customers" },
-      { title: "Fournisseurs", icon: Truck, href: "/suppliers" },
+      { title: 'Vue d\'ensemble', href: '/dashboard', icon: BarChart3 },
+      { title: 'Tous les clients', href: '/customers', icon: Users },
+      { title: 'Factures', href: '/invoices', icon: FileText },
+      { title: 'Ventes du mois', href: '/sales/monthly', icon: PieChart },
     ],
   },
+
+  // ---------------------------------------------------------------------------
+  // MODULE STOCK
+  // ---------------------------------------------------------------------------
   stock: {
-    name: "Stock",
+    name: 'Stock',
     icon: Warehouse,
-    composeActionLabel: "Nouvel Article",
+    composeActionLabel: 'Nouvel Article',
     sidebarLinks: [
-      { title: "État des Stocks", icon: PackageSearch, href: "/stock/status" },
-      { title: "Mouvements", icon: PackagePlus, href: "/stock/entries" },
-      { title: "Transferts", icon: ArrowRightLeft, href: "/stock/transfer" },
-      { title: "Transformations", icon: Replace, href: "/stock/transformation" },
-      { title: "Journal Mouvements", icon: FileClock, href: "/stock/journal" },
-      { title: "Inventaire", icon: BookOpen, href: "/stock/inventory" },
-      { title: "Articles", icon: ShoppingCart, href: "/products" },
+      { title: 'Produits', href: '/products', icon: Package },
+      { title: 'Mouvements', href: '/stock/movements', icon: ArrowLeftRight },
+      { title: 'Liste fournisseurs', href: '/suppliers', icon: Truck },
+      { title: 'Commandes', href: '/suppliers/orders', icon: ClipboardList },
     ],
   },
+
+  // ---------------------------------------------------------------------------
+  // MODULE TRÉSORERIE (Incrément 4 - Rapprochement)
+  // ---------------------------------------------------------------------------
+  tresorerie: {
+    name: 'Trésorerie',
+    icon: Landmark,
+    composeActionLabel: 'Nouvelle Transaction',
+    sidebarLinks: [
+      // Tableau de bord
+      { title: 'Vue d\'ensemble', href: '/banking', icon: BarChart3 },
+      // Opérations
+      { title: 'Comptes Bancaires', href: '/banking/accounts', icon: Building2 },
+      { title: 'Transactions', href: '/banking/transactions', icon: ArrowLeftRight },
+      { title: 'Chèques', href: '/banking/checks', icon: FileText },
+      // Rapprochement (NOUVEAU - Incrément 4)
+      { title: 'Relevés Bancaires', href: '/banking/statements', icon: ClipboardList },
+      { title: 'Rapprochement', href: '/banking/reconciliation', icon: FileCheck },
+      // Caisse (désactivé - autre membre équipe)
+      { title: 'Caisses', href: '/banking/cash-registers', icon: Wallet, disabled: true },
+      { title: 'Opérations Caisse', href: '/banking/cash-operations', icon: CircleDollarSign, disabled: true },
+      // Paramétrage
+      { title: 'Banques', href: '/banking/settings/banks', icon: Landmark },
+      { title: 'Types Transactions', href: '/banking/settings/transaction-types', icon: Receipt },
+    ],
+  },
+
+  // ---------------------------------------------------------------------------
+  // MODULE PERSONNEL
+  // ---------------------------------------------------------------------------
   personnel: {
-    name: "Personnel",
+    name: 'Personnel',
     icon: UserCog,
-    composeActionLabel: "Nouvel Utilisateur",
+    composeActionLabel: 'Nouvel Employé',
     sidebarLinks: [
-      { title: "Utilisateurs", icon: Users, href: "/settings/users" },
-      { title: "Profils & Droits", icon: ShieldCheck, href: "/settings/roles" }, 
-      { title: "Piste d'audit", icon: History, href: "/settings/audits" },
+      { title: 'Liste employés', href: '/personnel/employees', icon: Users },
+      { title: 'Planning', href: '/personnel/schedule', icon: Calendar },
+      { title: 'Salaires', href: '/personnel/salaries', icon: DollarSign },
     ],
   },
+
+  // ---------------------------------------------------------------------------
+  // MODULE PARAMÈTRES
+  // ---------------------------------------------------------------------------
   parametres: {
-    name: "Paramètres",
+    name: 'Paramètres',
     icon: Settings,
-    composeActionLabel: "Ajouter",
+    composeActionLabel: 'Nouvelle Config',
     sidebarLinks: [
-      { title: "Société", icon: Settings, href: "/settings/company" },
-      { title: "Exercices", icon: BookOpen, href: "/settings/fiscal-years" },
+      { title: 'Entreprise', href: '/settings/company', icon: Briefcase },
+      { title: 'Utilisateurs', href: '/settings/users', icon: Users },
+      { title: 'Notifications', href: '/settings/notifications', icon: Bell },
+      { title: 'Sécurité', href: '/settings/security', icon: Shield },
+      { title: 'Sauvegarde', href: '/settings/backup', icon: Database },
     ],
   },
 };
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+export function getModuleKeys(): ModuleKey[] {
+  return Object.keys(modules) as ModuleKey[];
+}
+
+export function isValidModuleKey(key: string): key is ModuleKey {
+  return key in modules;
+}
+
+export function getModuleConfig(key: ModuleKey): ModuleConfig {
+  return modules[key];
+}
+
+export function findModuleByPath(path: string): ModuleKey | null {
+  for (const [key, config] of Object.entries(modules)) {
+    for (const link of config.sidebarLinks) {
+      if (path.startsWith(link.href)) {
+        return key as ModuleKey;
+      }
+    }
+  }
+  return null;
+}
