@@ -134,7 +134,7 @@ export function CheckForm({
   const form = useForm<CheckFormData>({
     resolver: zodResolver(checkFormSchema),
     defaultValues: {
-      type: initialData?.type ?? preselectedType ?? 'RECEIVED',
+      type: initialData?.checkType ?? preselectedType ?? 'RECEIVED',
       checkNumber: initialData?.checkNumber ?? '',
       bankAccountId: initialData?.bankAccountId ?? preselectedAccountId ?? '',
       issueDate: initialData?.issueDate ?? new Date().toISOString().split('T')[0],
@@ -192,16 +192,16 @@ export function CheckForm({
 
     try {
       const saveData: CreateCheckData = {
-        type: data.type,
+        checkType: data.type, // <-- Renamed from 'type'
         checkNumber: data.checkNumber,
         bankAccountId: data.bankAccountId,
         issueDate: data.issueDate,
         dueDate: data.dueDate || undefined,
         amount: data.amount,
-        currency: data.currency,
+        // currency: data.currency, // <-- Removed, not in backend DTO
         partnerName: data.partnerName,
         description: data.description || undefined,
-        notes: data.notes || undefined,
+        // notes: data.notes || undefined, // <-- Removed, not in backend DTO
       };
 
       await onSave(saveData);

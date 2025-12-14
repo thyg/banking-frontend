@@ -6,27 +6,61 @@
  * @version 1.0.0 - Incrément 3
  */
 
-import {
+import type {
   BankTransaction,
   CreateBankTransactionData,
   UpdateBankTransactionData,
-  BankTransactionFilters,
-  PaginatedResult,
+  TransactionFilters,
 } from '@/types/banking';
 
-import {
-  mockBankTransactions,
-  mockBankAccounts,
-  mockTransactionTypes,
-  generateId,
-  getCurrentTimestamp,
-} from '@/lib/mock-db';
+import { mockBankAccounts, mockTransactionTypes } from '@/lib/mock-db'; // Keep for enrich
+import { mockBankTransactions } from './mock-db';
 
 // =============================================================================
-// UTILITAIRES
+// CONFIGURATION
 // =============================================================================
 
-const wait = (ms: number = 300) => new Promise(resolve => setTimeout(resolve, ms));
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+
+const headers = {
+  'Content-Type': 'application/json',
+};
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * Gère la réponse HTTP et extrait le JSON ou lance une erreur.
+ */
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const errorText = await response.text();
+    try {
+      const error = JSON.parse(errorText);
+      throw new Error(error.message || `Erreur HTTP: ${response.status}`);
+    } catch (e) {
+      throw new Error(errorText || `Erreur HTTP: ${response.status}`);
+    }
+  }
+  return response.json();
+}
+
+/**
+ * Construit une URL avec des paramètres de requête.
+ */
+function buildUrl(path: string, params?: Record<string, any>): string {
+  const url = new URL(`${API_BASE_URL}${path}`);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        url.searchParams.append(key, String(value));
+      }
+    });
+  }
+  return url.toString();
+}
+
 
 /**
  * Enrichit une transaction avec les données dénormalisées.
@@ -80,120 +114,34 @@ function calculateRunningBalances(
  * Récupère les transactions bancaires avec filtres optionnels.
  */
 export async function getBankTransactions(
-  filters?: BankTransactionFilters
+  filters?: TransactionFilters
 ): Promise<BankTransaction[]> {
-  await wait(300);
   console.log('[API] getBankTransactions - filters:', filters);
-  
-  let transactions = [...mockBankTransactions].map(enrichTransaction);
-  
-  // Appliquer les filtres
-  if (filters) {
-    if (filters.bankAccountId) {
-      transactions = transactions.filter(t => t.bankAccountId === filters.bankAccountId);
-    }
-    if (filters.transactionTypeId) {
-      transactions = transactions.filter(t => t.transactionTypeId === filters.transactionTypeId);
-    }
-    if (filters.direction) {
-      transactions = transactions.filter(t => t.direction === filters.direction);
-    }
-    if (filters.status) {
-      transactions = transactions.filter(t => t.status === filters.status);
-    }
-    if (filters.dateFrom) {
-      transactions = transactions.filter(t => t.transactionDate >= filters.dateFrom!);
-    }
-    if (filters.dateTo) {
-      transactions = transactions.filter(t => t.transactionDate <= filters.dateTo!);
-    }
-    if (filters.minAmount !== undefined) {
-      transactions = transactions.filter(t => t.amount >= filters.minAmount!);
-    }
-    if (filters.maxAmount !== undefined) {
-      transactions = transactions.filter(t => t.amount <= filters.maxAmount!);
-    }
-    if (filters.isReconciled !== undefined) {
-      transactions = transactions.filter(t => t.isReconciled === filters.isReconciled);
-    }
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      transactions = transactions.filter(t => 
-        t.label.toLowerCase().includes(searchLower) ||
-        t.reference?.toLowerCase().includes(searchLower) ||
-        t.partnerName?.toLowerCase().includes(searchLower)
-      );
-    }
-  }
-  
-  // Trier par date décroissante
-  transactions.sort((a, b) => 
-    new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
-  );
-  
-  return transactions;
+  const response = await fetch(buildUrl('/bank-transactions', filters));
+  return handleResponse<BankTransaction[]>(response);
 }
+
 
 /**
  * Récupère les transactions bancaires avec solde courant calculé.
  */
 export async function getBankTransactionsWithBalance(
   bankAccountId: string,
-  filters?: BankTransactionFilters
+  filters?: TransactionFilters
 ): Promise<{ transactions: BankTransaction[]; startingBalance: number }> {
-  await wait(350);
-  console.log('[API] getBankTransactionsWithBalance - accountId:', bankAccountId);
-  
-  // Récupérer le compte pour le solde initial
-  const account = mockBankAccounts.find(a => a.id === bankAccountId);
-  if (!account) {
-    throw new Error('Compte bancaire introuvable.');
-  }
-  
-  // Récupérer les transactions du compte
-  let transactions = mockBankTransactions
-    .filter(t => t.bankAccountId === bankAccountId)
-    .map(enrichTransaction);
-  
-  // Appliquer les filtres additionnels
-  if (filters) {
-    if (filters.dateFrom) {
-      transactions = transactions.filter(t => t.transactionDate >= filters.dateFrom!);
-    }
-    if (filters.dateTo) {
-      transactions = transactions.filter(t => t.transactionDate <= filters.dateTo!);
-    }
-  }
-  
-  // Pour le calcul du solde courant, on prend le solde actuel et on remonte
-  // NOTE: En production, le backend fournirait le solde de départ pour la période
-  const startingBalance = account.currentBalance - transactions.reduce((sum, t) => {
-    return sum + (t.direction === 'CREDIT' ? t.amount : -t.amount);
-  }, 0);
-  
-  // Calculer les soldes courants
-  const transactionsWithBalance = calculateRunningBalances(transactions, startingBalance);
-  
-  // Retourner triées par date décroissante pour l'affichage
-  transactionsWithBalance.sort((a, b) => 
-    new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
-  );
-  
-  return {
-    transactions: transactionsWithBalance,
-    startingBalance,
-  };
+    console.log('[API] getBankTransactionsWithBalance - accountId:', bankAccountId);
+
+  const response = await fetch(buildUrl(`/bank-transactions/with-balance/${bankAccountId}`, filters));
+  return handleResponse<{ transactions: BankTransaction[]; startingBalance: number }>(response);
 }
 
 /**
  * Récupère une transaction par son ID.
  */
 export async function getBankTransactionById(id: string): Promise<BankTransaction | null> {
-  await wait(150);
   console.log('[API] getBankTransactionById:', id);
-  
-  const txn = mockBankTransactions.find(t => t.id === id);
-  return txn ? enrichTransaction(txn) : null;
+  const response = await fetch(buildUrl(`/bank-transactions/${id}`));
+  return handleResponse<BankTransaction | null>(response);
 }
 
 /**
@@ -202,55 +150,15 @@ export async function getBankTransactionById(id: string): Promise<BankTransactio
 export async function createBankTransaction(
   data: CreateBankTransactionData
 ): Promise<BankTransaction> {
-  await wait(400);
   console.log('[API] createBankTransaction:', data);
-  
-  // Vérifier que le compte existe
-  const account = mockBankAccounts.find(a => a.id === data.bankAccountId);
-  if (!account) {
-    throw new Error('Compte bancaire introuvable.');
-  }
-  
-  // Vérifier que le type de transaction existe
-  const transactionType = mockTransactionTypes.find(t => t.id === data.transactionTypeId);
-  if (!transactionType) {
-    throw new Error('Type de transaction introuvable.');
-  }
-  
-  // Vérifier la cohérence direction/type
-  if (transactionType.direction !== 'BOTH' && transactionType.direction !== data.direction) {
-    throw new Error(`Ce type de transaction ne permet que les opérations de type ${transactionType.direction}.`);
-  }
-  
-  const newTransaction: BankTransaction = {
-    id: generateId(),
-    ...data,
-    bankAccountName: account.name,
-    transactionTypeCode: transactionType.code,
-    transactionTypeLabel: transactionType.label,
-    status: data.status || 'DRAFT',
-    isReconciled: false,
-    createdAt: getCurrentTimestamp(),
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  mockBankTransactions.push(newTransaction);
-  
-  // Mettre à jour le solde du compte si la transaction est validée
-  if (newTransaction.status === 'VALIDATED') {
-    const accountIndex = mockBankAccounts.findIndex(a => a.id === data.bankAccountId);
-    if (accountIndex !== -1) {
-      if (data.direction === 'CREDIT') {
-        mockBankAccounts[accountIndex].currentBalance += data.amount;
-      } else {
-        mockBankAccounts[accountIndex].currentBalance -= data.amount;
-      }
-      mockBankAccounts[accountIndex].updatedAt = getCurrentTimestamp();
-    }
-  }
-  
-  console.log('[API] Transaction créée:', newTransaction.id);
-  return enrichTransaction(newTransaction);
+
+  const response = await fetch(buildUrl('/bank-transactions'), {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+
+  return handleResponse<BankTransaction>(response);
 }
 
 /**
@@ -260,106 +168,48 @@ export async function updateBankTransaction(
   id: string,
   data: UpdateBankTransactionData
 ): Promise<BankTransaction> {
-  await wait(350);
   console.log('[API] updateBankTransaction:', id, data);
-  
-  const index = mockBankTransactions.findIndex(t => t.id === id);
-  if (index === -1) {
-    throw new Error('Transaction introuvable.');
-  }
-  
-  const existingTxn = mockBankTransactions[index];
-  
-  // Empêcher la modification si déjà rapprochée
-  if (existingTxn.isReconciled && data.status !== 'CANCELLED') {
-    throw new Error('Une transaction rapprochée ne peut pas être modifiée.');
-  }
-  
-  // Empêcher la modification si validée (sauf annulation)
-  if (existingTxn.status === 'VALIDATED' && data.status !== 'CANCELLED') {
-    throw new Error('Une transaction validée ne peut pas être modifiée. Annulez-la d\'abord.');
-  }
-  
-  // Gérer le changement de statut
-  const oldStatus = existingTxn.status;
-  const newStatus = data.status || oldStatus;
-  
-  // Si on passe de DRAFT à VALIDATED, mettre à jour le solde
-  if (oldStatus === 'DRAFT' && newStatus === 'VALIDATED') {
-    const accountIndex = mockBankAccounts.findIndex(a => a.id === existingTxn.bankAccountId);
-    if (accountIndex !== -1) {
-      const amount = data.amount || existingTxn.amount;
-      const direction = data.direction || existingTxn.direction;
-      
-      if (direction === 'CREDIT') {
-        mockBankAccounts[accountIndex].currentBalance += amount;
-      } else {
-        mockBankAccounts[accountIndex].currentBalance -= amount;
-      }
-      mockBankAccounts[accountIndex].updatedAt = getCurrentTimestamp();
-    }
-  }
-  
-  // Si on annule une transaction validée, rétablir le solde
-  if (oldStatus === 'VALIDATED' && newStatus === 'CANCELLED') {
-    const accountIndex = mockBankAccounts.findIndex(a => a.id === existingTxn.bankAccountId);
-    if (accountIndex !== -1) {
-      if (existingTxn.direction === 'CREDIT') {
-        mockBankAccounts[accountIndex].currentBalance -= existingTxn.amount;
-      } else {
-        mockBankAccounts[accountIndex].currentBalance += existingTxn.amount;
-      }
-      mockBankAccounts[accountIndex].updatedAt = getCurrentTimestamp();
-    }
-  }
-  
-  mockBankTransactions[index] = {
-    ...existingTxn,
-    ...data,
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  return enrichTransaction(mockBankTransactions[index]);
+  const response = await fetch(buildUrl(`/bank-transactions/${id}`), {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<BankTransaction>(response);
 }
 
 /**
  * Supprime une transaction bancaire (brouillon uniquement).
  */
 export async function deleteBankTransaction(id: string): Promise<void> {
-  await wait(300);
   console.log('[API] deleteBankTransaction:', id);
-  
-  const index = mockBankTransactions.findIndex(t => t.id === id);
-  if (index === -1) {
-    throw new Error('Transaction introuvable.');
+  const response = await fetch(buildUrl(`/bank-transactions/${id}`), {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(await response.text());
   }
-  
-  const txn = mockBankTransactions[index];
-  
-  if (txn.status !== 'DRAFT') {
-    throw new Error('Seules les transactions en brouillon peuvent être supprimées.');
-  }
-  
-  if (txn.isReconciled) {
-    throw new Error('Une transaction rapprochée ne peut pas être supprimée.');
-  }
-  
-  mockBankTransactions.splice(index, 1);
-  console.log('[API] Transaction supprimée:', id);
 }
 
 /**
  * Valide une transaction en brouillon.
  */
 export async function validateBankTransaction(id: string): Promise<BankTransaction> {
-  return updateBankTransaction(id, { status: 'VALIDATED' });
+    console.log('[API] validateBankTransaction:', id);
+    const response = await fetch(buildUrl(`/bank-transactions/${id}/validate`), {
+        method: 'POST',
+    });
+    return handleResponse<BankTransaction>(response);
 }
 
 /**
  * Annule une transaction.
  */
 export async function cancelBankTransaction(id: string): Promise<BankTransaction> {
-  return updateBankTransaction(id, { status: 'CANCELLED' });
+    console.log('[API] cancelBankTransaction:', id);
+    const response = await fetch(buildUrl(`/bank-transactions/${id}/cancel`), {
+        method: 'POST',
+    });
+    return handleResponse<BankTransaction>(response);
 }
 
 // =============================================================================
@@ -382,34 +232,15 @@ export async function getBankTransactionStats(
   reconciledCount: number;
   draftCount: number;
 }> {
-  await wait(200);
   console.log('[API] getBankTransactionStats');
-  
-  let transactions = [...mockBankTransactions];
-  
-  if (bankAccountId) {
-    transactions = transactions.filter(t => t.bankAccountId === bankAccountId);
-  }
-  if (dateFrom) {
-    transactions = transactions.filter(t => t.transactionDate >= dateFrom);
-  }
-  if (dateTo) {
-    transactions = transactions.filter(t => t.transactionDate <= dateTo);
-  }
-  
-  // Exclure les annulées des stats
-  transactions = transactions.filter(t => t.status !== 'CANCELLED');
-  
-  const credits = transactions.filter(t => t.direction === 'CREDIT');
-  const debits = transactions.filter(t => t.direction === 'DEBIT');
-  
-  return {
-    totalTransactions: transactions.length,
-    totalCredits: credits.length,
-    totalDebits: debits.length,
-    creditAmount: credits.reduce((sum, t) => sum + t.amount, 0),
-    debitAmount: debits.reduce((sum, t) => sum + t.amount, 0),
-    reconciledCount: transactions.filter(t => t.isReconciled).length,
-    draftCount: transactions.filter(t => t.status === 'DRAFT').length,
-  };
+  const response = await fetch(buildUrl('/bank-transactions/stats', { bankAccountId, dateFrom, dateTo }));
+  return handleResponse<{
+    totalTransactions: number;
+    totalCredits: number;
+    totalDebits: number;
+    creditAmount: number;
+    debitAmount: number;
+    reconciledCount: number;
+    draftCount: number;
+  }>(response);
 }

@@ -9,7 +9,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { BankTransaction, BankTransactionFilters } from '@/types/banking';
+import { BankTransaction, TransactionFilters } from '@/types/banking';
 
 // Composants UI
 import { Button } from '@/components/ui/button';
@@ -135,8 +135,8 @@ function StatusBadge({ status }: { status: string }) {
 interface BankTransactionListProps {
   transactions: BankTransaction[];
   isLoading: boolean;
-  filters: BankTransactionFilters;
-  onFiltersChange: (filters: BankTransactionFilters) => void;
+  filters: TransactionFilters;
+  onFiltersChange: (filters: TransactionFilters) => void;
   onAddNew: () => void;
   onEdit: (transaction: BankTransaction) => void;
   onDelete: (transaction: BankTransaction) => void;

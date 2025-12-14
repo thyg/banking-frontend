@@ -1,8 +1,10 @@
 /**
  * @file app/(dashboard)/banking/statements/[id]/page.tsx
- * @description Page de rapprochement d'un releve bancaire.
+ * @description Page de rapprochement d'un relevé bancaire.
  * 
- * @version 1.1.0 - Fix: Type stats compatible avec StatementLinesTableProps
+ * @version 2.0.0 - Fix: Routes de navigation corrigées (/dashboard/banking/...)
+ * @author RT-ComOps Team
+ * @since 2024-12-12
  */
 
 "use client";
@@ -11,15 +13,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 // Types
-import {
+import type {
   BankStatement,
+  StatementLine,
   BankStatementLine,
   TransactionType,
   ReconciliationSuggestion,
   ReconciliationStats,
 } from '@/types/banking';
 
-// API
+// API - Utilise le backend réel
 import {
   getBankStatementById,
   getStatementLines,
@@ -61,6 +64,16 @@ import {
 import { useToast } from '@/components/ui/use-toast';
 
 // =============================================================================
+// CONSTANTES - ROUTES
+// =============================================================================
+
+/**
+ * Préfixe des routes banking.
+ * IMPORTANT: Modifier cette constante si la structure de routing change.
+ */
+const BANKING_BASE_ROUTE = '/banking';
+
+// =============================================================================
 // UTILITAIRES
 // =============================================================================
 
@@ -70,6 +83,15 @@ const formatDate = (dateString: string) =>
     month: 'long',
     year: 'numeric',
   });
+
+const formatCurrency = (amount: number, currency: string = 'XAF') => {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+};
 
 // =============================================================================
 // COMPOSANT PRINCIPAL
@@ -82,9 +104,12 @@ export default function StatementReconciliationPage() {
   
   const statementId = params.id as string;
 
-  // Etats
+  // ---------------------------------------------------------------------------
+  // ÉTATS
+  // ---------------------------------------------------------------------------
+  
   const [statement, setStatement] = useState<BankStatement | null>(null);
-  const [lines, setLines] = useState<BankStatementLine[]>([]);
+  const [lines, setLines] = useState<StatementLine[]>([]);
   const [transactionTypes, setTransactionTypes] = useState<TransactionType[]>([]);
   const [stats, setStats] = useState<ReconciliationStats | null>(null);
   
@@ -96,7 +121,10 @@ export default function StatementReconciliationPage() {
   const [isAutoReconciling, setIsAutoReconciling] = useState(false);
   const [showAutoReconcileDialog, setShowAutoReconcileDialog] = useState(false);
 
-  // Chargement initial
+  // ---------------------------------------------------------------------------
+  // CHARGEMENT INITIAL
+  // ---------------------------------------------------------------------------
+  
   const fetchData = useCallback(async () => {
     setIsLoadingPage(true);
     try {
@@ -112,8 +140,10 @@ export default function StatementReconciliationPage() {
       setTransactionTypes(typesData);
       setStats(statsData);
       
-      // Selectionner la premiere ligne non rapprochee
-      const firstUnreconciled = linesData.find(l => !l.isReconciled);
+      // Sélectionner la première ligne non rapprochée
+      const firstUnreconciled = linesData.find(l => 
+        l.reconciliationStatus === 'UNMATCHED' && !l.isReconciled
+      );
       if (firstUnreconciled) {
         setSelectedLineId(firstUnreconciled.id);
       }
@@ -122,7 +152,7 @@ export default function StatementReconciliationPage() {
       toast({
         variant: 'destructive',
         title: 'Erreur',
-        description: 'Impossible de charger le releve.',
+        description: error instanceof Error ? error.message : 'Impossible de charger le relevé.',
       });
     } finally {
       setIsLoadingPage(false);
@@ -133,7 +163,10 @@ export default function StatementReconciliationPage() {
     fetchData();
   }, [fetchData]);
 
-  // Charger les suggestions quand une ligne est selectionnee
+  // ---------------------------------------------------------------------------
+  // CHARGEMENT DES SUGGESTIONS
+  // ---------------------------------------------------------------------------
+  
   const fetchSuggestions = useCallback(async (lineId: string) => {
     setIsLoadingSuggestions(true);
     setSuggestions([]);
@@ -150,7 +183,7 @@ export default function StatementReconciliationPage() {
   useEffect(() => {
     if (selectedLineId) {
       const line = lines.find(l => l.id === selectedLineId);
-      if (line && !line.isReconciled) {
+      if (line && line.reconciliationStatus === 'UNMATCHED' && !line.isReconciled) {
         fetchSuggestions(selectedLineId);
       } else {
         setSuggestions([]);
@@ -158,22 +191,36 @@ export default function StatementReconciliationPage() {
     }
   }, [selectedLineId, lines, fetchSuggestions]);
 
-  // Rafraichir les lignes et stats
+  // ---------------------------------------------------------------------------
+  // RAFRAÎCHISSEMENT
+  // ---------------------------------------------------------------------------
+  
   const refreshLines = async () => {
-    const [linesData, statsData] = await Promise.all([
-      getStatementLines(statementId),
-      getStatementReconciliationStats(statementId),
-    ]);
-    setLines(linesData);
-    setStats(statsData);
+    try {
+      const [linesData, statsData] = await Promise.all([
+        getStatementLines(statementId),
+        getStatementReconciliationStats(statementId),
+      ]);
+      setLines(linesData);
+      setStats(statsData);
+    } catch (error) {
+      console.error('[ReconciliationPage] Erreur refresh:', error);
+    }
   };
 
-  // Selectionner la prochaine ligne non rapprochee
+  // ---------------------------------------------------------------------------
+  // SÉLECTION DE LA PROCHAINE LIGNE
+  // ---------------------------------------------------------------------------
+  
   const selectNextUnreconciled = (currentLineId: string) => {
     const currentIndex = lines.findIndex(l => l.id === currentLineId);
     const nextUnreconciled = lines.find(
-      (l, index) => index > currentIndex && !l.isReconciled
-    ) || lines.find(l => !l.isReconciled);
+      (l, index) => index > currentIndex && 
+        l.reconciliationStatus === 'UNMATCHED' && 
+        !l.isReconciled
+    ) || lines.find(l => 
+      l.reconciliationStatus === 'UNMATCHED' && !l.isReconciled
+    );
     
     if (nextUnreconciled) {
       setSelectedLineId(nextUnreconciled.id);
@@ -182,7 +229,10 @@ export default function StatementReconciliationPage() {
     }
   };
 
-  // Handlers
+  // ---------------------------------------------------------------------------
+  // HANDLERS
+  // ---------------------------------------------------------------------------
+  
   const handleSelectLine = (lineId: string) => {
     if (selectedLineId === lineId) {
       setSelectedLineId(null);
@@ -200,8 +250,8 @@ export default function StatementReconciliationPage() {
       
       if (result.success) {
         toast({
-          title: 'Ligne rapprochee',
-          description: `Rapprochee avec ${suggestion.reference}`,
+          title: 'Ligne rapprochée',
+          description: `Rapprochée avec ${suggestion.reference}`,
         });
         
         await refreshLines();
@@ -210,14 +260,14 @@ export default function StatementReconciliationPage() {
         toast({
           variant: 'destructive',
           title: 'Erreur',
-          description: result.error || 'Echec du rapprochement',
+          description: result.error || 'Échec du rapprochement',
         });
       }
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Erreur',
-        description: 'Une erreur est survenue',
+        description: error instanceof Error ? error.message : 'Une erreur est survenue',
       });
     }
   };
@@ -231,8 +281,8 @@ export default function StatementReconciliationPage() {
       
       if (result.success) {
         toast({
-          title: 'Transaction creee',
-          description: 'Transaction creee et rapprochee avec succes',
+          title: 'Transaction créée',
+          description: 'Transaction créée et rapprochée avec succès',
         });
         
         await refreshLines();
@@ -241,14 +291,14 @@ export default function StatementReconciliationPage() {
         toast({
           variant: 'destructive',
           title: 'Erreur',
-          description: result.error || 'Echec de la creation',
+          description: result.error || 'Échec de la création',
         });
       }
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Erreur',
-        description: 'Une erreur est survenue',
+        description: error instanceof Error ? error.message : 'Une erreur est survenue',
       });
     }
   };
@@ -261,22 +311,27 @@ export default function StatementReconciliationPage() {
       const result = await bulkReconcile(statementId);
       
       toast({
-        title: 'Rapprochement automatique termine',
-        description: `${result.reconciled} lignes rapprochees, ${result.skipped} ignorees`,
+        title: 'Rapprochement automatique terminé',
+        description: `${result.reconciled} lignes rapprochées, ${result.skipped} ignorées`,
       });
       
       await refreshLines();
       
-      // Selectionner la premiere ligne non rapprochee
-      const firstUnreconciled = lines.find(l => !l.isReconciled);
+      // Sélectionner la première ligne non rapprochée
+      const updatedLines = await getStatementLines(statementId);
+      const firstUnreconciled = updatedLines.find(l => 
+        l.reconciliationStatus === 'UNMATCHED' && !l.isReconciled
+      );
       if (firstUnreconciled) {
         setSelectedLineId(firstUnreconciled.id);
+      } else {
+        setSelectedLineId(null);
       }
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Erreur',
-        description: 'Echec du rapprochement automatique',
+        description: error instanceof Error ? error.message : 'Échec du rapprochement automatique',
       });
     } finally {
       setIsAutoReconciling(false);
@@ -288,12 +343,24 @@ export default function StatementReconciliationPage() {
     setSuggestions([]);
   };
 
-  // Ligne selectionnee
+  /**
+   * Retour à la liste des relevés.
+   * IMPORTANT: Utilise BANKING_BASE_ROUTE pour le bon chemin.
+   */
+  const handleBackToStatements = () => {
+    router.push(`${BANKING_BASE_ROUTE}/statements`);
+  };
+
+  // ---------------------------------------------------------------------------
+  // DONNÉES DÉRIVÉES
+  // ---------------------------------------------------------------------------
+  
+  // Ligne sélectionnée
   const selectedLine = selectedLineId 
     ? lines.find(l => l.id === selectedLineId) || null
     : null;
 
-  // Stats formatees pour le composant StatementLinesTable
+  // Stats formatées pour le composant StatementLinesTable
   const tableStats = stats ? {
     total: stats.totalLines,
     reconciled: stats.reconciledLines,
@@ -302,10 +369,9 @@ export default function StatementReconciliationPage() {
   } : undefined;
 
   // ---------------------------------------------------------------------------
-  // RENDU
+  // RENDU - CHARGEMENT
   // ---------------------------------------------------------------------------
-
-  // Chargement
+  
   if (isLoadingPage) {
     return (
       <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -329,19 +395,25 @@ export default function StatementReconciliationPage() {
     );
   }
 
-  // Releve non trouve
+  // ---------------------------------------------------------------------------
+  // RENDU - RELEVÉ NON TROUVÉ
+  // ---------------------------------------------------------------------------
+  
   if (!statement) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
         <Card>
           <CardContent className="py-16 text-center">
-            <p className="text-gray-500">Releve non trouve</p>
+            <p className="text-gray-500 mb-4">Relevé non trouvé</p>
+            <p className="text-sm text-gray-400 mb-6">
+              Le relevé demandé n'existe pas ou a été supprimé.
+            </p>
             <Button
               variant="outline"
-              className="mt-4"
-              onClick={() => router.push('/banking/statements')}
+              onClick={handleBackToStatements}
             >
-              Retour aux releves
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Retour aux relevés
             </Button>
           </CardContent>
         </Card>
@@ -349,24 +421,29 @@ export default function StatementReconciliationPage() {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // RENDU PRINCIPAL
+  // ---------------------------------------------------------------------------
+  
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-      {/* En-tete */}
+      {/* En-tête */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.push('/banking/statements')}
+            onClick={handleBackToStatements}
+            title="Retour aux relevés"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-              {statement.name}
+              {statement.name || statement.reference || `Relevé du ${formatDate(statement.statementDate)}`}
             </h1>
             <p className="text-gray-500">
-              {statement.bankAccountName} - {formatDate(statement.periodStart)} au {formatDate(statement.periodEnd)}
+              {statement.bankAccountName} • {formatDate(statement.periodStart)} au {formatDate(statement.periodEnd)}
             </p>
           </div>
         </div>
@@ -410,7 +487,7 @@ export default function StatementReconciliationPage() {
             {stats.percentage}%
           </Badge>
           <span className="text-sm text-gray-500">
-            {stats.reconciledLines} sur {stats.totalLines} lignes rapprochees
+            {stats.reconciledLines} sur {stats.totalLines} lignes rapprochées
           </span>
           <Progress value={stats.percentage} className="flex-1 h-2" />
         </div>
@@ -451,7 +528,7 @@ export default function StatementReconciliationPage() {
             <AlertDialogTitle>Rapprochement automatique</AlertDialogTitle>
             <AlertDialogDescription>
               Cette action va rapprocher automatiquement toutes les lignes 
-              ayant une correspondance exacte (score superieur ou egal a 90% et montant identique).
+              ayant une correspondance exacte (score supérieur ou égal à 90% et montant identique).
               <br /><br />
               <strong>{stats?.pendingLines || 0}</strong> lignes sont en attente de rapprochement.
             </AlertDialogDescription>

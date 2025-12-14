@@ -11,10 +11,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 // Types
-import { 
-  BankTransaction, 
-  BankTransactionFilters,
-  CreateBankTransactionData 
+import {
+  BankTransaction,
+  TransactionFilters,
+  CreateBankTransactionData
 } from '@/types/banking';
 
 // API
@@ -62,7 +62,7 @@ export default function BankTransactionsPage() {
   
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState<BankTransactionFilters>({});
+  const [filters, setFilters] = useState<TransactionFilters>({});
   
   // Modales
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -279,8 +279,8 @@ export default function BankTransactionsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Supprimer cette transaction ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Vous êtes sur le point de supprimer la transaction 
-              "{transactionToDelete?.label}". Cette action est irréversible.
+              Vous êtes sur le point de supprimer la transaction
+              "{transactionToDelete?.reference || transactionToDelete?.description}". Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

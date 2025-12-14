@@ -3,7 +3,9 @@
  * @description Page de gestion des chèques (émis et reçus).
  * Orchestre les composants de liste et formulaire avec gestion des actions.
  * 
- * @version 1.0.0 - Incrément 3
+ * @version 2.0.0 - Fix: Imports corrigés pour utiliser lib/api/check.ts (backend réel)
+ * @author RT-ComOps Team
+ * @since 2024-12-12
  */
 
 "use client";
@@ -11,14 +13,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 // Types
-import { 
+import type { 
   Check, 
   CheckFilters,
   CheckType,
-  CreateCheckData 
+  CreateCheckData,
+  UpdateCheckData,
 } from '@/types/banking';
 
-// API
+// API - IMPORTANT: Utilise lib/api/check.ts qui appelle le backend
 import { 
   getChecks,
   createCheck,
@@ -88,6 +91,9 @@ export default function ChecksPage() {
   const [rejectDate, setRejectDate] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   
+  // États de chargement pour les actions
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const { toast } = useToast();
 
   // ---------------------------------------------------------------------------
@@ -104,7 +110,7 @@ export default function ChecksPage() {
       toast({
         variant: 'destructive',
         title: 'Erreur',
-        description: 'Impossible de charger les chèques.',
+        description: error instanceof Error ? error.message : 'Impossible de charger les chèques.',
       });
     } finally {
       setIsLoading(false);
@@ -132,9 +138,10 @@ export default function ChecksPage() {
   };
 
   const handleSave = async (data: CreateCheckData) => {
+    setIsSubmitting(true);
     try {
       if (editingCheck) {
-        await updateCheck(editingCheck.id, data);
+        await updateCheck(editingCheck.id, data as UpdateCheckData);
         toast({
           title: 'Chèque modifié',
           description: 'Le chèque a été mis à jour avec succès.',
@@ -157,12 +164,15 @@ export default function ChecksPage() {
         title: 'Erreur',
         description: error instanceof Error ? error.message : 'Erreur lors de la sauvegarde.',
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleConfirmDelete = async () => {
     if (!checkToDelete) return;
     
+    setIsSubmitting(true);
     try {
       await deleteCheck(checkToDelete.id);
       toast({
@@ -179,6 +189,7 @@ export default function ChecksPage() {
       });
     } finally {
       setCheckToDelete(null);
+      setIsSubmitting(false);
     }
   };
 
@@ -192,6 +203,7 @@ export default function ChecksPage() {
   const handleConfirmDeposit = async () => {
     if (!checkToDeposit) return;
     
+    setIsSubmitting(true);
     try {
       await depositCheck(checkToDeposit.id, depositDate || undefined);
       toast({
@@ -209,6 +221,7 @@ export default function ChecksPage() {
     } finally {
       setCheckToDeposit(null);
       setDepositDate('');
+      setIsSubmitting(false);
     }
   };
 
@@ -218,10 +231,11 @@ export default function ChecksPage() {
   const handleConfirmCash = async () => {
     if (!checkToCash) return;
     
+    setIsSubmitting(true);
     try {
       await cashCheck(checkToCash.id, cashDate || undefined);
       toast({
-        title: checkToCash.type === 'RECEIVED' ? 'Chèque encaissé' : 'Chèque débité',
+        title: checkToCash.checkType === 'RECEIVED' ? 'Chèque encaissé' : 'Chèque débité',
         description: 'Le chèque a été traité et la transaction bancaire créée.',
       });
       await fetchChecks();
@@ -235,6 +249,7 @@ export default function ChecksPage() {
     } finally {
       setCheckToCash(null);
       setCashDate('');
+      setIsSubmitting(false);
     }
   };
 
@@ -244,6 +259,7 @@ export default function ChecksPage() {
   const handleConfirmReject = async () => {
     if (!checkToReject || !rejectReason.trim()) return;
     
+    setIsSubmitting(true);
     try {
       await rejectCheck(checkToReject.id, rejectReason, rejectDate || undefined);
       toast({
@@ -263,6 +279,7 @@ export default function ChecksPage() {
       setCheckToReject(null);
       setRejectDate('');
       setRejectReason('');
+      setIsSubmitting(false);
     }
   };
 
@@ -272,6 +289,7 @@ export default function ChecksPage() {
   const handleConfirmCancel = async () => {
     if (!checkToCancel) return;
     
+    setIsSubmitting(true);
     try {
       await cancelCheck(checkToCancel.id);
       toast({
@@ -288,6 +306,7 @@ export default function ChecksPage() {
       });
     } finally {
       setCheckToCancel(null);
+      setIsSubmitting(false);
     }
   };
 
@@ -352,12 +371,13 @@ export default function ChecksPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
+              disabled={isSubmitting}
               className="bg-red-600 hover:bg-red-700"
             >
-              Supprimer
+              {isSubmitting ? 'Suppression...' : 'Supprimer'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -387,9 +407,9 @@ export default function ChecksPage() {
             />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDeposit}>
-              Confirmer la remise
+            <AlertDialogCancel disabled={isSubmitting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDeposit} disabled={isSubmitting}>
+              {isSubmitting ? 'En cours...' : 'Confirmer la remise'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -403,19 +423,19 @@ export default function ChecksPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {checkToCash?.type === 'RECEIVED' 
+              {checkToCash?.checkType === 'RECEIVED' 
                 ? 'Marquer le chèque comme encaissé ?' 
                 : 'Marquer le chèque comme débité ?'}
             </AlertDialogTitle>
             <AlertDialogDescription>
               Une transaction bancaire sera automatiquement créée pour refléter 
-              {checkToCash?.type === 'RECEIVED' ? ' l\'encaissement' : ' le débit'} 
+              {checkToCash?.checkType === 'RECEIVED' ? ' l\'encaissement' : ' le débit'} 
               de ce chèque.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">
             <Label htmlFor="cashDate">
-              Date {checkToCash?.type === 'RECEIVED' ? "d'encaissement" : 'de débit'}
+              Date {checkToCash?.checkType === 'RECEIVED' ? "d'encaissement" : 'de débit'}
             </Label>
             <Input
               id="cashDate"
@@ -426,9 +446,9 @@ export default function ChecksPage() {
             />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmCash}>
-              Confirmer
+            <AlertDialogCancel disabled={isSubmitting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCash} disabled={isSubmitting}>
+              {isSubmitting ? 'En cours...' : 'Confirmer'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -473,13 +493,13 @@ export default function ChecksPage() {
             </div>
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Annuler</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleConfirmReject}
-              disabled={!rejectReason.trim()}
+              disabled={!rejectReason.trim() || isSubmitting}
               className="bg-amber-600 hover:bg-amber-700"
             >
-              Confirmer le rejet
+              {isSubmitting ? 'En cours...' : 'Confirmer le rejet'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -499,9 +519,9 @@ export default function ChecksPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Retour</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmCancel}>
-              Confirmer l'annulation
+            <AlertDialogCancel disabled={isSubmitting}>Retour</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmCancel} disabled={isSubmitting}>
+              {isSubmitting ? 'En cours...' : 'Confirmer l\'annulation'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

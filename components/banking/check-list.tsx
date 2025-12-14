@@ -75,8 +75,8 @@ const formatDate = (dateString: string): string => {
 // SOUS-COMPOSANTS
 // =============================================================================
 
-function TypeBadge({ type }: { type: CheckType }) {
-  if (type === 'RECEIVED') {
+function TypeBadge({ checkType }: { checkType: CheckType }) {
+  if (checkType === 'RECEIVED') {
     return (
       <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
         <ArrowDownLeft className="h-3 w-3 mr-1" />
@@ -172,9 +172,9 @@ export function CheckList({
   const [activeTab, setActiveTab] = useState<'all' | 'RECEIVED' | 'ISSUED'>('all');
 
   // Filtrer par onglet
-  const filteredByTab = activeTab === 'all' 
-    ? checks 
-    : checks.filter(c => c.type === activeTab);
+  const filteredByTab = activeTab === 'all'
+    ? checks
+    : checks.filter(c => c.checkType === activeTab);
 
   // Statistiques par statut
   const pendingChecks = checks.filter(c => c.status === 'PENDING');
@@ -286,7 +286,7 @@ export function CheckList({
                 {check.checkNumber}
               </TableCell>
               <TableCell>
-                <TypeBadge type={check.type} />
+                <TypeBadge checkType={check.checkType} />
               </TableCell>
               <TableCell>
                 <div className="flex flex-col">
@@ -309,9 +309,9 @@ export function CheckList({
                 </div>
               </TableCell>
               <TableCell className={`text-right font-medium ${
-                check.type === 'RECEIVED' ? 'text-green-600' : 'text-red-600'
+                check.checkType === 'RECEIVED' ? 'text-green-600' : 'text-red-600'
               }`}>
-                {check.type === 'RECEIVED' ? '+' : '-'}
+                {check.checkType === 'RECEIVED' ? '+' : '-'}
                 {formatCurrency(check.amount, check.currency)}
               </TableCell>
               <TableCell>
@@ -335,21 +335,21 @@ export function CheckList({
                     </DropdownMenuItem>
                     
                     {/* Actions spécifiques selon le statut */}
-                    {check.type === 'RECEIVED' && check.status === 'PENDING' && onDeposit && (
+                    {check.checkType === 'RECEIVED' && check.status === 'PENDING' && onDeposit && (
                       <DropdownMenuItem onClick={() => onDeposit(check)}>
                         <Building2 className="mr-2 h-4 w-4" />
                         Remettre en banque
                       </DropdownMenuItem>
                     )}
                     
-                    {check.type === 'RECEIVED' && check.status === 'DEPOSITED' && onCash && (
+                    {check.checkType === 'RECEIVED' && check.status === 'DEPOSITED' && onCash && (
                       <DropdownMenuItem onClick={() => onCash(check)}>
                         <Banknote className="mr-2 h-4 w-4" />
                         Marquer encaissé
                       </DropdownMenuItem>
                     )}
                     
-                    {check.type === 'ISSUED' && check.status === 'PENDING' && onCash && (
+                    {check.checkType === 'ISSUED' && check.status === 'PENDING' && onCash && (
                       <DropdownMenuItem onClick={() => onCash(check)}>
                         <Banknote className="mr-2 h-4 w-4" />
                         Marquer débité
@@ -531,11 +531,11 @@ export function CheckList({
               </TabsTrigger>
               <TabsTrigger value="RECEIVED">
                 <ArrowDownLeft className="h-4 w-4 mr-1" />
-                Reçus ({checks.filter(c => c.type === 'RECEIVED').length})
+                Reçus ({checks.filter(c => c.checkType === 'RECEIVED').length})
               </TabsTrigger>
               <TabsTrigger value="ISSUED">
                 <ArrowUpRight className="h-4 w-4 mr-1" />
-                Émis ({checks.filter(c => c.type === 'ISSUED').length})
+                Émis ({checks.filter(c => c.checkType === 'ISSUED').length})
               </TabsTrigger>
             </TabsList>
           </CardHeader>

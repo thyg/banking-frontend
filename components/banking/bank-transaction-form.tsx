@@ -60,11 +60,11 @@ import { Loader2, ArrowDownLeft, ArrowUpRight, Receipt } from 'lucide-react';
 const bankTransactionFormSchema = z.object({
   bankAccountId: z.string({
     required_error: "Veuillez sélectionner un compte bancaire.",
-  }),
+  }).min(1, { message: "Veuillez sélectionner un compte bancaire." }),
   
   transactionTypeId: z.string({
     required_error: "Veuillez sélectionner un type de transaction.",
-  }),
+  }).min(1, { message: "Veuillez sélectionner un type de transaction." }),
   
   transactionDate: z.string({
     required_error: "La date de l'opération est requise.",
@@ -229,13 +229,13 @@ export function BankTransactionForm({
         transactionDate: data.transactionDate,
         valueDate: data.valueDate || undefined,
         reference: data.reference || undefined,
-        label: data.label,
+        description: data.label, // <-- Renamed from 'label'
         amount: data.amount,
         direction: data.direction,
-        currency: data.currency,
+        // currency: data.currency, // <-- Removed
         partnerName: data.partnerName || undefined,
-        notes: data.notes || undefined,
-        status: data.status,
+        // notes: data.notes || undefined, // <-- Removed
+        // status: data.status, // <-- Removed
       };
 
       await onSave(saveData);

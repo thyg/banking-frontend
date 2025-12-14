@@ -1,758 +1,472 @@
-/**
- * @file lib/api/banking.ts
- * @description API pour le module Trésorerie - Banques, Comptes, Transactions, Chèques.
- * 
- * @version 4.0.0 - Incrément 4 : Ajout fonctions pour relevés et rapprochement
- */
+// lib/api/banking.ts - API complète pour le module Banking
 
-import {
-  Bank,
-  CreateBankData,
-  UpdateBankData,
-  TransactionType,
-  CreateTransactionTypeData,
-  UpdateTransactionTypeData,
-  BankAccount,
-  CreateBankAccountData,
-  UpdateBankAccountData,
-  BankTransaction,
-  CreateBankTransactionData,
-  UpdateBankTransactionData,
-  BankTransactionFilters,
-  Check,
-  CreateCheckData,
-  UpdateCheckData,
-  CheckFilters,
-  CheckStatus,
-  BankStatement,
-  BankStatementLine,
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: 'Une erreur est survenue' }));
+    throw new Error(error.message || `Erreur HTTP: ${response.status}`);
+  }
+  return response.json();
+}
+
+function buildUrl(path: string, params?: Record<string, string | number | boolean>): string {
+  const url = new URL(`${API_BASE_URL}${path}`);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value));
+      }
+    });
+  }
+  return url.toString();
+}
+
+const headers = {
+  'Content-Type': 'application/json',
+};
+
+// ============================================================================
+// BANKS API
+// ============================================================================
+
+import type { 
+  Bank, CreateBankRequest, UpdateBankRequest,
+  TransactionType, CreateTransactionTypeRequest,
+  BankAccount, CreateBankAccountRequest, UpdateBankAccountRequest,
+  BankTransaction, CreateBankTransactionRequest,
+  Check, CreateCheckRequest,
+  BankStatement, CreateBankStatementRequest,
+  StatementLine, CreateStatementLineRequest,
+  ReconciliationMatch, ReconciliationSummary,
+  ReconcileManualRequest, AutoReconcileRequest,
+  BankingStats
 } from '@/types/banking';
 
-import {
-  mockBanks,
-  mockTransactionTypes,
-  mockBankAccounts,
-  mockBankTransactions,
-  mockChecks,
-  mockBankStatements,
-  mockStatementLines,
-  generateId,
-  getCurrentTimestamp,
-} from '@/lib/mock-db';
-
-// =============================================================================
-// UTILITAIRES
-// =============================================================================
-
-const wait = (ms: number = 300) => new Promise(resolve => setTimeout(resolve, ms));
-
-// =============================================================================
-// BANQUES (PARAMÉTRAGE)
-// =============================================================================
-
-export async function getBanks(activeOnly: boolean = false): Promise<Bank[]> {
-  await wait(200);
-  let banks = [...mockBanks];
-  if (activeOnly) {
-    banks = banks.filter(b => b.isActive);
-  }
-  return banks.sort((a, b) => a.name.localeCompare(b.name));
+export async function getBanks(activeOnly = false): Promise<Bank[]> {
+  const response = await fetch(buildUrl('/banks', { activeOnly }));
+  return handleResponse<Bank[]>(response);
 }
 
-export async function getBankById(id: string): Promise<Bank | null> {
-  await wait(100);
-  return mockBanks.find(b => b.id === id) || null;
+export async function getBankById(id: string): Promise<Bank> {
+  const response = await fetch(`${API_BASE_URL}/banks/${id}`);
+  return handleResponse<Bank>(response);
 }
 
-export async function createBank(data: CreateBankData): Promise<Bank> {
-  await wait(300);
-  
-  // Vérifier unicité du code
-  const existingCode = mockBanks.find(
-    b => b.code.toLowerCase() === data.code.toLowerCase()
-  );
-  if (existingCode) {
-    throw new Error(`Le code "${data.code}" existe déjà`);
-  }
-  
-  const newBank: Bank = {
-    id: generateId(),
-    ...data,
-    createdAt: getCurrentTimestamp(),
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  mockBanks.push(newBank);
-  return newBank;
+export async function createBank(data: CreateBankRequest): Promise<Bank> {
+  const response = await fetch(`${API_BASE_URL}/banks`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Bank>(response);
 }
 
-export async function updateBank(id: string, data: UpdateBankData): Promise<Bank> {
-  await wait(300);
-  
-  const index = mockBanks.findIndex(b => b.id === id);
-  if (index === -1) {
-    throw new Error('Banque non trouvée');
-  }
-  
-  // Vérifier unicité du code si modifié
-  if (data.code) {
-    const existingCode = mockBanks.find(
-      b => b.id !== id && b.code.toLowerCase() === data.code!.toLowerCase()
-    );
-    if (existingCode) {
-      throw new Error(`Le code "${data.code}" existe déjà`);
-    }
-  }
-  
-  mockBanks[index] = {
-    ...mockBanks[index],
-    ...data,
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  return mockBanks[index];
+export async function updateBank(id: string, data: UpdateBankRequest): Promise<Bank> {
+  const response = await fetch(`${API_BASE_URL}/banks/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Bank>(response);
 }
 
 export async function deleteBank(id: string): Promise<void> {
-  await wait(300);
-  
-  const index = mockBanks.findIndex(b => b.id === id);
-  if (index === -1) {
-    throw new Error('Banque non trouvée');
-  }
-  
-  // Vérifier qu'aucun compte n'utilise cette banque
-  const hasAccounts = mockBankAccounts.some(a => a.bankId === id);
-  if (hasAccounts) {
-    throw new Error('Impossible de supprimer: des comptes utilisent cette banque');
-  }
-  
-  mockBanks.splice(index, 1);
+  const response = await fetch(`${API_BASE_URL}/banks/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Échec de la suppression');
 }
 
-// =============================================================================
-// TYPES DE TRANSACTIONS (PARAMÉTRAGE)
-// =============================================================================
+// ============================================================================
+// TRANSACTION TYPES API
+// ============================================================================
 
-export async function getTransactionTypes(activeOnly: boolean = false): Promise<TransactionType[]> {
-  await wait(200);
-  let types = [...mockTransactionTypes];
-  if (activeOnly) {
-    types = types.filter(t => t.isActive);
-  }
-  return types.sort((a, b) => a.code.localeCompare(b.code));
+export async function getTransactionTypes(activeOnly = false): Promise<TransactionType[]> {
+  const response = await fetch(buildUrl('/transaction-types', { activeOnly }));
+  return handleResponse<TransactionType[]>(response);
 }
 
-export async function getTransactionTypeById(id: string): Promise<TransactionType | null> {
-  await wait(100);
-  return mockTransactionTypes.find(t => t.id === id) || null;
+export async function getTransactionTypeById(id: string): Promise<TransactionType> {
+  const response = await fetch(`${API_BASE_URL}/transaction-types/${id}`);
+  return handleResponse<TransactionType>(response);
 }
 
-export async function createTransactionType(data: CreateTransactionTypeData): Promise<TransactionType> {
-  await wait(300);
-  
-  const existingCode = mockTransactionTypes.find(
-    t => t.code.toLowerCase() === data.code.toLowerCase()
-  );
-  if (existingCode) {
-    throw new Error(`Le code "${data.code}" existe déjà`);
-  }
-  
-  const newType: TransactionType = {
-    id: generateId(),
-    ...data,
-    createdAt: getCurrentTimestamp(),
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  mockTransactionTypes.push(newType);
-  return newType;
+export async function createTransactionType(data: CreateTransactionTypeRequest): Promise<TransactionType> {
+  const response = await fetch(`${API_BASE_URL}/transaction-types`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<TransactionType>(response);
 }
 
-export async function updateTransactionType(
-  id: string,
-  data: UpdateTransactionTypeData
-): Promise<TransactionType> {
-  await wait(300);
-  
-  const index = mockTransactionTypes.findIndex(t => t.id === id);
-  if (index === -1) {
-    throw new Error('Type de transaction non trouvé');
-  }
-  
-  if (data.code) {
-    const existingCode = mockTransactionTypes.find(
-      t => t.id !== id && t.code.toLowerCase() === data.code!.toLowerCase()
-    );
-    if (existingCode) {
-      throw new Error(`Le code "${data.code}" existe déjà`);
-    }
-  }
-  
-  mockTransactionTypes[index] = {
-    ...mockTransactionTypes[index],
-    ...data,
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  return mockTransactionTypes[index];
+export async function updateTransactionType(id: string, data: Partial<CreateTransactionTypeRequest>): Promise<TransactionType> {
+  const response = await fetch(`${API_BASE_URL}/transaction-types/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<TransactionType>(response);
 }
 
 export async function deleteTransactionType(id: string): Promise<void> {
-  await wait(300);
-  
-  const index = mockTransactionTypes.findIndex(t => t.id === id);
-  if (index === -1) {
-    throw new Error('Type de transaction non trouvé');
-  }
-  
-  // Vérifier qu'aucune transaction n'utilise ce type
-  const hasTransactions = mockBankTransactions.some(t => t.transactionTypeId === id);
-  if (hasTransactions) {
-    throw new Error('Impossible de supprimer: des transactions utilisent ce type');
-  }
-  
-  mockTransactionTypes.splice(index, 1);
+  const response = await fetch(`${API_BASE_URL}/transaction-types/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Échec de la suppression');
 }
 
-// =============================================================================
-// COMPTES BANCAIRES
-// =============================================================================
+// ============================================================================
+// BANK ACCOUNTS API
+// ============================================================================
 
-export async function getBankAccounts(activeOnly: boolean = false): Promise<BankAccount[]> {
-  await wait(200);
-  let accounts = [...mockBankAccounts];
-  if (activeOnly) {
-    accounts = accounts.filter(a => a.isActive);
-  }
-  return accounts.sort((a, b) => a.name.localeCompare(b.name));
+export async function getBankAccounts(activeOnly = false): Promise<BankAccount[]> {
+  const response = await fetch(buildUrl('/bank-accounts', { activeOnly }));
+  return handleResponse<BankAccount[]>(response);
 }
 
-export async function getBankAccountById(id: string): Promise<BankAccount | null> {
-  await wait(100);
-  return mockBankAccounts.find(a => a.id === id) || null;
+export async function getBankAccountById(id: string): Promise<BankAccount> {
+  const response = await fetch(`${API_BASE_URL}/bank-accounts/${id}`);
+  return handleResponse<BankAccount>(response);
 }
 
-export async function createBankAccount(data: CreateBankAccountData): Promise<BankAccount> {
-  await wait(300);
-  
-  const bank = mockBanks.find(b => b.id === data.bankId);
-  if (!bank) {
-    throw new Error('Banque non trouvée');
-  }
-  
-  const newAccount: BankAccount = {
-    id: generateId(),
-    ...data,
-    bankName: bank.name,
-    currentBalance: 0,
-    reconciledBalance: 0,
-    createdAt: getCurrentTimestamp(),
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  mockBankAccounts.push(newAccount);
-  return newAccount;
+export async function getBankAccountsByBankId(bankId: string): Promise<BankAccount[]> {
+  const response = await fetch(`${API_BASE_URL}/bank-accounts/bank/${bankId}`);
+  return handleResponse<BankAccount[]>(response);
 }
 
-export async function updateBankAccount(
-  id: string,
-  data: UpdateBankAccountData
-): Promise<BankAccount> {
-  await wait(300);
-  
-  const index = mockBankAccounts.findIndex(a => a.id === id);
-  if (index === -1) {
-    throw new Error('Compte bancaire non trouvé');
-  }
-  
-  let bankName = mockBankAccounts[index].bankName;
-  if (data.bankId) {
-    const bank = mockBanks.find(b => b.id === data.bankId);
-    if (!bank) {
-      throw new Error('Banque non trouvée');
-    }
-    bankName = bank.name;
-  }
-  
-  mockBankAccounts[index] = {
-    ...mockBankAccounts[index],
-    ...data,
-    bankName,
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  return mockBankAccounts[index];
+export async function createBankAccount(data: CreateBankAccountRequest): Promise<BankAccount> {
+  const response = await fetch(`${API_BASE_URL}/bank-accounts`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<BankAccount>(response);
+}
+
+export async function updateBankAccount(id: string, data: UpdateBankAccountRequest): Promise<BankAccount> {
+  const response = await fetch(`${API_BASE_URL}/bank-accounts/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<BankAccount>(response);
 }
 
 export async function deleteBankAccount(id: string): Promise<void> {
-  await wait(300);
-  
-  const index = mockBankAccounts.findIndex(a => a.id === id);
-  if (index === -1) {
-    throw new Error('Compte bancaire non trouvé');
-  }
-  
-  // Vérifier qu'aucune transaction ni relevé n'utilise ce compte
-  const hasTransactions = mockBankTransactions.some(t => t.bankAccountId === id);
-  const hasStatements = mockBankStatements.some(s => s.bankAccountId === id);
-  
-  if (hasTransactions || hasStatements) {
-    throw new Error('Impossible de supprimer: des transactions ou relevés utilisent ce compte');
-  }
-  
-  mockBankAccounts.splice(index, 1);
+  const response = await fetch(`${API_BASE_URL}/bank-accounts/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Échec de la suppression');
 }
 
-// =============================================================================
-// TRANSACTIONS BANCAIRES
-// =============================================================================
+// ============================================================================
+// BANK TRANSACTIONS API
+// ============================================================================
 
-export async function getBankTransactions(
-  filters?: BankTransactionFilters
-): Promise<BankTransaction[]> {
-  await wait(300);
-  
-  let transactions = [...mockBankTransactions];
-  
-  // Enrichir avec les noms
-  transactions = transactions.map(txn => {
-    const account = mockBankAccounts.find(a => a.id === txn.bankAccountId);
-    const type = mockTransactionTypes.find(t => t.id === txn.transactionTypeId);
-    return {
-      ...txn,
-      bankAccountName: account?.name || 'Compte inconnu',
-      transactionTypeCode: type?.code || '',
-      transactionTypeLabel: type?.label || 'Type inconnu',
-    };
+export async function getBankTransactions(): Promise<BankTransaction[]> {
+  const response = await fetch(`${API_BASE_URL}/bank-transactions`);
+  return handleResponse<BankTransaction[]>(response);
+}
+
+export async function getBankTransactionById(id: string): Promise<BankTransaction> {
+  const response = await fetch(`${API_BASE_URL}/bank-transactions/${id}`);
+  return handleResponse<BankTransaction>(response);
+}
+
+export async function getBankTransactionsByAccountId(accountId: string): Promise<BankTransaction[]> {
+  const response = await fetch(`${API_BASE_URL}/bank-transactions/account/${accountId}`);
+  return handleResponse<BankTransaction[]>(response);
+}
+
+export async function getBankTransactionsByStatus(status: string): Promise<BankTransaction[]> {
+  const response = await fetch(`${API_BASE_URL}/bank-transactions/status/${status}`);
+  return handleResponse<BankTransaction[]>(response);
+}
+
+export async function createBankTransaction(data: CreateBankTransactionRequest): Promise<BankTransaction> {
+  const response = await fetch(`${API_BASE_URL}/bank-transactions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
   });
-  
-  // Appliquer les filtres
-  if (filters) {
-    if (filters.bankAccountId) {
-      transactions = transactions.filter(t => t.bankAccountId === filters.bankAccountId);
-    }
-    if (filters.transactionTypeId) {
-      transactions = transactions.filter(t => t.transactionTypeId === filters.transactionTypeId);
-    }
-    if (filters.direction) {
-      transactions = transactions.filter(t => t.direction === filters.direction);
-    }
-    if (filters.status) {
-      transactions = transactions.filter(t => t.status === filters.status);
-    }
-    if (filters.dateFrom) {
-      transactions = transactions.filter(t => t.transactionDate >= filters.dateFrom!);
-    }
-    if (filters.dateTo) {
-      transactions = transactions.filter(t => t.transactionDate <= filters.dateTo!);
-    }
-    if (filters.isReconciled !== undefined) {
-      transactions = transactions.filter(t => t.isReconciled === filters.isReconciled);
-    }
-    if (filters.search) {
-      const search = filters.search.toLowerCase();
-      transactions = transactions.filter(t =>
-        t.label.toLowerCase().includes(search) ||
-        t.reference?.toLowerCase().includes(search) ||
-        t.partnerName?.toLowerCase().includes(search)
-      );
-    }
-  }
-  
-  // Trier par date décroissante
-  return transactions.sort(
-    (a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
-  );
+  return handleResponse<BankTransaction>(response);
 }
 
-export async function getBankTransactionById(id: string): Promise<BankTransaction | null> {
-  await wait(100);
-  
-  const txn = mockBankTransactions.find(t => t.id === id);
-  if (!txn) return null;
-  
-  const account = mockBankAccounts.find(a => a.id === txn.bankAccountId);
-  const type = mockTransactionTypes.find(t => t.id === txn.transactionTypeId);
-  
-  return {
-    ...txn,
-    bankAccountName: account?.name,
-    transactionTypeCode: type?.code,
-    transactionTypeLabel: type?.label,
-  };
-}
-
-export async function createBankTransaction(
-  data: CreateBankTransactionData
-): Promise<BankTransaction> {
-  await wait(400);
-  
-  const account = mockBankAccounts.find(a => a.id === data.bankAccountId);
-  if (!account) {
-    throw new Error('Compte bancaire non trouvé');
-  }
-  
-  const type = mockTransactionTypes.find(t => t.id === data.transactionTypeId);
-  if (!type) {
-    throw new Error('Type de transaction non trouvé');
-  }
-  
-  const newTransaction: BankTransaction = {
-    id: generateId(),
-    ...data,
-    bankAccountName: account.name,
-    transactionTypeCode: type.code,
-    transactionTypeLabel: type.label,
-    isReconciled: false,
-    createdAt: getCurrentTimestamp(),
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  mockBankTransactions.push(newTransaction);
-  
-  // Mettre à jour le solde du compte si la transaction est validée
-  if (newTransaction.status === 'VALIDATED') {
-    const balanceChange = newTransaction.direction === 'CREDIT'
-      ? newTransaction.amount
-      : -newTransaction.amount;
-    
-    const accountIndex = mockBankAccounts.findIndex(a => a.id === data.bankAccountId);
-    if (accountIndex !== -1) {
-      mockBankAccounts[accountIndex].currentBalance += balanceChange;
-    }
-  }
-  
-  return newTransaction;
-}
-
-export async function updateBankTransaction(
-  id: string,
-  data: UpdateBankTransactionData
-): Promise<BankTransaction> {
-  await wait(400);
-  
-  const index = mockBankTransactions.findIndex(t => t.id === id);
-  if (index === -1) {
-    throw new Error('Transaction non trouvée');
-  }
-  
-  const currentTxn = mockBankTransactions[index];
-  
-  // Interdire modification si validée (sauf annulation)
-  if (currentTxn.status === 'VALIDATED' && data.status !== 'CANCELLED') {
-    throw new Error('Impossible de modifier une transaction validée');
-  }
-  
-  mockBankTransactions[index] = {
-    ...currentTxn,
-    ...data,
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  return mockBankTransactions[index];
+export async function updateBankTransaction(id: string, data: Partial<CreateBankTransactionRequest>): Promise<BankTransaction> {
+  const response = await fetch(`${API_BASE_URL}/bank-transactions/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<BankTransaction>(response);
 }
 
 export async function validateBankTransaction(id: string): Promise<BankTransaction> {
-  await wait(300);
-  
-  const index = mockBankTransactions.findIndex(t => t.id === id);
-  if (index === -1) {
-    throw new Error('Transaction non trouvée');
-  }
-  
-  const txn = mockBankTransactions[index];
-  
-  if (txn.status !== 'DRAFT') {
-    throw new Error('Seules les transactions en brouillon peuvent être validées');
-  }
-  
-  mockBankTransactions[index] = {
-    ...txn,
-    status: 'VALIDATED',
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  // Mettre à jour le solde du compte
-  const balanceChange = txn.direction === 'CREDIT' ? txn.amount : -txn.amount;
-  const accountIndex = mockBankAccounts.findIndex(a => a.id === txn.bankAccountId);
-  if (accountIndex !== -1) {
-    mockBankAccounts[accountIndex].currentBalance += balanceChange;
-  }
-  
-  return mockBankTransactions[index];
+  const response = await fetch(`${API_BASE_URL}/bank-transactions/${id}/validate`, { method: 'POST' });
+  return handleResponse<BankTransaction>(response);
 }
 
 export async function cancelBankTransaction(id: string): Promise<BankTransaction> {
-  await wait(300);
-  
-  const index = mockBankTransactions.findIndex(t => t.id === id);
-  if (index === -1) {
-    throw new Error('Transaction non trouvée');
-  }
-  
-  const txn = mockBankTransactions[index];
-  
-  if (txn.status === 'CANCELLED') {
-    throw new Error('Transaction déjà annulée');
-  }
-  
-  // Si validée, inverser l'impact sur le solde
-  if (txn.status === 'VALIDATED') {
-    const balanceChange = txn.direction === 'CREDIT' ? -txn.amount : txn.amount;
-    const accountIndex = mockBankAccounts.findIndex(a => a.id === txn.bankAccountId);
-    if (accountIndex !== -1) {
-      mockBankAccounts[accountIndex].currentBalance += balanceChange;
-    }
-  }
-  
-  mockBankTransactions[index] = {
-    ...txn,
-    status: 'CANCELLED',
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  return mockBankTransactions[index];
+  const response = await fetch(`${API_BASE_URL}/bank-transactions/${id}/cancel`, { method: 'POST' });
+  return handleResponse<BankTransaction>(response);
 }
 
 export async function deleteBankTransaction(id: string): Promise<void> {
-  await wait(300);
-  
-  const index = mockBankTransactions.findIndex(t => t.id === id);
-  if (index === -1) {
-    throw new Error('Transaction non trouvée');
-  }
-  
-  const txn = mockBankTransactions[index];
-  
-  if (txn.status !== 'DRAFT') {
-    throw new Error('Seules les transactions en brouillon peuvent être supprimées');
-  }
-  
-  mockBankTransactions.splice(index, 1);
+  const response = await fetch(`${API_BASE_URL}/bank-transactions/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Échec de la suppression');
 }
 
-// =============================================================================
-// CHÈQUES
-// =============================================================================
+// ============================================================================
+// CHECKS API
+// ============================================================================
 
-export async function getChecks(filters?: CheckFilters): Promise<Check[]> {
-  await wait(300);
-  
-  let checks = [...mockChecks];
-  
-  // Enrichir avec le nom du compte
-  checks = checks.map(check => {
-    const account = mockBankAccounts.find(a => a.id === check.bankAccountId);
-    return {
-      ...check,
-      bankAccountName: account?.name || 'Compte inconnu',
-    };
+export async function getChecks(): Promise<Check[]> {
+  const response = await fetch(`${API_BASE_URL}/checks`);
+  return handleResponse<Check[]>(response);
+}
+
+export async function getCheckById(id: string): Promise<Check> {
+  const response = await fetch(`${API_BASE_URL}/checks/${id}`);
+  return handleResponse<Check>(response);
+}
+
+export async function getChecksByType(checkType: string): Promise<Check[]> {
+  const response = await fetch(`${API_BASE_URL}/checks/type/${checkType}`);
+  return handleResponse<Check[]>(response);
+}
+
+export async function getChecksByStatus(status: string): Promise<Check[]> {
+  const response = await fetch(`${API_BASE_URL}/checks/status/${status}`);
+  return handleResponse<Check[]>(response);
+}
+
+export async function getChecksByAccountId(accountId: string): Promise<Check[]> {
+  const response = await fetch(`${API_BASE_URL}/checks/account/${accountId}`);
+  return handleResponse<Check[]>(response);
+}
+
+export async function getPendingChecksDueBefore(date: string): Promise<Check[]> {
+  const response = await fetch(buildUrl('/checks/pending/due-before', { date }));
+  return handleResponse<Check[]>(response);
+}
+
+export async function createCheck(data: CreateCheckRequest): Promise<Check> {
+  const response = await fetch(`${API_BASE_URL}/checks`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
   });
-  
-  // Appliquer les filtres
-  if (filters) {
-    if (filters.bankAccountId) {
-      checks = checks.filter(c => c.bankAccountId === filters.bankAccountId);
-    }
-    if (filters.type) {
-      checks = checks.filter(c => c.type === filters.type);
-    }
-    if (filters.status) {
-      checks = checks.filter(c => c.status === filters.status);
-    }
-    if (filters.dateFrom) {
-      checks = checks.filter(c => c.issueDate >= filters.dateFrom!);
-    }
-    if (filters.dateTo) {
-      checks = checks.filter(c => c.issueDate <= filters.dateTo!);
-    }
-    if (filters.search) {
-      const search = filters.search.toLowerCase();
-      checks = checks.filter(c =>
-        c.checkNumber.toLowerCase().includes(search) ||
-        c.partnerName.toLowerCase().includes(search) ||
-        c.description?.toLowerCase().includes(search)
-      );
-    }
-  }
-  
-  // Trier par date décroissante
-  return checks.sort(
-    (a, b) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()
-  );
+  return handleResponse<Check>(response);
 }
 
-export async function getCheckById(id: string): Promise<Check | null> {
-  await wait(100);
-  
-  const check = mockChecks.find(c => c.id === id);
-  if (!check) return null;
-  
-  const account = mockBankAccounts.find(a => a.id === check.bankAccountId);
-  return {
-    ...check,
-    bankAccountName: account?.name,
-  };
+export async function updateCheck(id: string, data: Partial<CreateCheckRequest>): Promise<Check> {
+  const response = await fetch(`${API_BASE_URL}/checks/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<Check>(response);
 }
 
-export async function createCheck(data: CreateCheckData): Promise<Check> {
-  await wait(400);
-  
-  const account = mockBankAccounts.find(a => a.id === data.bankAccountId);
-  if (!account) {
-    throw new Error('Compte bancaire non trouvé');
-  }
-  
-  // Vérifier unicité du numéro de chèque pour ce compte
-  const existingCheck = mockChecks.find(
-    c => c.bankAccountId === data.bankAccountId && 
-         c.checkNumber === data.checkNumber
-  );
-  if (existingCheck) {
-    throw new Error(`Le chèque n°${data.checkNumber} existe déjà pour ce compte`);
-  }
-  
-  const newCheck: Check = {
-    id: generateId(),
-    ...data,
-    bankAccountName: account.name,
-    status: 'PENDING',
-    createdAt: getCurrentTimestamp(),
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  mockChecks.push(newCheck);
-  return newCheck;
+export async function depositCheck(id: string, depositDate: string): Promise<Check> {
+  const response = await fetch(buildUrl(`/checks/${id}/deposit`, { depositDate }), { method: 'POST' });
+  return handleResponse<Check>(response);
 }
 
-export async function updateCheck(id: string, data: UpdateCheckData): Promise<Check> {
-  await wait(400);
-  
-  const index = mockChecks.findIndex(c => c.id === id);
-  if (index === -1) {
-    throw new Error('Chèque non trouvé');
-  }
-  
-  const currentCheck = mockChecks[index];
-  
-  // Interdire modification si pas en attente
-  if (currentCheck.status !== 'PENDING') {
-    throw new Error('Seuls les chèques en attente peuvent être modifiés');
-  }
-  
-  mockChecks[index] = {
-    ...currentCheck,
-    ...data,
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  return mockChecks[index];
+export async function cashCheck(id: string, cashedDate: string): Promise<Check> {
+  const response = await fetch(buildUrl(`/checks/${id}/cash`, { cashedDate }), { method: 'POST' });
+  return handleResponse<Check>(response);
 }
 
-export async function updateCheckStatus(
-  id: string,
-  status: CheckStatus,
-  additionalData?: {
-    depositDate?: string;
-    cashedDate?: string;
-    rejectedDate?: string;
-    rejectionReason?: string;
-  }
-): Promise<Check> {
-  await wait(400);
-  
-  const index = mockChecks.findIndex(c => c.id === id);
-  if (index === -1) {
-    throw new Error('Chèque non trouvé');
-  }
-  
-  mockChecks[index] = {
-    ...mockChecks[index],
-    status,
-    ...additionalData,
-    updatedAt: getCurrentTimestamp(),
-  };
-  
-  return mockChecks[index];
+export async function rejectCheck(id: string, reason: string): Promise<Check> {
+  const response = await fetch(buildUrl(`/checks/${id}/reject`, { reason }), { method: 'POST' });
+  return handleResponse<Check>(response);
+}
+
+export async function cancelCheck(id: string): Promise<Check> {
+  const response = await fetch(`${API_BASE_URL}/checks/${id}/cancel`, { method: 'POST' });
+  return handleResponse<Check>(response);
 }
 
 export async function deleteCheck(id: string): Promise<void> {
-  await wait(300);
-  
-  const index = mockChecks.findIndex(c => c.id === id);
-  if (index === -1) {
-    throw new Error('Chèque non trouvé');
-  }
-  
-  const check = mockChecks[index];
-  
-  if (check.status !== 'PENDING') {
-    throw new Error('Seuls les chèques en attente peuvent être supprimés');
-  }
-  
-  mockChecks.splice(index, 1);
+  const response = await fetch(`${API_BASE_URL}/checks/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Échec de la suppression');
 }
 
-// =============================================================================
-// STATISTIQUES
-// =============================================================================
+// ============================================================================
+// BANK STATEMENTS API
+// ============================================================================
 
-export async function getBankTransactionStats(bankAccountId?: string): Promise<{
-  totalTransactions: number;
-  totalCredits: number;
-  totalDebits: number;
-  draftCount: number;
-  validatedCount: number;
-}> {
-  await wait(200);
-  
-  let transactions = [...mockBankTransactions];
-  
-  if (bankAccountId) {
-    transactions = transactions.filter(t => t.bankAccountId === bankAccountId);
-  }
-  
-  const validated = transactions.filter(t => t.status === 'VALIDATED');
-  const credits = validated.filter(t => t.direction === 'CREDIT');
-  const debits = validated.filter(t => t.direction === 'DEBIT');
-  
-  return {
-    totalTransactions: transactions.length,
-    totalCredits: credits.reduce((sum, t) => sum + t.amount, 0),
-    totalDebits: debits.reduce((sum, t) => sum + t.amount, 0),
-    draftCount: transactions.filter(t => t.status === 'DRAFT').length,
-    validatedCount: validated.length,
-  };
+export async function getBankStatements(): Promise<BankStatement[]> {
+  const response = await fetch(`${API_BASE_URL}/bank-statements`);
+  return handleResponse<BankStatement[]>(response);
 }
 
-export async function getCheckStats(bankAccountId?: string): Promise<{
-  totalChecks: number;
-  pendingCount: number;
-  pendingAmount: number;
-  depositedCount: number;
-  depositedAmount: number;
-  cashedCount: number;
-  rejectedCount: number;
-}> {
-  await wait(200);
-  
-  let checks = [...mockChecks];
-  
-  if (bankAccountId) {
-    checks = checks.filter(c => c.bankAccountId === bankAccountId);
-  }
-  
-  const pending = checks.filter(c => c.status === 'PENDING');
-  const deposited = checks.filter(c => c.status === 'DEPOSITED');
-  
+export async function getBankStatementById(id: string): Promise<BankStatement> {
+  const response = await fetch(`${API_BASE_URL}/bank-statements/${id}`);
+  return handleResponse<BankStatement>(response);
+}
+
+export async function getBankStatementsByAccountId(accountId: string): Promise<BankStatement[]> {
+  const response = await fetch(`${API_BASE_URL}/bank-statements/account/${accountId}`);
+  return handleResponse<BankStatement[]>(response);
+}
+
+export async function getBankStatementsByStatus(status: string): Promise<BankStatement[]> {
+  const response = await fetch(`${API_BASE_URL}/bank-statements/status/${status}`);
+  return handleResponse<BankStatement[]>(response);
+}
+
+export async function createBankStatement(data: CreateBankStatementRequest): Promise<BankStatement> {
+  const response = await fetch(`${API_BASE_URL}/bank-statements`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<BankStatement>(response);
+}
+
+export async function updateBankStatement(id: string, data: Partial<CreateBankStatementRequest>): Promise<BankStatement> {
+  const response = await fetch(`${API_BASE_URL}/bank-statements/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<BankStatement>(response);
+}
+
+export async function updateStatementTotals(id: string): Promise<BankStatement> {
+  const response = await fetch(`${API_BASE_URL}/bank-statements/${id}/update-totals`, { method: 'POST' });
+  return handleResponse<BankStatement>(response);
+}
+
+export async function closeBankStatement(id: string): Promise<BankStatement> {
+  const response = await fetch(`${API_BASE_URL}/bank-statements/${id}/close`, { method: 'POST' });
+  return handleResponse<BankStatement>(response);
+}
+
+export async function deleteBankStatement(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/bank-statements/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Échec de la suppression');
+}
+
+// ============================================================================
+// STATEMENT LINES API
+// ============================================================================
+
+export async function getStatementLines(statementId: string): Promise<StatementLine[]> {
+  const response = await fetch(`${API_BASE_URL}/statement-lines/statement/${statementId}`);
+  return handleResponse<StatementLine[]>(response);
+}
+
+export async function getStatementLineById(id: string): Promise<StatementLine> {
+  const response = await fetch(`${API_BASE_URL}/statement-lines/${id}`);
+  return handleResponse<StatementLine>(response);
+}
+
+export async function getUnmatchedStatementLines(statementId: string): Promise<StatementLine[]> {
+  const response = await fetch(`${API_BASE_URL}/statement-lines/statement/${statementId}/unmatched`);
+  return handleResponse<StatementLine[]>(response);
+}
+
+export async function getMatchedStatementLines(statementId: string): Promise<StatementLine[]> {
+  const response = await fetch(`${API_BASE_URL}/statement-lines/statement/${statementId}/matched`);
+  return handleResponse<StatementLine[]>(response);
+}
+
+export async function createStatementLine(data: CreateStatementLineRequest): Promise<StatementLine> {
+  const response = await fetch(`${API_BASE_URL}/statement-lines`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<StatementLine>(response);
+}
+
+export async function createStatementLinesBatch(statementId: string, lines: CreateStatementLineRequest[]): Promise<StatementLine[]> {
+  const response = await fetch(`${API_BASE_URL}/statement-lines/statement/${statementId}/batch`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(lines),
+  });
+  return handleResponse<StatementLine[]>(response);
+}
+
+export async function ignoreStatementLine(id: string): Promise<StatementLine> {
+  const response = await fetch(`${API_BASE_URL}/statement-lines/${id}/ignore`, { method: 'POST' });
+  return handleResponse<StatementLine>(response);
+}
+
+export async function resetStatementLine(id: string): Promise<StatementLine> {
+  const response = await fetch(`${API_BASE_URL}/statement-lines/${id}/reset`, { method: 'POST' });
+  return handleResponse<StatementLine>(response);
+}
+
+export async function deleteStatementLine(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/statement-lines/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Échec de la suppression');
+}
+
+// ============================================================================
+// RECONCILIATION API
+// ============================================================================
+
+export async function reconcileManual(data: ReconcileManualRequest): Promise<ReconciliationMatch> {
+  const response = await fetch(`${API_BASE_URL}/reconciliation/manual`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ReconciliationMatch>(response);
+}
+
+export async function reconcileAuto(data: AutoReconcileRequest): Promise<ReconciliationMatch[]> {
+  const response = await fetch(`${API_BASE_URL}/reconciliation/auto`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<ReconciliationMatch[]>(response);
+}
+
+export async function unmatch(matchId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/reconciliation/match/${matchId}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Échec de l\'annulation');
+}
+
+export async function getReconciliationSummary(statementId: string): Promise<ReconciliationSummary> {
+  const response = await fetch(`${API_BASE_URL}/reconciliation/summary/${statementId}`);
+  return handleResponse<ReconciliationSummary>(response);
+}
+
+export async function getMatchesByLineId(lineId: string): Promise<ReconciliationMatch[]> {
+  const response = await fetch(`${API_BASE_URL}/reconciliation/matches/line/${lineId}`);
+  return handleResponse<ReconciliationMatch[]>(response);
+}
+
+// ============================================================================
+// DASHBOARD STATS API (calculs côté client pour l'instant)
+// ============================================================================
+
+export async function getBankingStats(): Promise<BankingStats> {
+  const [accounts, transactions, checks, statements] = await Promise.all([
+    getBankAccounts(),
+    getBankTransactionsByStatus('DRAFT'),
+    getChecksByStatus('PENDING'),
+    getBankStatementsByStatus('IN_PROGRESS'),
+  ]);
+
+  const totalBalance = accounts.reduce((sum, acc) => sum + acc.currentBalance, 0);
+  const activeAccounts = accounts.filter(acc => acc.isActive).length;
+
   return {
-    totalChecks: checks.length,
-    pendingCount: pending.length,
-    pendingAmount: pending.reduce((sum, c) => sum + c.amount, 0),
-    depositedCount: deposited.length,
-    depositedAmount: deposited.reduce((sum, c) => sum + c.amount, 0),
-    cashedCount: checks.filter(c => c.status === 'CASHED').length,
-    rejectedCount: checks.filter(c => c.status === 'REJECTED').length,
+    totalBalance,
+    totalAccounts: accounts.length,
+    activeAccounts,
+    pendingTransactions: transactions.length,
+    pendingChecks: checks.length,
+    unreconciledStatements: statements.length,
+    monthlyCredits: 0, // À calculer avec une requête dédiée
+    monthlyDebits: 0,  // À calculer avec une requête dédiée
   };
 }
