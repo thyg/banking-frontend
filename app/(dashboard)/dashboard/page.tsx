@@ -1,6 +1,9 @@
 import { DashboardView } from "@/components/dashboard/dashboard-view";
 import { getClients, getOrders, getProducts } from "@/lib/api";
 
+export const dynamic = 'force-dynamic';
+
+
 export default async function DashboardPage() {
     const orders = await getOrders();
     const clients = await getClients();
