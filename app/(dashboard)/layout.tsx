@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import React from "react";
 import { ComposeWindow } from "@/components/ui/compose-window";
 
+export const dynamic = 'force-dynamic';
+
 export default function DashboardLayout({
   children,
 }: {
