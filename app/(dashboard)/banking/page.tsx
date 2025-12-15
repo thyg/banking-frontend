@@ -42,6 +42,8 @@ import {
   getPendingChecksDueBefore
 } from '@/lib/api/banking';
 
+export const dynamic = 'force-dynamic';
+
 // ============================================================================
 // TYPES LOCAUX
 // ============================================================================

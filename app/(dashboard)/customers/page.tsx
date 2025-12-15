@@ -9,6 +9,8 @@ import { useCompose } from '@/hooks/use-compose-store';
 import { CustomerForm } from '@/components/customers/customer-form';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
+export const dynamic = 'force-dynamic';
+
 export default function CustomersPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);

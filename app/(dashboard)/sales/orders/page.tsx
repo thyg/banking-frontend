@@ -4,6 +4,8 @@ import { FilePlus2, History } from "lucide-react";
 import { OrderForm } from "@/components/sales/orders/order-form";
 import { OrderHistory } from "@/components/sales/orders/order-history";
 
+export const dynamic = 'force-dynamic';
+
 export default function SalesOrdersPage() {
   return (
     // h-full et flex permettent à la page de remplir la hauteur

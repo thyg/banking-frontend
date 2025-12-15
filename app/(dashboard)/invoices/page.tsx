@@ -1,6 +1,8 @@
 import { InvoiceManagementView } from "@/components/invoices/invoice-management-view";
 import { getGeneralOptions, getInvoices } from "@/lib/api";
 
+export const dynamic = 'force-dynamic';
+
 export default async function InvoicesPage() {
     const invoices = await getInvoices();
     const options = await getGeneralOptions();

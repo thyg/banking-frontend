@@ -1,5 +1,7 @@
 import { OrderJournalView } from "@/components/sales/journal/order-journal-view";
 
+export const dynamic = 'force-dynamic';
+
 export default function OrderJournalPage() {
   return (
     <div className="h-full flex flex-col">

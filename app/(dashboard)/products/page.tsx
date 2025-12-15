@@ -9,6 +9,8 @@ import { ProductListView } from '@/components/products/product-list-view';
 import { ProductDetailView } from '@/components/products/product-detail-view';
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 
+export const dynamic = 'force-dynamic';
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);

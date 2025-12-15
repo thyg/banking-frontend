@@ -1,6 +1,8 @@
 import { NewOrderForm } from "@/components/sales/new-order/new-order-form";
 import { getClients, getProducts } from "@/lib/api";
 
+export const dynamic = 'force-dynamic';
+
 export default async function NewOrderPage() {
   const clients = await getClients();
   const products = await getProducts();
