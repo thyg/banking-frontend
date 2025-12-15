@@ -4,7 +4,8 @@ import { Invoice, Order, OrderJournalEntry } from "@/types/sales";
 import { GeneralOptions, FiscalYear } from "@/types/settings";
 import { Warehouse, StockMovement, Inventory, WarehouseTransfer, ProductTransformation } from "@/types/stock";
 
-const API_BASE_URL = "http://localhost:8080";
+// Si une variable d'environnement existe (Vercel), on l'utilise. Sinon, on utilise localhost (Ton PC).
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 const apiRequest = async <T>(endpoint: string, method: string = 'GET', body?: any): Promise<T> => {
     const config: RequestInit = {
