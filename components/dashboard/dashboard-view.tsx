@@ -27,36 +27,41 @@ export function DashboardView({ totalRevenue, totalClients, totalProducts, recen
     ];
 
     return (
-        <div className="flex flex-col gap-6">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <StatCard 
-                    title="Chiffre d'Affaires (Total)" 
+        <div className="flex flex-col gap-4 sm:gap-6">
+            {/* Stats Grid - responsive */}
+            <div className="stats-grid">
+                <StatCard
+                    title="Chiffre d'Affaires"
                     value={`${totalRevenue.toLocaleString('fr-FR')} XAF`}
                     icon={<Banknote className="h-5 w-5 text-muted-foreground"/>}
                     variant="primary"
                 />
-                <StatCard 
-                    title="Clients Enregistrés" 
+                <StatCard
+                    title="Clients"
                     value={totalClients}
                     icon={<Users className="h-5 w-5 text-muted-foreground"/>}
                 />
-                <StatCard 
-                    title="Articles au Catalogue" 
+                <StatCard
+                    title="Articles"
                     value={totalProducts}
                     icon={<Package className="h-5 w-5 text-muted-foreground"/>}
                 />
-                 <StatCard 
-                    title="Commandes Récentes" 
+                <StatCard
+                    title="Commandes"
                     value={recentOrders.length}
                     icon={<ShoppingCart className="h-5 w-5 text-muted-foreground"/>}
                 />
             </div>
+
+            {/* Tableau des commandes - responsive */}
             <Card>
-                <CardHeader>
-                    <CardTitle>Dernières Commandes</CardTitle>
+                <CardHeader className="pb-3 sm:pb-6">
+                    <CardTitle className="text-base sm:text-lg">Dernières Commandes</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <DataTable columns={orderColumns} data={recentOrders} />
+                <CardContent className="p-0 sm:p-6 sm:pt-0 overflow-hidden">
+                    <div className="table-responsive">
+                        <DataTable columns={orderColumns} data={recentOrders} />
+                    </div>
                 </CardContent>
             </Card>
         </div>

@@ -38,7 +38,6 @@ import {
   RefreshCw,
   MoreHorizontal,
   Pencil,
-  Trash2,
   FileText,
   ArrowDownLeft,
   ArrowUpRight,
@@ -49,6 +48,7 @@ import {
   Clock,
   AlertTriangle,
   Building2,
+  BookOpen,
 } from 'lucide-react';
 
 // =============================================================================
@@ -147,6 +147,7 @@ interface CheckListProps {
   onCash?: (check: Check) => void;
   onReject?: (check: Check) => void;
   onCancel?: (check: Check) => void;
+  onPost?: (check: Check) => void;
   onRefresh: () => void;
 }
 
@@ -166,6 +167,7 @@ export function CheckList({
   onCash,
   onReject,
   onCancel,
+  onPost,
   onRefresh,
 }: CheckListProps) {
   const [searchValue, setSearchValue] = useState(filters.search || '');
@@ -378,16 +380,17 @@ export function CheckList({
                         </DropdownMenuItem>
                       </>
                     )}
-                    
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => onDelete(check)}
-                      className="text-red-600 focus:text-red-600"
-                      disabled={check.status !== 'PENDING'}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Supprimer
-                    </DropdownMenuItem>
+
+                    {/* Comptabiliser - seulement pour chèques encaissés */}
+                    {check.status === 'CASHED' && onPost && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onPost(check)}>
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          Comptabiliser
+                        </DropdownMenuItem>
+                      </>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -403,14 +406,14 @@ export function CheckList({
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="p-responsive space-y-4 sm:space-y-6">
       {/* En-tête */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+          <h1 className="heading-responsive font-bold tracking-tight text-gray-900">
             Gestion des Chèques
           </h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">
             Suivez vos chèques émis et reçus.
           </p>
         </div>
@@ -425,9 +428,10 @@ export function CheckList({
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button>
+              <Button className="flex-1 sm:flex-none">
                 <Plus className="mr-2 h-4 w-4" />
-                Nouveau Chèque
+                <span className="hidden sm:inline">Nouveau Chèque</span>
+                <span className="sm:hidden">Nouveau</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -445,7 +449,7 @@ export function CheckList({
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="stats-grid">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-500">
@@ -539,16 +543,18 @@ export function CheckList({
               </TabsTrigger>
             </TabsList>
           </CardHeader>
-          <CardContent className="p-0">
-            <TabsContent value="all" className="m-0">
-              {renderTable(filteredByTab)}
-            </TabsContent>
-            <TabsContent value="RECEIVED" className="m-0">
-              {renderTable(filteredByTab)}
-            </TabsContent>
-            <TabsContent value="ISSUED" className="m-0">
-              {renderTable(filteredByTab)}
-            </TabsContent>
+          <CardContent className="p-0 overflow-hidden">
+            <div className="table-responsive">
+              <TabsContent value="all" className="m-0">
+                {renderTable(filteredByTab)}
+              </TabsContent>
+              <TabsContent value="RECEIVED" className="m-0">
+                {renderTable(filteredByTab)}
+              </TabsContent>
+              <TabsContent value="ISSUED" className="m-0">
+                {renderTable(filteredByTab)}
+              </TabsContent>
+            </div>
           </CardContent>
         </Tabs>
       </Card>

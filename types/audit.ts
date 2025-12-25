@@ -17,6 +17,7 @@ export type AuditModule =
   | 'TRANSACTION_TYPE'
   | 'BANK_TRANSACTION'
   | 'CHECK'
+  | 'CHECKBOOK'
   | 'BANK_STATEMENT'
   | 'STATEMENT_LINE'
   | 'RECONCILIATION';
@@ -30,6 +31,7 @@ export const AUDIT_MODULE_LABELS: Record<AuditModule, string> = {
   TRANSACTION_TYPE: 'Types de transactions',
   BANK_TRANSACTION: 'Transactions bancaires',
   CHECK: 'Chèques',
+  CHECKBOOK: 'Chéquiers',
   BANK_STATEMENT: 'Relevés bancaires',
   STATEMENT_LINE: 'Lignes de relevés',
   RECONCILIATION: 'Rapprochement',

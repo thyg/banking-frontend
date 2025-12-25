@@ -57,28 +57,30 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
  * 
  * @version 2.0.0 - bankName remplacé par bankId
  */
+const ibanRegex = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/;
+
 const bankAccountSchema = z.object({
   name: z
     .string()
     .min(2, { message: "Le nom doit contenir au moins 2 caractères." })
     .max(100, { message: "Le nom ne peut pas dépasser 100 caractères." }),
   
-  // NOUVEAU: bankId remplace bankName
   bankId: z
     .string({ required_error: "Veuillez sélectionner une banque." })
     .min(1, { message: "Veuillez sélectionner une banque." }),
   
   accountNumber: z
     .string()
-    .min(10, { message: "Le numéro de compte (IBAN) semble invalide." })
-    .max(34, { message: "Le numéro IBAN ne peut pas dépasser 34 caractères." })
-    .trim(),
+    .min(1, { message: "Le numéro de compte (IBAN) est requis."})
+    .transform(val => val.toUpperCase().replace(/\s/g, ''))
+    .refine(ibanRegex.test, {
+      message: "Format IBAN invalide (ex: FR7630001007941234567890185)"
+    }),
   
   journalId: z
     .string({ required_error: "Veuillez sélectionner un journal comptable." })
     .min(1, { message: "Veuillez sélectionner un journal comptable." }),
   
-  // AMÉLIORÉ: Ajout des devises XAF et XOF
   currency: z.enum(['EUR', 'USD', 'XAF', 'XOF', 'GBP'], { 
     required_error: "La devise est requise." 
   }),

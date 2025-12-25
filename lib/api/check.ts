@@ -36,8 +36,20 @@ const headers = {
  */
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Une erreur est survenue' }));
-    throw new Error(error.message || `Erreur HTTP: ${response.status}`);
+    let errorMessage = `Erreur HTTP: ${response.status}`;
+    try {
+      const text = await response.text();
+      console.error(`[API:Check] Erreur ${response.status} - Réponse brute:`, text);
+
+      if (text) {
+        const errorBody = JSON.parse(text);
+        // Spring Boot peut renvoyer le message dans différents champs
+        errorMessage = errorBody.message || errorBody.error || errorBody.detail || errorMessage;
+      }
+    } catch {
+      // Si on ne peut pas parser le JSON, on garde le message par défaut
+    }
+    throw new Error(errorMessage);
   }
   return response.json();
 }
@@ -230,23 +242,53 @@ export async function getPendingChecksDueBefore(date: string): Promise<Check[]> 
 
 /**
  * Crée un nouveau chèque.
- * 
+ *
  * @param data - Données du chèque à créer
  * @returns Le chèque créé avec son ID
  * @throws Error si le compte bancaire n'existe pas ou si le numéro de chèque existe déjà
  */
 export async function createCheck(data: CreateCheckData): Promise<Check> {
-  console.log('[API:Check] createCheck:', data);
-  
+  // Nettoyer les données avant envoi
+  const cleanedData: Record<string, unknown> = {
+    bankAccountId: data.bankAccountId,
+    checkType: data.checkType,
+    amount: data.amount,
+    partnerName: data.partnerName,
+    issueDate: data.issueDate,
+  };
+
+  // Ne pas envoyer checkNumber s'il est vide (le backend le génèrera depuis le chéquier)
+  if (data.checkNumber && data.checkNumber.trim() !== '') {
+    cleanedData.checkNumber = data.checkNumber;
+  }
+
+  // Ne pas envoyer checkbookId s'il est vide ou s'il s'agit du chéquier fictif
+  // 'default-erp-checkbook' n'est pas un UUID valide et causerait une erreur 500
+  if (data.checkbookId && data.checkbookId.trim() !== '' && data.checkbookId !== 'default-erp-checkbook') {
+    cleanedData.checkbookId = data.checkbookId;
+  }
+
+  // Ne pas envoyer dueDate s'il est vide
+  if (data.dueDate) {
+    cleanedData.dueDate = data.dueDate;
+  }
+
+  // Ne pas envoyer description s'il est vide
+  if (data.description && data.description.trim() !== '') {
+    cleanedData.description = data.description;
+  }
+
+  console.log('[API:Check] createCheck - données envoyées:', cleanedData);
+
   const response = await fetch(`${API_BASE_URL}/checks`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(data),
+    body: JSON.stringify(cleanedData),
   });
-  
+
   const check = await handleResponse<Check>(response);
   console.log('[API:Check] Chèque créé:', check.id);
-  
+
   return enrichCheck(check);
 }
 

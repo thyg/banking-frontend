@@ -8,11 +8,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { 
-  Building2, 
-  CreditCard, 
-  FileText, 
-  ArrowLeftRight, 
+import {
+  Building2,
+  CreditCard,
+  FileText,
+  ArrowLeftRight,
   CheckSquare,
   Settings,
   Plus,
@@ -23,7 +23,11 @@ import {
   Clock,
   Wallet,
   BarChart3,
-  ArrowRight
+  ArrowRight,
+  BookOpen,
+  BookMarked,
+  ArrowDownLeft,
+  ArrowUpRight
 } from 'lucide-react';
 
 // UI Components
@@ -34,9 +38,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 // Types et API
 import type { BankAccount, BankTransaction, Check, BankStatement, BankingStats } from '@/types/banking';
-import { 
-  getBankAccounts, 
+import {
+  getBankAccounts,
+  getBankTransactions,
   getBankTransactionsByStatus,
+  getChecks,
   getChecksByStatus,
   getBankStatementsByStatus,
   getPendingChecksDueBefore
@@ -72,7 +78,9 @@ export default function BankingDashboardPage() {
   // États
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [pendingTransactions, setPendingTransactions] = useState<BankTransaction[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<BankTransaction[]>([]);
   const [pendingChecks, setPendingChecks] = useState<Check[]>([]);
+  const [allChecks, setAllChecks] = useState<Check[]>([]);
   const [unreconciledStatements, setUnreconciledStatements] = useState<BankStatement[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,13 +95,17 @@ export default function BankingDashboardPage() {
       const [
         accountsData,
         transactionsData,
+        allTransactionsData,
         checksData,
+        allChecksData,
         statementsData,
         dueSoonChecks
       ] = await Promise.all([
         getBankAccounts(),
         getBankTransactionsByStatus('DRAFT'),
+        getBankTransactions().catch(() => []),
         getChecksByStatus('PENDING'),
+        getChecks().catch(() => []),
         getBankStatementsByStatus('IN_PROGRESS'),
         getPendingChecksDueBefore(
           new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -102,7 +114,9 @@ export default function BankingDashboardPage() {
 
       setAccounts(accountsData);
       setPendingTransactions(transactionsData);
+      setRecentTransactions(allTransactionsData.slice(0, 10)); // 10 dernières transactions
       setPendingChecks(checksData);
+      setAllChecks(allChecksData);
       setUnreconciledStatements(statementsData);
 
       // Générer les alertes
@@ -198,6 +212,20 @@ export default function BankingDashboardPage() {
       icon: <BarChart3 className="h-6 w-6" />,
       href: '/banking/reconciliation',
       color: 'bg-pink-500'
+    },
+    {
+      title: 'Chéquiers',
+      description: 'Gérer les carnets de chèques',
+      icon: <BookMarked className="h-6 w-6" />,
+      href: '/banking/checkbooks',
+      color: 'bg-indigo-500'
+    },
+    {
+      title: 'Journal',
+      description: 'Journal des écritures',
+      icon: <BookOpen className="h-6 w-6" />,
+      href: '/banking/journal',
+      color: 'bg-teal-500'
     },
     {
       title: 'Types Transactions',
@@ -323,6 +351,74 @@ export default function BankingDashboardPage() {
         )}
       </div>
 
+      {/* Section Transactions Bancaires */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Transactions Bancaires</h2>
+          <Link href="/banking/transactions">
+            <Button variant="ghost" size="sm">
+              Voir tout
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+
+        {recentTransactions.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-10">
+              <ArrowLeftRight className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">Aucune transaction bancaire</p>
+              <Link href="/banking/transactions">
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nouvelle transaction
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {recentTransactions.slice(0, 6).map((transaction) => (
+              <TransactionCard key={transaction.id} transaction={transaction} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Section Chèques */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Chèques</h2>
+          <Link href="/banking/checks">
+            <Button variant="ghost" size="sm">
+              Voir tout
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+
+        {allChecks.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-10">
+              <CheckSquare className="h-12 w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4">Aucun chèque enregistré</p>
+              <Link href="/banking/checks">
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nouveau chèque
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {allChecks.slice(0, 6).map((check) => (
+              <CheckCard key={check.id} check={check} />
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Relevés à Rapprocher */}
       {unreconciledStatements.length > 0 && (
         <div>
@@ -427,6 +523,103 @@ function AccountCard({ account }: { account: BankAccount }) {
           <div className="flex items-center justify-between mt-1">
             <span className="text-sm text-muted-foreground">IBAN</span>
             <span className="text-sm font-mono">{account.iban?.slice(-8) || 'N/A'}</span>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+function TransactionCard({ transaction }: { transaction: BankTransaction }) {
+  const statusConfig: Record<string, { label: string; className: string }> = {
+    DRAFT: { label: 'Brouillon', className: 'bg-amber-50 text-amber-700' },
+    VALIDATED: { label: 'Validé', className: 'bg-green-50 text-green-700' },
+    CANCELLED: { label: 'Annulé', className: 'bg-gray-100 text-gray-500' },
+  };
+  const status = statusConfig[transaction.status] || statusConfig.DRAFT;
+
+  return (
+    <Link href="/banking/transactions">
+      <Card className="hover:bg-accent transition-colors cursor-pointer">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base truncate">{transaction.label || transaction.reference}</CardTitle>
+            <Badge variant="outline" className={status.className}>
+              {status.label}
+            </Badge>
+          </div>
+          <CardDescription className="flex items-center gap-2">
+            {transaction.direction === 'CREDIT' ? (
+              <ArrowDownLeft className="h-3 w-3 text-green-500" />
+            ) : (
+              <ArrowUpRight className="h-3 w-3 text-red-500" />
+            )}
+            {transaction.direction === 'CREDIT' ? 'Crédit' : 'Débit'}
+            {transaction.bankAccountName && ` - ${transaction.bankAccountName}`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Montant</span>
+            <span className={`text-lg font-bold ${transaction.direction === 'CREDIT' ? 'text-green-600' : 'text-red-600'}`}>
+              {transaction.direction === 'CREDIT' ? '+' : '-'}{formatCurrency(transaction.amount)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-sm text-muted-foreground">Date</span>
+            <span className="text-sm">{formatDate(transaction.transactionDate)}</span>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
+  );
+}
+
+function CheckCard({ check }: { check: Check }) {
+  const statusConfig: Record<string, { label: string; className: string }> = {
+    PENDING: { label: 'En attente', className: 'bg-amber-50 text-amber-700' },
+    DEPOSITED: { label: 'Remis', className: 'bg-blue-50 text-blue-700' },
+    CASHED: { label: 'Encaissé', className: 'bg-green-50 text-green-700' },
+    REJECTED: { label: 'Rejeté', className: 'bg-red-50 text-red-700' },
+    CANCELLED: { label: 'Annulé', className: 'bg-gray-100 text-gray-500' },
+  };
+  const status = statusConfig[check.status] || statusConfig.PENDING;
+
+  return (
+    <Link href="/banking/checks">
+      <Card className="hover:bg-accent transition-colors cursor-pointer">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-mono">{check.checkNumber}</CardTitle>
+            <Badge variant="outline" className={status.className}>
+              {status.label}
+            </Badge>
+          </div>
+          <CardDescription className="flex items-center gap-2">
+            {check.checkType === 'RECEIVED' ? (
+              <>
+                <ArrowDownLeft className="h-3 w-3 text-green-500" />
+                Reçu
+              </>
+            ) : (
+              <>
+                <ArrowUpRight className="h-3 w-3 text-red-500" />
+                Émis
+              </>
+            )}
+            {check.partnerName && ` - ${check.partnerName}`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Montant</span>
+            <span className={`text-lg font-bold ${check.checkType === 'RECEIVED' ? 'text-green-600' : 'text-red-600'}`}>
+              {check.checkType === 'RECEIVED' ? '+' : '-'}{formatCurrency(check.amount)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between mt-1">
+            <span className="text-sm text-muted-foreground">Date</span>
+            <span className="text-sm">{formatDate(check.issueDate)}</span>
           </div>
         </CardContent>
       </Card>

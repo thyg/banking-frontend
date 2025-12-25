@@ -7,21 +7,22 @@
 "use client";
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { BankAccount } from '@/types/banking';
 import { Button } from '@/components/ui/button';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
 } from '@/components/ui/card';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { MoreVertical, Upload, Pencil, Trash2 } from 'lucide-react';
 
@@ -50,8 +51,22 @@ interface BankAccountCardProps {
 }
 
 export function BankAccountCard({ account, onEdit, onDelete, onUpload }: BankAccountCardProps) {
+  const router = useRouter();
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Ne pas naviguer si on clique sur un bouton ou le menu
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[role="menu"]')) {
+      return;
+    }
+    router.push(`/banking/accounts/${account.id}`);
+  };
+
   return (
-    <Card className="flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow duration-200">
+    <Card
+      className="flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer"
+      onClick={handleCardClick}
+    >
       <CardHeader className="flex-row items-start justify-between">
         <div>
           <CardTitle className="text-lg font-semibold">{account.name}</CardTitle>
@@ -60,7 +75,7 @@ export function BankAccountCard({ account, onEdit, onDelete, onUpload }: BankAcc
         {/* Menu d'actions secondaires */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -76,7 +91,7 @@ export function BankAccountCard({ account, onEdit, onDelete, onUpload }: BankAcc
           </DropdownMenuContent>
         </DropdownMenu>
       </CardHeader>
-      
+
       <CardContent className="flex-grow">
         <div className="mb-4">
           <p className="text-sm text-gray-500">Numéro de compte</p>
@@ -89,10 +104,10 @@ export function BankAccountCard({ account, onEdit, onDelete, onUpload }: BankAcc
           </p>
         </div>
       </CardContent>
-      
+
       <CardFooter>
         {/* Action principale */}
-        <Button className="w-full" onClick={() => onUpload(account.id)}>
+        <Button className="w-full" onClick={(e) => { e.stopPropagation(); onUpload(account.id); }}>
           <Upload className="mr-2 h-4 w-4" />
           Importer un relevé
         </Button>

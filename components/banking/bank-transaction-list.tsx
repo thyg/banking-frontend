@@ -50,7 +50,6 @@ import {
   RefreshCw,
   MoreHorizontal,
   Pencil,
-  Trash2,
   Receipt,
   ArrowDownLeft,
   ArrowUpRight,
@@ -59,6 +58,9 @@ import {
   XCircle,
   Clock,
   Link2,
+  Printer,
+  BookOpen,
+  ArrowRightLeft,
 } from 'lucide-react';
 
 // =============================================================================
@@ -142,6 +144,9 @@ interface BankTransactionListProps {
   onDelete: (transaction: BankTransaction) => void;
   onValidate?: (transaction: BankTransaction) => void;
   onCancel?: (transaction: BankTransaction) => void;
+  onPrint?: (transaction: BankTransaction) => void;
+  onPost?: (transaction: BankTransaction) => void;
+  onTransfer?: (transaction: BankTransaction) => void;
   onRefresh: () => void;
   /** Afficher la colonne compte (utile si vue globale) */
   showAccountColumn?: boolean;
@@ -163,6 +168,9 @@ export function BankTransactionList({
   onDelete,
   onValidate,
   onCancel,
+  onPrint,
+  onPost,
+  onTransfer,
   onRefresh,
   showAccountColumn = false,
   showRunningBalance = false,
@@ -334,34 +342,56 @@ export function BankTransactionList({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem 
+                      {/* Modifier - seulement pour brouillons */}
+                      <DropdownMenuItem
                         onClick={() => onEdit(txn)}
                         disabled={txn.status === 'VALIDATED' || txn.status === 'CANCELLED'}
                       >
                         <Pencil className="mr-2 h-4 w-4" />
                         Modifier
                       </DropdownMenuItem>
+
+                      {/* Valider - seulement pour brouillons */}
                       {txn.status === 'DRAFT' && onValidate && (
                         <DropdownMenuItem onClick={() => onValidate(txn)}>
                           <CheckCircle className="mr-2 h-4 w-4" />
                           Valider
                         </DropdownMenuItem>
                       )}
+
+                      {/* Annuler - seulement pour transactions validées non rapprochées */}
                       {txn.status === 'VALIDATED' && onCancel && !txn.isReconciled && (
                         <DropdownMenuItem onClick={() => onCancel(txn)}>
                           <XCircle className="mr-2 h-4 w-4" />
                           Annuler
                         </DropdownMenuItem>
                       )}
+
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => onDelete(txn)}
-                        className="text-red-600 focus:text-red-600"
-                        disabled={txn.status !== 'DRAFT'}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Supprimer
-                      </DropdownMenuItem>
+
+                      {/* Imprimer */}
+                      {onPrint && (
+                        <DropdownMenuItem onClick={() => onPrint(txn)}>
+                          <Printer className="mr-2 h-4 w-4" />
+                          Imprimer
+                        </DropdownMenuItem>
+                      )}
+
+                      {/* Comptabiliser - seulement pour transactions validées */}
+                      {txn.status === 'VALIDATED' && onPost && (
+                        <DropdownMenuItem onClick={() => onPost(txn)}>
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          Comptabiliser
+                        </DropdownMenuItem>
+                      )}
+
+                      {/* Transférer */}
+                      {onTransfer && txn.status !== 'CANCELLED' && (
+                        <DropdownMenuItem onClick={() => onTransfer(txn)}>
+                          <ArrowRightLeft className="mr-2 h-4 w-4" />
+                          Transférer
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -378,14 +408,14 @@ export function BankTransactionList({
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="p-responsive space-y-4 sm:space-y-6">
       {/* En-tête */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+          <h1 className="heading-responsive font-bold tracking-tight text-gray-900">
             Transactions Bancaires
           </h1>
-          <p className="text-gray-500 mt-1">
+          <p className="text-gray-500 mt-1 text-sm sm:text-base">
             Gérez vos opérations bancaires manuelles.
           </p>
         </div>
@@ -398,15 +428,16 @@ export function BankTransactionList({
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button onClick={onAddNew}>
+          <Button onClick={onAddNew} className="flex-1 sm:flex-none">
             <Plus className="mr-2 h-4 w-4" />
-            Nouvelle Transaction
+            <span className="hidden sm:inline">Nouvelle Transaction</span>
+            <span className="sm:hidden">Nouveau</span>
           </Button>
         </div>
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+      <div className="stats-grid">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-gray-500">
@@ -461,28 +492,31 @@ export function BankTransactionList({
 
       {/* Filtres */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-4">
+            {/* Recherche */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
-                placeholder="Rechercher par libellé, référence, tiers..."
+                placeholder="Rechercher..."
                 value={searchValue}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <div className="flex gap-2">
+
+            {/* Filtres - grille sur mobile, flex sur desktop */}
+            <div className="grid grid-cols-2 sm:flex gap-2">
               <Select
                 value={filters.direction || 'all'}
-                onValueChange={(value) => 
-                  onFiltersChange({ 
-                    ...filters, 
+                onValueChange={(value) =>
+                  onFiltersChange({
+                    ...filters,
                     direction: value === 'all' ? undefined : value as 'DEBIT' | 'CREDIT'
                   })
                 }
               >
-                <SelectTrigger className="w-[130px]">
+                <SelectTrigger className="w-full sm:w-[110px]">
                   <SelectValue placeholder="Sens" />
                 </SelectTrigger>
                 <SelectContent>
@@ -501,7 +535,7 @@ export function BankTransactionList({
                   })
                 }
               >
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="w-full sm:w-[120px]">
                   <SelectValue placeholder="Statut" />
                 </SelectTrigger>
                 <SelectContent>
@@ -518,7 +552,7 @@ export function BankTransactionList({
                 onChange={(e) =>
                   onFiltersChange({ ...filters, dateFrom: e.target.value || undefined })
                 }
-                className="w-[150px]"
+                className="w-full sm:w-[140px]"
                 placeholder="Du"
               />
               <Input
@@ -527,7 +561,7 @@ export function BankTransactionList({
                 onChange={(e) =>
                   onFiltersChange({ ...filters, dateTo: e.target.value || undefined })
                 }
-                className="w-[150px]"
+                className="w-full sm:w-[140px]"
                 placeholder="Au"
               />
             </div>
@@ -537,8 +571,10 @@ export function BankTransactionList({
 
       {/* Tableau */}
       <Card>
-        <CardContent className="p-0">
-          {renderContent()}
+        <CardContent className="p-0 overflow-hidden">
+          <div className="table-responsive">
+            {renderContent()}
+          </div>
         </CardContent>
       </Card>
     </div>

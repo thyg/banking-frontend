@@ -65,23 +65,10 @@ const bankTransactionFormSchema = z.object({
   transactionTypeId: z.string({
     required_error: "Veuillez sélectionner un type de transaction.",
   }).min(1, { message: "Veuillez sélectionner un type de transaction." }),
-  
-  transactionDate: z.string({
-    required_error: "La date de l'opération est requise.",
+
+  direction: z.enum(['DEBIT', 'CREDIT'], {
+    required_error: "Veuillez sélectionner le sens de l'opération.",
   }),
-  
-  valueDate: z.string().optional(),
-  
-  reference: z
-    .string()
-    .max(50, { message: "La référence ne peut pas dépasser 50 caractères." })
-    .optional()
-    .or(z.literal('')),
-  
-  label: z
-    .string()
-    .min(3, { message: "Le libellé doit contenir au moins 3 caractères." })
-    .max(200, { message: "Le libellé ne peut pas dépasser 200 caractères." }),
   
   amount: z
     .number({
@@ -90,11 +77,11 @@ const bankTransactionFormSchema = z.object({
     })
     .positive({ message: "Le montant doit être positif." }),
   
-  direction: z.enum(['DEBIT', 'CREDIT'], {
-    required_error: "Veuillez sélectionner le sens de l'opération.",
+  transactionDate: z.string({
+    required_error: "La date de l'opération est requise.",
   }),
   
-  currency: z.enum(['EUR', 'USD', 'XAF', 'XOF']),
+  valueDate: z.string().optional(),
   
   partnerName: z
     .string()
@@ -102,14 +89,12 @@ const bankTransactionFormSchema = z.object({
     .optional()
     .or(z.literal('')),
   
-  notes: z
+  description: z
     .string()
-    .max(500, { message: "Les notes ne peuvent pas dépasser 500 caractères." })
+    .min(3, { message: "La description doit contenir au moins 3 caractères." })
+    .max(200, { message: "La description ne peut pas dépasser 200 caractères." })
     .optional()
     .or(z.literal('')),
-    
-  // NOTE: Seulement DRAFT ou VALIDATED - CANCELLED est géré par action séparée
-  status: z.enum(['DRAFT', 'VALIDATED']),
 });
 
 type BankTransactionFormData = z.infer<typeof bankTransactionFormSchema>;
@@ -159,16 +144,12 @@ export function BankTransactionForm({
     defaultValues: {
       bankAccountId: initialData?.bankAccountId ?? preselectedAccountId ?? '',
       transactionTypeId: initialData?.transactionTypeId ?? '',
+      direction: initialData?.direction ?? 'DEBIT',
+      amount: initialData?.amount ?? 0,
       transactionDate: initialData?.transactionDate ?? new Date().toISOString().split('T')[0],
       valueDate: initialData?.valueDate ?? '',
-      reference: initialData?.reference ?? '',
-      label: initialData?.label ?? '',
-      amount: initialData?.amount ?? 0,
-      direction: initialData?.direction ?? 'DEBIT',
-      currency: initialData?.currency ?? 'EUR',
       partnerName: initialData?.partnerName ?? '',
-      notes: initialData?.notes ?? '',
-      status: getInitialStatus(),
+      description: initialData?.description ?? '',
     },
   });
 
@@ -210,11 +191,8 @@ export function BankTransactionForm({
     }
   };
 
-  // Filtrer les types selon la direction sélectionnée
-  const watchDirection = form.watch('direction');
-  const filteredTypes = transactionTypes.filter(t => 
-    t.direction === 'BOTH' || t.direction === watchDirection
-  );
+  // Filtrer les types de transactions (la direction a été supprimée, donc pas de filtre)
+  const filteredTypes = transactionTypes;
 
   /**
    * Gère la soumission du formulaire.
@@ -228,14 +206,11 @@ export function BankTransactionForm({
         transactionTypeId: data.transactionTypeId,
         transactionDate: data.transactionDate,
         valueDate: data.valueDate || undefined,
-        reference: data.reference || undefined,
-        description: data.label, // <-- Renamed from 'label'
+        // La référence est générée côté serveur
+        description: data.description || undefined,
         amount: data.amount,
         direction: data.direction,
-        // currency: data.currency, // <-- Removed
         partnerName: data.partnerName || undefined,
-        // notes: data.notes || undefined, // <-- Removed
-        // status: data.status, // <-- Removed
       };
 
       await onSave(saveData);
@@ -280,31 +255,53 @@ export function BankTransactionForm({
             ⚠️ Cette transaction est validée. Seule l'annulation est possible.
           </div>
         )}
+        
+        {/* Référence (read-only) et Date Système (read-only) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormItem>
+            <FormLabel>Référence</FormLabel>
+            <FormControl>
+              <Input 
+                readOnly 
+                value={initialData?.reference || 'Sera générée automatiquement'}
+                className="font-bold text-gray-700 bg-gray-100"
+              />
+            </FormControl>
+          </FormItem>
 
-        {/* Compte bancaire */}
+          <FormItem>
+            <FormLabel>Date système</FormLabel>
+            <FormControl>
+              <Input 
+                readOnly 
+                value={initialData?.systemDate ? new Date(initialData.systemDate).toLocaleString() : 'N/A'}
+                className="bg-gray-100"
+              />
+            </FormControl>
+          </FormItem>
+        </div>
+
+        {/* Type de transaction */}
         <FormField
           control={form.control}
-          name="bankAccountId"
+          name="transactionTypeId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Compte bancaire *</FormLabel>
+              <FormLabel>Type de transaction *</FormLabel>
               <Select
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  handleAccountChange(value);
-                }}
+                onValueChange={field.onChange}
                 value={field.value}
-                disabled={isEditMode}
+                disabled={isValidated}
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez un compte..." />
+                    <SelectValue placeholder="Sélectionnez un type..." />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {accounts.map(account => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name} ({account.currency})
+                  {filteredTypes.map(type => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.label} ({type.code})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -355,74 +352,41 @@ export function BankTransactionForm({
           )}
         />
 
-        {/* Type de transaction */}
+        {/* Compte bancaire */}
         <FormField
           control={form.control}
-          name="transactionTypeId"
+          name="bankAccountId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Type de transaction *</FormLabel>
+              <FormLabel>Compte bancaire *</FormLabel>
               <Select
-                onValueChange={field.onChange}
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  handleAccountChange(value);
+                }}
                 value={field.value}
-                disabled={isValidated}
+                disabled={isEditMode}
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez un type..." />
+                    <SelectValue placeholder="Sélectionnez un compte..." />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {filteredTypes.map(type => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.label} ({type.code})
+                  {accounts.map(account => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name} ({account.currency})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <FormDescription>
-                Seuls les types compatibles avec le sens choisi sont affichés.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {/* Dates */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="transactionDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Date d'opération *</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} disabled={isValidated} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="valueDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Date de valeur</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} disabled={isValidated} />
-                </FormControl>
-                <FormDescription>Date effective (optionnel)</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Montant et Référence */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField
+        {/* Montant */}
+        <FormField
             control={form.control}
             name="amount"
             render={({ field }) => (
@@ -450,43 +414,37 @@ export function BankTransactionForm({
             )}
           />
 
+        {/* Dates */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
             control={form.control}
-            name="reference"
+            name="transactionDate"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Référence</FormLabel>
+                <FormLabel>Date d'opération *</FormLabel>
                 <FormControl>
-                  <Input 
-                    placeholder="Ex: VIR-2024-001" 
-                    {...field} 
-                    disabled={isValidated}
-                  />
+                  <Input type="date" {...field} disabled={isEditMode} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
 
-        {/* Libellé */}
-        <FormField
-          control={form.control}
-          name="label"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Libellé *</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="Description de l'opération" 
-                  {...field}
-                  disabled={isValidated}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          <FormField
+            control={form.control}
+            name="valueDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Date de valeur</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} disabled={isValidated} />
+                </FormControl>
+                <FormDescription>Date effective (optionnel)</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
         {/* Bénéficiaire/Émetteur */}
         <FormField
@@ -495,7 +453,7 @@ export function BankTransactionForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>
-                {watchDirection === 'DEBIT' ? 'Bénéficiaire' : 'Émetteur'}
+                {form.watch('direction') === 'DEBIT' ? 'Bénéficiaire' : 'Émetteur'}
               </FormLabel>
               <FormControl>
                 <Input 
@@ -509,16 +467,16 @@ export function BankTransactionForm({
           )}
         />
 
-        {/* Notes */}
+        {/* Description */}
         <FormField
           control={form.control}
-          name="notes"
+          name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Notes</FormLabel>
+              <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea
-                  placeholder="Informations complémentaires..."
+                  placeholder="Description de l'opération..."
                   rows={3}
                   {...field}
                   disabled={isValidated}
@@ -529,46 +487,19 @@ export function BankTransactionForm({
           )}
         />
 
-        {/* Statut */}
-        {!isValidated && (
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Statut *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="DRAFT">Brouillon</SelectItem>
-                    <SelectItem value="VALIDATED">Validé</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Une transaction validée impacte le solde du compte.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-
         {/* Boutons */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t">
           <Button
             type="button"
             variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
+            className="w-full sm:w-auto"
           >
             Annuler
           </Button>
           {!isValidated && (
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditMode ? 'Enregistrer' : 'Créer la transaction'}
             </Button>

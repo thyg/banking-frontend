@@ -30,6 +30,7 @@ import {
   FormMessage 
 } from '@/components/ui/form';
 import { Loader2, Building2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea'
 
 // =============================================================================
 // VALIDATION SCHEMA
@@ -53,12 +54,18 @@ const bankFormSchema = z.object({
     .min(2, { message: "Le nom doit contenir au moins 2 caractères." })
     .max(100, { message: "Le nom ne peut pas dépasser 100 caractères." }),
   
-  bicCode: z
+  swiftCode: z
     .string()
     .max(11, { message: "Le code BIC/SWIFT ne peut pas dépasser 11 caractères." })
     .regex(/^[A-Za-z0-9]*$/, { 
       message: "Le code BIC ne peut contenir que des lettres et chiffres." 
     })
+    .optional()
+    .or(z.literal('')),
+
+  address: z
+    .string()
+    .max(500, { message: "L'adresse ne peut pas dépasser 500 caractères." })
     .optional()
     .or(z.literal('')),
   
@@ -95,13 +102,13 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
   const isEditMode = initialData !== null;
 
   // Configuration du formulaire avec react-hook-form et Zod
-  // Note: Typage explicite pour react-hook-form v7.60+
   const form = useForm<BankFormData>({
     resolver: zodResolver(bankFormSchema),
     defaultValues: {
       code: initialData?.code ?? '',
       name: initialData?.name ?? '',
-      bicCode: initialData?.bicCode ?? '',
+      swiftCode: initialData?.swiftCode ?? '',
+      address: initialData?.address ?? '',
       isActive: initialData?.isActive ?? true,
     },
   });
@@ -117,7 +124,8 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
       const saveData: CreateBankData = {
         code: data.code,
         name: data.name,
-        bicCode: data.bicCode || undefined,
+        swiftCode: data.swiftCode || undefined,
+        address: data.address || undefined,
         isActive: data.isActive,
       };
       
@@ -196,10 +204,10 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
           )}
         />
 
-        {/* Champ Code BIC */}
+        {/* Champ Code BIC/SWIFT */}
         <FormField
           control={form.control}
-          name="bicCode"
+          name="swiftCode"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Code BIC/SWIFT</FormLabel>
@@ -212,6 +220,28 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
               </FormControl>
               <FormDescription>
                 Code d'identification bancaire international (optionnel).
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Champ Adresse */}
+        <FormField
+          control={form.control}
+          name="address"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Adresse</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Adresse du siège ou de l'agence principale..."
+                  rows={3}
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                Adresse postale de la banque (optionnel).
               </FormDescription>
               <FormMessage />
             </FormItem>

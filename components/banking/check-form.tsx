@@ -14,10 +14,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 // Types
-import { Check, CreateCheckData, CheckType, BankAccount } from '@/types/banking';
+import { Check, CreateCheckData, CheckType, BankAccount, Checkbook } from '@/types/banking';
 
 // API
 import { getBankAccounts } from '@/lib/api/banking';
+import { getActiveCheckbooksForAccount, reserveNextCheckNumber } from '@/lib/api/checkbook';
+import { amountToWords } from '@/lib/utils/number-to-words';
 
 // Composants UI
 import { Button } from '@/components/ui/button';
@@ -50,48 +52,55 @@ const checkFormSchema = z.object({
   type: z.enum(['ISSUED', 'RECEIVED'], {
     required_error: "Veuillez sélectionner le type de chèque.",
   }),
-  
+
+  // Chéquier obligatoire pour les chèques émis
+  checkbookId: z.string().optional(),
+
   checkNumber: z
     .string()
     .min(1, { message: "Le numéro de chèque est requis." })
-    .max(20, { message: "Le numéro ne peut pas dépasser 20 caractères." }),
-  
+    .max(30, { message: "Le numéro ne peut pas dépasser 30 caractères." }),
+
   bankAccountId: z.string({
     required_error: "Veuillez sélectionner un compte bancaire.",
   }),
-  
+
   issueDate: z.string({
     required_error: "La date d'émission est requise.",
   }),
-  
+
   dueDate: z.string().optional(),
-  
+
   amount: z
     .number({
       required_error: "Le montant est requis.",
       invalid_type_error: "Veuillez entrer un montant valide.",
     })
     .positive({ message: "Le montant doit être positif." }),
-  
-  currency: z.enum(['EUR', 'USD', 'XAF', 'XOF']),
-  
+
   partnerName: z
     .string()
     .min(2, { message: "Le nom doit contenir au moins 2 caractères." })
     .max(100, { message: "Le nom ne peut pas dépasser 100 caractères." }),
-  
+
   description: z
     .string()
     .max(200, { message: "La description ne peut pas dépasser 200 caractères." })
     .optional()
     .or(z.literal('')),
-  
-  notes: z
-    .string()
-    .max(500, { message: "Les notes ne peuvent pas dépasser 500 caractères." })
-    .optional()
-    .or(z.literal('')),
-});
+}).refine(
+  (data) => {
+    // Le chéquier est obligatoire pour les chèques émis
+    if (data.type === 'ISSUED' && !data.checkbookId) {
+      return false;
+    }
+    return true;
+  },
+  {
+    message: "Veuillez sélectionner un chéquier pour un chèque émis.",
+    path: ["checkbookId"],
+  }
+);
 
 type CheckFormData = z.infer<typeof checkFormSchema>;
 
@@ -122,6 +131,7 @@ export function CheckForm({
 }: CheckFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [checkbooks, setCheckbooks] = useState<Checkbook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
 
@@ -135,21 +145,22 @@ export function CheckForm({
     resolver: zodResolver(checkFormSchema),
     defaultValues: {
       type: initialData?.checkType ?? preselectedType ?? 'RECEIVED',
+      checkbookId: initialData?.checkbookId ?? '',
       checkNumber: initialData?.checkNumber ?? '',
       bankAccountId: initialData?.bankAccountId ?? preselectedAccountId ?? '',
       issueDate: initialData?.issueDate ?? new Date().toISOString().split('T')[0],
       dueDate: initialData?.dueDate ?? '',
       amount: initialData?.amount ?? 0,
-      currency: initialData?.currency ?? 'EUR',
       partnerName: initialData?.partnerName ?? '',
       description: initialData?.description ?? '',
-      notes: initialData?.notes ?? '',
     },
   });
 
   const watchType = form.watch('type');
+  const watchAmount = form.watch('amount');
+  const amountInWordsText = amountToWords(watchAmount, selectedAccount?.currency || 'FCFA');
 
-  // Charger les comptes bancaires
+  // Charger les comptes et chéquiers
   useEffect(() => {
     async function fetchData() {
       setIsLoading(true);
@@ -157,13 +168,14 @@ export function CheckForm({
         const accountsData = await getBankAccounts();
         setAccounts(accountsData);
 
-        // Pré-sélectionner le compte
-        const accountId = preselectedAccountId || initialData?.bankAccountId;
+        const accountId = initialData?.bankAccountId ?? preselectedAccountId;
         if (accountId) {
           const account = accountsData.find(a => a.id === accountId);
           if (account) {
             setSelectedAccount(account);
-            form.setValue('currency', account.currency);
+            // Charger les chéquiers pour ce compte
+            const checkbooksData = await getActiveCheckbooksForAccount(account.id);
+            setCheckbooks(checkbooksData);
           }
         }
       } catch (error) {
@@ -173,14 +185,37 @@ export function CheckForm({
       }
     }
     fetchData();
-  }, [preselectedAccountId, initialData, form]);
+  }, [initialData, preselectedAccountId]);
 
-  // Mettre à jour la devise quand le compte change
-  const handleAccountChange = (accountId: string) => {
+  // Mettre à jour la devise et charger les chéquiers quand le compte change
+  const handleAccountChange = async (accountId: string) => {
     const account = accounts.find(a => a.id === accountId);
     if (account) {
       setSelectedAccount(account);
-      form.setValue('currency', account.currency);
+      form.setValue('checkbookId', '');
+      form.setValue('checkNumber', '');
+      // Charger les chéquiers pour ce compte
+      try {
+        const checkbooksData = await getActiveCheckbooksForAccount(account.id);
+        setCheckbooks(checkbooksData);
+      } catch (error) {
+        console.error("[CheckForm] Erreur chargement chéquiers:", error);
+        setCheckbooks([]);
+      }
+    }
+  };
+  
+  const handleCheckbookChange = async (checkbookId: string) => {
+    const checkbook = checkbooks.find(cb => cb.id === checkbookId);
+    if (checkbook) {
+      try {
+        // Réserver le prochain numéro de chèque
+        const checkNumber = await reserveNextCheckNumber(checkbookId);
+        form.setValue('checkNumber', checkNumber);
+      } catch (error) {
+        // Fallback: utiliser le préfixe et le numéro courant
+        form.setValue('checkNumber', `${checkbook.prefix}${checkbook.currentNumber}`);
+      }
     }
   };
 
@@ -188,25 +223,37 @@ export function CheckForm({
    * Gère la soumission du formulaire.
    */
   const handleSubmit = async (data: CheckFormData) => {
+    // Validation côté client : vérifier le solde pour les chèques émis
+    if (data.type === 'ISSUED' && selectedAccount) {
+      const soldeActuel = selectedAccount.currentBalance || 0;
+      if (soldeActuel < data.amount) {
+        form.setError('amount', {
+          type: 'manual',
+          message: `Solde insuffisant. Solde actuel: ${new Intl.NumberFormat('fr-FR').format(soldeActuel)} ${selectedAccount.currency || 'XAF'}`,
+        });
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
       const saveData: CreateCheckData = {
-        checkType: data.type, // <-- Renamed from 'type'
+        checkType: data.type,
+        checkbookId: data.checkbookId || undefined,
         checkNumber: data.checkNumber,
         bankAccountId: data.bankAccountId,
         issueDate: data.issueDate,
         dueDate: data.dueDate || undefined,
         amount: data.amount,
-        // currency: data.currency, // <-- Removed, not in backend DTO
         partnerName: data.partnerName,
         description: data.description || undefined,
-        // notes: data.notes || undefined, // <-- Removed, not in backend DTO
       };
 
       await onSave(saveData);
     } catch (error) {
       console.error("[CheckForm] Erreur sauvegarde:", error);
+      // L'erreur sera gérée par le parent (page) avec un toast
     } finally {
       setIsSubmitting(false);
     }
@@ -288,58 +335,131 @@ export function CheckForm({
           )}
         />
 
-        {/* Numéro et Compte */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="checkNumber"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Numéro de chèque *</FormLabel>
+        {/* Compte bancaire */}
+        <FormField
+          control={form.control}
+          name="bankAccountId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Compte bancaire *</FormLabel>
+              <Select
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  handleAccountChange(value);
+                }}
+                value={field.value}
+                disabled={isEditMode}
+              >
                 <FormControl>
-                  <Input
-                    placeholder="Ex: 0001234"
-                    {...field}
-                    disabled={isProcessed}
-                  />
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionnez un compte..." />
+                  </SelectTrigger>
                 </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                <SelectContent>
+                  {accounts.map(account => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.name} ({account.currency})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {/* Affichage du solde du compte sélectionné */}
+              {selectedAccount && (
+                <div className={`mt-2 p-3 rounded-lg border ${
+                  watchType === 'ISSUED' && (selectedAccount.currentBalance || 0) < watchAmount
+                    ? 'bg-red-50 border-red-200 text-red-700'
+                    : 'bg-blue-50 border-blue-200 text-blue-700'
+                }`}>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Solde actuel :</span>
+                    <span className="font-bold">
+                      {new Intl.NumberFormat('fr-FR', {
+                        style: 'currency',
+                        currency: selectedAccount.currency || 'XAF',
+                        minimumFractionDigits: selectedAccount.currency === 'XAF' ? 0 : 2,
+                      }).format(selectedAccount.currentBalance || 0)}
+                    </span>
+                  </div>
+                  {watchType === 'ISSUED' && watchAmount > 0 && (selectedAccount.currentBalance || 0) < watchAmount && (
+                    <p className="text-xs mt-1 text-red-600">
+                      ⚠️ Solde insuffisant pour émettre ce chèque
+                    </p>
+                  )}
+                </div>
+              )}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
+        {/* Numéro de chèque */}
+        <FormField
+          control={form.control}
+          name="checkNumber"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Numéro de chèque *</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Ex: 0001234"
+                  {...field}
+                  disabled={isProcessed}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Sélection du chéquier - obligatoire pour chèques émis */}
+        {watchType === 'ISSUED' && (
           <FormField
             control={form.control}
-            name="bankAccountId"
+            name="checkbookId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Compte bancaire *</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    handleAccountChange(value);
-                  }}
-                  value={field.value}
-                  disabled={isEditMode}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionnez un compte..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {accounts.map(account => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name} ({account.currency})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <FormLabel>Chéquier *</FormLabel>
+                {checkbooks.length > 0 ? (
+                  <Select
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      handleCheckbookChange(value);
+                    }}
+                    value={field.value}
+                    disabled={isProcessed}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionnez un chéquier..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {checkbooks.map(cb => (
+                        <SelectItem key={cb.id} value={cb.id}>
+                          {cb.id === 'default-erp-checkbook'
+                            ? 'Chéquier ERP (numérotation automatique)'
+                            : `${cb.prefix} (${cb.startNumber.toString().padStart(6, '0')} - ${cb.endNumber.toString().padStart(6, '0')}) - ${cb.availableChecks} chèques disponibles`
+                          }
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="p-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md">
+                    {selectedAccount
+                      ? "Aucun chéquier actif pour ce compte. Veuillez d'abord créer un chéquier."
+                      : "Veuillez d'abord sélectionner un compte bancaire."
+                    }
+                  </div>
+                )}
+                <FormDescription>
+                  Le chéquier détermine la série et le numéro du chèque.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
-        </div>
+        )}
 
         {/* Dates */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -406,6 +526,11 @@ export function CheckForm({
           )}
         />
 
+        <FormItem>
+            <FormLabel>Montant en lettres</FormLabel>
+            <FormControl><Input readOnly value={amountInWordsText} className="bg-gray-100 italic" /></FormControl>
+        </FormItem>
+
         {/* Bénéficiaire/Émetteur */}
         <FormField
           control={form.control}
@@ -450,38 +575,19 @@ export function CheckForm({
           )}
         />
 
-        {/* Notes */}
-        <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Notes</FormLabel>
-              <FormControl>
-                <Textarea
-                  placeholder="Informations complémentaires..."
-                  rows={2}
-                  {...field}
-                  disabled={isProcessed}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         {/* Boutons */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t">
           <Button
             type="button"
             variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
+            className="w-full sm:w-auto"
           >
             Annuler
           </Button>
           {!isProcessed && (
-            <Button type="submit" disabled={isSubmitting}>
+            <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isEditMode ? 'Enregistrer' : 'Créer le chèque'}
             </Button>

@@ -45,12 +45,6 @@ import { Loader2, ArrowUpDown } from 'lucide-react';
 /**
  * Options pour le sens de la transaction.
  */
-const DIRECTION_OPTIONS = [
-  { value: 'DEBIT', label: 'Débit (sortie)', description: 'Diminue le solde' },
-  { value: 'CREDIT', label: 'Crédit (entrée)', description: 'Augmente le solde' },
-  { value: 'BOTH', label: 'Les deux', description: 'Peut être débit ou crédit' },
-] as const;
-
 /**
  * Options pour la catégorie de transaction.
  */
@@ -84,14 +78,12 @@ const transactionTypeFormSchema = z.object({
     .min(2, { message: "Le libellé doit contenir au moins 2 caractères." })
     .max(100, { message: "Le libellé ne peut pas dépasser 100 caractères." }),
   
-  direction: z.enum(['DEBIT', 'CREDIT', 'BOTH'], {
-    required_error: "Veuillez sélectionner un sens.",
-  }),
-  
   category: z.enum(['BANK', 'CASH', 'CHECK', 'OTHER'], {
     required_error: "Veuillez sélectionner une catégorie.",
   }),
   
+  description: z.string().max(200, { message: "La description ne peut pas dépasser 200 caractères." }).optional(),
+
   isActive: z.boolean(),
 });
 
@@ -135,8 +127,8 @@ export function TransactionTypeForm({
     defaultValues: {
       code: initialData?.code ?? '',
       label: initialData?.label ?? '',
-      direction: initialData?.direction ?? 'BOTH',
       category: initialData?.category ?? 'BANK',
+      description: initialData?.description ?? '',
       isActive: initialData?.isActive ?? true,
     },
   });
@@ -151,8 +143,8 @@ export function TransactionTypeForm({
       const saveData: CreateTransactionTypeData = {
         code: data.code,
         label: data.label,
-        direction: data.direction,
         category: data.category,
+        description: data.description,
         isActive: data.isActive,
       };
       
@@ -232,40 +224,8 @@ export function TransactionTypeForm({
           />
         </div>
 
-        {/* Ligne 2: Direction et Catégorie */}
+        {/* Ligne 2: Catégorie et Description */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Champ Direction */}
-          <FormField
-            control={form.control}
-            name="direction"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Sens *</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionnez le sens..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {DIRECTION_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <div className="flex flex-col">
-                          <span>{option.label}</span>
-                          <span className="text-xs text-gray-500">{option.description}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Impact sur le solde
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
           {/* Champ Catégorie */}
           <FormField
             control={form.control}
@@ -292,6 +252,27 @@ export function TransactionTypeForm({
                 </Select>
                 <FormDescription>
                   Type d'opération
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          {/* Champ Description */}
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Input 
+                    placeholder="Courte description (optionnel)" 
+                    {...field} 
+                  />
+                </FormControl>
+                <FormDescription>
+                  Information additionnelle
                 </FormDescription>
                 <FormMessage />
               </FormItem>

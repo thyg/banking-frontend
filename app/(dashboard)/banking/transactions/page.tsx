@@ -205,7 +205,7 @@ export default function BankTransactionsPage() {
    */
   const handleConfirmCancel = async () => {
     if (!transactionToCancel) return;
-    
+
     try {
       await cancelBankTransaction(transactionToCancel.id);
       toast({
@@ -225,6 +225,81 @@ export default function BankTransactionsPage() {
     }
   };
 
+  /**
+   * Imprime une transaction.
+   */
+  const handlePrint = (transaction: BankTransaction) => {
+    // Ouvrir une fenêtre d'impression avec les détails de la transaction
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      const formatCurrency = (amount: number, currency: string = 'XAF') => {
+        return new Intl.NumberFormat('fr-FR', {
+          style: 'currency',
+          currency,
+          minimumFractionDigits: currency === 'XAF' || currency === 'XOF' ? 0 : 2,
+        }).format(amount);
+      };
+
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Transaction - ${transaction.reference || transaction.id}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 40px; }
+              h1 { color: #1a56db; border-bottom: 2px solid #1a56db; padding-bottom: 10px; }
+              .info { margin: 20px 0; }
+              .info label { font-weight: bold; display: inline-block; width: 150px; }
+              .amount { font-size: 24px; font-weight: bold; margin: 20px 0; }
+              .credit { color: #059669; }
+              .debit { color: #dc2626; }
+              @media print { button { display: none; } }
+            </style>
+          </head>
+          <body>
+            <h1>Détail de la Transaction</h1>
+            <div class="info"><label>Référence:</label> ${transaction.reference || 'N/A'}</div>
+            <div class="info"><label>Date:</label> ${new Date(transaction.transactionDate).toLocaleDateString('fr-FR')}</div>
+            <div class="info"><label>Compte:</label> ${transaction.bankAccountName || 'N/A'}</div>
+            <div class="info"><label>Type:</label> ${transaction.transactionTypeCode || 'N/A'}</div>
+            <div class="info"><label>Libellé:</label> ${transaction.description || 'N/A'}</div>
+            <div class="info"><label>Tiers:</label> ${transaction.partnerName || 'N/A'}</div>
+            <div class="amount ${transaction.direction === 'CREDIT' ? 'credit' : 'debit'}">
+              ${transaction.direction === 'CREDIT' ? '+' : '-'} ${formatCurrency(transaction.amount, transaction.currency)}
+            </div>
+            <div class="info"><label>Statut:</label> ${transaction.status}</div>
+            <br><br>
+            <button onclick="window.print()">Imprimer</button>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
+  };
+
+  /**
+   * Comptabilise une transaction (génère les écritures comptables).
+   */
+  const handlePost = (transaction: BankTransaction) => {
+    toast({
+      title: 'Comptabilisation',
+      description: `La transaction "${transaction.reference || transaction.description}" sera comptabilisée. (Fonctionnalité à implémenter avec le module comptabilité)`,
+    });
+    // TODO: Implémenter l'intégration avec le module comptabilité
+    // await postTransaction(transaction.id);
+  };
+
+  /**
+   * Transfère une transaction vers un autre compte.
+   */
+  const handleTransfer = (transaction: BankTransaction) => {
+    toast({
+      title: 'Transfert',
+      description: `Transfert de la transaction "${transaction.reference || transaction.description}". (Fonctionnalité à implémenter)`,
+    });
+    // TODO: Ouvrir une modale pour sélectionner le compte de destination
+    // et créer la transaction de transfert
+  };
+
   // ---------------------------------------------------------------------------
   // RENDU
   // ---------------------------------------------------------------------------
@@ -242,6 +317,9 @@ export default function BankTransactionsPage() {
         onDelete={setTransactionToDelete}
         onValidate={setTransactionToValidate}
         onCancel={setTransactionToCancel}
+        onPrint={handlePrint}
+        onPost={handlePost}
+        onTransfer={handleTransfer}
         onRefresh={fetchTransactions}
         showAccountColumn={true}
       />

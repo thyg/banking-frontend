@@ -43,18 +43,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 // Icônes
-import { 
-  Plus, 
-  RefreshCw, 
+import {
+  Plus,
+  RefreshCw,
   ArrowUpDown,
-  MoreHorizontal, 
-  Pencil, 
+  MoreHorizontal,
+  Pencil,
   Trash2,
   CheckCircle2,
   XCircle,
-  ArrowDownLeft,
-  ArrowUpRight,
-  ArrowLeftRight,
   Landmark,
   Banknote,
   FileCheck,
@@ -65,26 +62,6 @@ import {
 // CONSTANTES
 // =============================================================================
 
-/**
- * Configuration d'affichage pour les directions.
- */
-const DIRECTION_CONFIG = {
-  DEBIT: { 
-    label: 'Débit', 
-    icon: ArrowDownLeft, 
-    className: 'bg-red-50 text-red-700 border-red-200' 
-  },
-  CREDIT: { 
-    label: 'Crédit', 
-    icon: ArrowUpRight, 
-    className: 'bg-green-50 text-green-700 border-green-200' 
-  },
-  BOTH: { 
-    label: 'Les deux', 
-    icon: ArrowLeftRight, 
-    className: 'bg-blue-50 text-blue-700 border-blue-200' 
-  },
-} as const;
 
 /**
  * Configuration d'affichage pour les catégories.
@@ -134,21 +111,6 @@ interface TransactionTypeListProps {
 // =============================================================================
 // COMPOSANTS AUXILIAIRES
 // =============================================================================
-
-/**
- * Badge pour afficher la direction d'un type de transaction.
- */
-function DirectionBadge({ direction }: { direction: TransactionType['direction'] }) {
-  const config = DIRECTION_CONFIG[direction];
-  const Icon = config.icon;
-  
-  return (
-    <Badge variant="outline" className={config.className}>
-      <Icon className="h-3 w-3 mr-1" />
-      {config.label}
-    </Badge>
-  );
-}
 
 /**
  * Badge pour afficher la catégorie d'un type de transaction.
@@ -221,7 +183,6 @@ export function TransactionTypeList({
             <TableRow className="bg-gray-50/50">
               <TableHead className="w-[120px]">Code</TableHead>
               <TableHead>Libellé</TableHead>
-              <TableHead className="w-[130px]">Sens</TableHead>
               <TableHead className="w-[130px]">Catégorie</TableHead>
               <TableHead className="w-[100px] text-center">Statut</TableHead>
               <TableHead className="w-[70px] text-right">Actions</TableHead>
@@ -242,12 +203,7 @@ export function TransactionTypeList({
                 <TableCell>
                   <span className="font-medium">{type.label}</span>
                 </TableCell>
-                
-                {/* Direction */}
-                <TableCell>
-                  <DirectionBadge direction={type.direction} />
-                </TableCell>
-                
+
                 {/* Catégorie */}
                 <TableCell>
                   <CategoryBadge category={type.category} />

@@ -12,11 +12,12 @@
 // ENUMS ET CONSTANTES
 // =============================================================================
 
-export type TransactionDirection = 'CREDIT' | 'DEBIT' | 'BOTH';
+export type TransactionDirection = 'CREDIT' | 'DEBIT';
 export type TransactionCategory = 'BANK' | 'CASH' | 'CHECK' | 'OTHER';
 export type TransactionStatus = 'DRAFT' | 'VALIDATED' | 'CANCELLED';
 export type CheckType = 'ISSUED' | 'RECEIVED';
 export type CheckStatus = 'PENDING' | 'DEPOSITED' | 'CASHED' | 'REJECTED' | 'CANCELLED';
+export type CheckbookStatus = 'ACTIVE' | 'FINISHED' | 'CANCELLED';
 export type StatementStatus = 'IMPORTED' | 'IN_PROGRESS' | 'RECONCILED' | 'CLOSED';
 export type ReconciliationStatus = 'UNMATCHED' | 'MATCHED' | 'PARTIALLY_MATCHED' | 'IGNORED';
 export type MatchType = 'TRANSACTION' | 'CHECK' | 'MULTIPLE' | 'PARTIAL';
@@ -32,6 +33,7 @@ export interface Bank {
   name: string;
   swiftCode?: string;
   country?: string;
+  address?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -41,7 +43,6 @@ export interface TransactionType {
   id: string;
   code: string;
   label: string;
-  direction: TransactionDirection;
   category: TransactionCategory;
   description?: string;
   isActive: boolean;
@@ -80,9 +81,25 @@ export interface BankTransaction {
   description?: string;
   partnerName?: string;
   status: TransactionStatus;
+  systemDate?: string;
   isReconciled: boolean;
   reconciledAt?: string;
   statementLineId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Checkbook {
+  id: string;
+  bankAccountId: string;
+  bankAccountName: string;
+  rib: string;
+  prefix: string;
+  startNumber: number;
+  endNumber: number;
+  currentNumber: number;
+  availableChecks: number;
+  status: CheckbookStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -91,9 +108,12 @@ export interface Check {
   id: string;
   bankAccountId: string;
   bankAccountName?: string;
+  checkbookId?: string;
+  checkbookPrefix?: string;
   checkType: CheckType;
   checkNumber: string;
   amount: number;
+  amountInWords?: string;
   currency?: string;
   partnerName: string;
   partnerId?: string;
@@ -270,6 +290,7 @@ export interface CreateBankRequest {
   name: string;
   swiftCode?: string;
   country?: string;
+  address?: string;
   isActive?: boolean;
 }
 
@@ -278,13 +299,13 @@ export interface UpdateBankRequest {
   name?: string;
   swiftCode?: string;
   country?: string;
+  address?: string;
   isActive?: boolean;
 }
 
 export interface CreateTransactionTypeRequest {
   code: string;
   label: string;
-  direction: TransactionDirection;
   category: TransactionCategory;
   description?: string;
   isActive?: boolean;
@@ -293,7 +314,6 @@ export interface CreateTransactionTypeRequest {
 export interface UpdateTransactionTypeRequest {
   code?: string;
   label?: string;
-  direction?: TransactionDirection;
   category?: TransactionCategory;
   description?: string;
   isActive?: boolean;
@@ -385,8 +405,9 @@ export type UpdateBankTransactionData = UpdateBankTransactionRequest;
 
 export interface CreateCheckRequest {
   bankAccountId: string;
+  checkbookId?: string;
   checkType: CheckType;
-  checkNumber: string;
+  checkNumber?: string;
   amount: number;
   currency?: string;
   partnerName: string;

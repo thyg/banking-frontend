@@ -1,6 +1,4 @@
-
 import { cn } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface StatCardProps {
   title: string;
@@ -20,9 +18,12 @@ export function StatCard({ title, value, icon, variant = "default", className }:
 
   return (
     <div className={cn(baseClasses, variantClasses[variant], className)}>
-      <div className="p-3">
-        <p className="text-xs uppercase font-semibold text-muted-foreground">{title}</p>
-        <p className="text-l font-bold mt-1">{value}</p>
+      <div className="p-3 sm:p-4">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs uppercase font-semibold text-muted-foreground truncate">{title}</p>
+          {icon && <div className="flex-shrink-0 hidden sm:block">{icon}</div>}
+        </div>
+        <p className="text-lg sm:text-xl font-bold mt-1 truncate">{value}</p>
       </div>
     </div>
   );

@@ -289,3 +289,147 @@
   size: A4 landscape;
   margin: 1cm;
 }
+
+/* =============================================================================
+   RESPONSIVE UTILITIES
+   ============================================================================= */
+
+/* Tables responsive - scroll horizontal sur mobile */
+@layer utilities {
+  .table-responsive {
+    @apply w-full overflow-x-auto;
+  }
+
+  .table-responsive table {
+    @apply min-w-[600px];
+  }
+
+  /* Cards grid responsive */
+  .cards-grid {
+    @apply grid gap-4;
+    @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+
+  /* Stats grid responsive */
+  .stats-grid {
+    @apply grid gap-3 sm:gap-4;
+    @apply grid-cols-2 sm:grid-cols-2 md:grid-cols-4;
+  }
+
+  /* Form grid responsive */
+  .form-grid {
+    @apply grid gap-4;
+    @apply grid-cols-1 sm:grid-cols-2;
+  }
+
+  .form-grid-3 {
+    @apply grid gap-4;
+    @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3;
+  }
+
+  /* Hide on mobile */
+  .hide-mobile {
+    @apply hidden sm:block;
+  }
+
+  .hide-tablet {
+    @apply hidden md:block;
+  }
+
+  /* Show only on mobile */
+  .show-mobile {
+    @apply block sm:hidden;
+  }
+
+  /* Responsive text */
+  .text-responsive {
+    @apply text-sm sm:text-base;
+  }
+
+  .heading-responsive {
+    @apply text-lg sm:text-xl md:text-2xl;
+  }
+
+  /* Responsive padding */
+  .p-responsive {
+    @apply p-2 sm:p-4 md:p-6;
+  }
+
+  /* Responsive gaps */
+  .gap-responsive {
+    @apply gap-2 sm:gap-4 md:gap-6;
+  }
+
+  /* Stack on mobile, row on desktop */
+  .stack-mobile {
+    @apply flex flex-col sm:flex-row;
+  }
+
+  /* Button group responsive */
+  .btn-group-responsive {
+    @apply flex flex-col sm:flex-row gap-2;
+  }
+
+  .btn-group-responsive > button,
+  .btn-group-responsive > a {
+    @apply w-full sm:w-auto;
+  }
+}
+
+/* Mobile-specific table improvements */
+@media (max-width: 640px) {
+  /* Reduce table cell padding on mobile */
+  table th,
+  table td {
+    @apply px-2 py-2 text-xs;
+  }
+
+  /* Truncate long text in table cells */
+  table td {
+    @apply max-w-[120px] truncate;
+  }
+
+  /* Stack badges vertically on mobile */
+  .badge-stack {
+    @apply flex flex-col gap-1;
+  }
+
+  /* Compact cards on mobile */
+  .card-compact {
+    @apply p-3;
+  }
+
+  .card-compact h3 {
+    @apply text-sm;
+  }
+
+  .card-compact p {
+    @apply text-xs;
+  }
+}
+
+/* Touch-friendly targets on mobile */
+@media (max-width: 768px) {
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Exception for small icon buttons */
+  button[data-size="icon"],
+  .btn-icon {
+    min-height: 36px;
+    min-width: 36px;
+  }
+}
+
+/* Improve form inputs on mobile */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    @apply text-base; /* Prevents zoom on iOS */
+  }
+}

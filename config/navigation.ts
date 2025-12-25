@@ -31,6 +31,7 @@ import {
   Bell,
   Shield,
   Database,
+  BookOpen,
 } from 'lucide-react';
 
 // =============================================================================
@@ -103,6 +104,7 @@ export const modules: Record<ModuleKey, ModuleConfig> = {
       { title: 'Comptes Bancaires', href: '/banking/accounts', icon: Building2 },
       { title: 'Transactions', href: '/banking/transactions', icon: ArrowLeftRight },
       { title: 'Chèques', href: '/banking/checks', icon: FileText },
+      { title: 'Chéquiers', href: '/banking/checkbooks', icon: BookOpen },
       // Rapprochement (NOUVEAU - Incrément 4)
       { title: 'Relevés Bancaires', href: '/banking/statements', icon: ClipboardList },
       { title: 'Rapprochement', href: '/banking/reconciliation', icon: FileCheck },
@@ -110,8 +112,8 @@ export const modules: Record<ModuleKey, ModuleConfig> = {
       { title: 'Caisses', href: '/banking/cash-registers', icon: Wallet, disabled: true },
       { title: 'Opérations Caisse', href: '/banking/cash-operations', icon: CircleDollarSign, disabled: true },
       // Paramétrage
-      { title: 'Banques', href: '/banking/settings/banks', icon: Landmark },
-      { title: 'Types Transactions', href: '/banking/settings/transaction-types', icon: Receipt },
+      { title: 'Banques', href: '/banking/banks', icon: Landmark },
+      { title: 'Types Transactions', href: '/banking/transaction-types', icon: Receipt },
     ],
   },
 
