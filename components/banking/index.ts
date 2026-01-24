@@ -38,6 +38,15 @@ export { StatementUploader } from './statement-uploader';
 
  export { CheckForm } from './check-form';
  export { CheckList } from './check-list';
+ export { ActiveFilterBadges } from './active-filter-badges';
+
+// =============================================================================
+// CHÉQUIERS (Phase 4 - Navigation filtrée)
+// =============================================================================
+
+export { CheckbookList } from './checkbook-list';
+export { CheckbookDetailDialog } from './checkbook-detail-dialog';
+export { BalanceIndicator } from './balance-indicator';
 
 
 

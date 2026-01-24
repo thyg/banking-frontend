@@ -34,9 +34,11 @@ const headers = {
 // BANKS API
 // ============================================================================
 
-import type { 
+import type {
   Bank, CreateBankRequest, UpdateBankRequest,
   TransactionType, CreateTransactionTypeRequest,
+  AccountType, CreateAccountTypeRequest, UpdateAccountTypeRequest,
+  AccountSubType, CreateAccountSubTypeRequest, UpdateAccountSubTypeRequest,
   BankAccount, CreateBankAccountRequest, UpdateBankAccountRequest,
   BankTransaction, CreateBankTransactionRequest,
   Check, CreateCheckRequest,
@@ -115,6 +117,101 @@ export async function updateTransactionType(id: string, data: Partial<CreateTran
 export async function deleteTransactionType(id: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/transaction-types/${id}`, { method: 'DELETE' });
   if (!response.ok) throw new Error('Échec de la suppression');
+}
+
+// ============================================================================
+// ACCOUNT TYPES API
+// ============================================================================
+
+export async function getAccountTypes(activeOnly = false): Promise<AccountType[]> {
+  const response = await fetch(buildUrl('/account-types', { activeOnly }));
+  return handleResponse<AccountType[]>(response);
+}
+
+export async function getAccountTypeById(id: string, includeSubTypes = false): Promise<AccountType> {
+  const response = await fetch(buildUrl(`/account-types/${id}`, { includeSubTypes }));
+  return handleResponse<AccountType>(response);
+}
+
+export async function getAccountTypeByCode(code: string): Promise<AccountType> {
+  const response = await fetch(`${API_BASE_URL}/account-types/code/${code}`);
+  return handleResponse<AccountType>(response);
+}
+
+export async function getCheckEmitterTypes(): Promise<AccountType[]> {
+  const response = await fetch(`${API_BASE_URL}/account-types/check-emitters`);
+  return handleResponse<AccountType[]>(response);
+}
+
+export async function getCheckReceiverTypes(): Promise<AccountType[]> {
+  const response = await fetch(`${API_BASE_URL}/account-types/check-receivers`);
+  return handleResponse<AccountType[]>(response);
+}
+
+export async function getCashEnabledTypes(): Promise<AccountType[]> {
+  const response = await fetch(`${API_BASE_URL}/account-types/cash-enabled`);
+  return handleResponse<AccountType[]>(response);
+}
+
+export async function getOverdraftEnabledTypes(): Promise<AccountType[]> {
+  const response = await fetch(`${API_BASE_URL}/account-types/overdraft-enabled`);
+  return handleResponse<AccountType[]>(response);
+}
+
+export async function createAccountType(data: CreateAccountTypeRequest): Promise<AccountType> {
+  const response = await fetch(`${API_BASE_URL}/account-types`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<AccountType>(response);
+}
+
+export async function updateAccountType(id: string, data: UpdateAccountTypeRequest): Promise<AccountType> {
+  const response = await fetch(`${API_BASE_URL}/account-types/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<AccountType>(response);
+}
+
+export async function deleteAccountType(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/account-types/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Échec de la suppression');
+}
+
+export async function getAccountSubTypes(accountTypeId: string, activeOnly = false): Promise<AccountSubType[]> {
+  const response = await fetch(buildUrl(`/account-types/${accountTypeId}/sub-types`, { activeOnly }));
+  return handleResponse<AccountSubType[]>(response);
+}
+
+export async function getAccountSubTypeById(accountTypeId: string, subTypeId: string): Promise<AccountSubType> {
+  const response = await fetch(`${API_BASE_URL}/account-types/${accountTypeId}/sub-types/${subTypeId}`);
+  return handleResponse<AccountSubType>(response);
+}
+
+export async function createAccountSubType(accountTypeId: string, data: CreateAccountSubTypeRequest): Promise<AccountSubType> {
+  const response = await fetch(`${API_BASE_URL}/account-types/${accountTypeId}/sub-types`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ ...data, accountTypeId }),
+  });
+  return handleResponse<AccountSubType>(response);
+}
+
+export async function updateAccountSubType(accountTypeId: string, subTypeId: string, data: UpdateAccountSubTypeRequest): Promise<AccountSubType> {
+  const response = await fetch(`${API_BASE_URL}/account-types/${accountTypeId}/sub-types/${subTypeId}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<AccountSubType>(response);
+}
+
+export async function deleteAccountSubType(accountTypeId: string, subTypeId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/account-types/${accountTypeId}/sub-types/${subTypeId}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Échec de la suppression du sous-type');
 }
 
 // ============================================================================

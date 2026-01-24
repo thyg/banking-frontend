@@ -11,18 +11,23 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 // Types
-import type { 
-  Check, 
+import type {
+  Check,
   CheckFilters,
   CheckType,
+  CheckStatus,
   CreateCheckData,
   UpdateCheckData,
 } from '@/types/banking';
 
+// Hook navigation filtrée
+import { useCheckNavigation } from '@/hooks/use-check-navigation';
+
 // API - IMPORTANT: Utilise lib/api/check.ts qui appelle le backend
-import { 
+import {
   getChecks,
   createCheck,
   updateCheck,
@@ -31,11 +36,17 @@ import {
   cashCheck,
   rejectCheck,
   cancelCheck,
+  emitCheck,
+  markReceivedCheck,
+  markProcessingCheck,
+  markPaidCheck,
 } from '@/lib/api/check';
 
 // Composants
 import { CheckList } from '@/components/banking/check-list';
 import { CheckForm } from '@/components/banking/check-form';
+import { CheckDetailDialog } from '@/components/banking/check-detail-dialog';
+import { ActiveFilterBadges } from '@/components/banking/active-filter-badges';
 
 // UI
 import {
@@ -68,16 +79,46 @@ export default function ChecksPage() {
   // ---------------------------------------------------------------------------
   // ÉTAT
   // ---------------------------------------------------------------------------
-  
+
+  const searchParams = useSearchParams();
+  const { currentFilters, hasActiveFilters } = useCheckNavigation();
+
   const [checks, setChecks] = useState<Check[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState<CheckFilters>({});
+
+  // Initialiser les filtres depuis l'URL
+  const [filters, setFilters] = useState<CheckFilters>(() => {
+    const urlFilters: CheckFilters = {};
+    const checkbookId = searchParams.get('checkbookId');
+    const status = searchParams.get('status');
+    const checkType = searchParams.get('checkType');
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
+    const amountMin = searchParams.get('amountMin');
+    const amountMax = searchParams.get('amountMax');
+    const search = searchParams.get('search');
+
+    if (checkbookId) urlFilters.checkbookId = checkbookId;
+    if (status) urlFilters.status = status as CheckStatus;
+    if (checkType) urlFilters.checkType = checkType as CheckType;
+    if (dateFrom) urlFilters.dateFrom = dateFrom;
+    if (dateTo) urlFilters.dateTo = dateTo;
+    if (amountMin) urlFilters.amountMin = amountMin;
+    if (amountMax) urlFilters.amountMax = amountMax;
+    if (search) urlFilters.search = search;
+
+    return urlFilters;
+  });
   
   // Modales
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCheck, setEditingCheck] = useState<Check | null>(null);
   const [preselectedType, setPreselectedType] = useState<CheckType | undefined>();
-  
+
+  // Popup de détails
+  const [selectedCheck, setSelectedCheck] = useState<Check | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
   // Actions
   const [checkToDelete, setCheckToDelete] = useState<Check | null>(null);
   const [checkToDeposit, setCheckToDeposit] = useState<Check | null>(null);
@@ -120,6 +161,30 @@ export default function ChecksPage() {
   useEffect(() => {
     fetchChecks();
   }, [fetchChecks]);
+
+  // Synchroniser les filtres quand l'URL change
+  useEffect(() => {
+    const urlFilters: CheckFilters = {};
+    const checkbookId = searchParams.get('checkbookId');
+    const status = searchParams.get('status');
+    const checkType = searchParams.get('checkType');
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
+    const amountMin = searchParams.get('amountMin');
+    const amountMax = searchParams.get('amountMax');
+    const search = searchParams.get('search');
+
+    if (checkbookId) urlFilters.checkbookId = checkbookId;
+    if (status) urlFilters.status = status as CheckStatus;
+    if (checkType) urlFilters.checkType = checkType as CheckType;
+    if (dateFrom) urlFilters.dateFrom = dateFrom;
+    if (dateTo) urlFilters.dateTo = dateTo;
+    if (amountMin) urlFilters.amountMin = amountMin;
+    if (amountMax) urlFilters.amountMax = amountMax;
+    if (search) urlFilters.search = search;
+
+    setFilters(urlFilters);
+  }, [searchParams]);
 
   // ---------------------------------------------------------------------------
   // HANDLERS - CRUD
@@ -288,7 +353,7 @@ export default function ChecksPage() {
    */
   const handleConfirmCancel = async () => {
     if (!checkToCancel) return;
-    
+
     setIsSubmitting(true);
     try {
       await cancelCheck(checkToCancel.id);
@@ -311,11 +376,148 @@ export default function ChecksPage() {
   };
 
   // ---------------------------------------------------------------------------
+  // HANDLERS - NOUVELLES ACTIONS
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Voir les détails d'un chèque.
+   */
+  const handleViewDetails = (check: Check) => {
+    setSelectedCheck(check);
+    setIsDetailOpen(true);
+  };
+
+  /**
+   * Émettre un chèque (PENDING -> ISSUED).
+   */
+  const handleEmit = async (check: Check) => {
+    setIsSubmitting(true);
+    try {
+      await emitCheck(check.id);
+      toast({
+        title: 'Chèque émis',
+        description: `Le chèque n°${check.checkNumber} a été marqué comme émis.`,
+      });
+      await fetchChecks();
+    } catch (error) {
+      console.error('[ChecksPage] Erreur émission:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: error instanceof Error ? error.message : 'Erreur lors de l\'émission.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * Marquer un chèque comme reçu.
+   */
+  const handleMarkReceived = async (check: Check) => {
+    setIsSubmitting(true);
+    try {
+      await markReceivedCheck(check.id);
+      toast({
+        title: 'Chèque reçu',
+        description: `Le chèque n°${check.checkNumber} a été marqué comme reçu.`,
+      });
+      await fetchChecks();
+    } catch (error) {
+      console.error('[ChecksPage] Erreur marquage reçu:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: error instanceof Error ? error.message : 'Erreur lors du marquage.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * Marquer un chèque en cours de traitement.
+   */
+  const handleMarkProcessing = async (check: Check) => {
+    setIsSubmitting(true);
+    try {
+      await markProcessingCheck(check.id);
+      toast({
+        title: 'Chèque en cours',
+        description: `Le chèque n°${check.checkNumber} est maintenant en cours de traitement.`,
+      });
+      await fetchChecks();
+    } catch (error) {
+      console.error('[ChecksPage] Erreur marquage en cours:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: error instanceof Error ? error.message : 'Erreur lors du marquage.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * Marquer un chèque émis comme payé.
+   */
+  const handleMarkPaid = async (check: Check) => {
+    setIsSubmitting(true);
+    try {
+      await markPaidCheck(check.id);
+      toast({
+        title: 'Chèque payé',
+        description: `Le chèque n°${check.checkNumber} a été marqué comme payé.`,
+      });
+      await fetchChecks();
+    } catch (error) {
+      console.error('[ChecksPage] Erreur marquage payé:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: error instanceof Error ? error.message : 'Erreur lors du marquage.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * Imprimer un chèque.
+   */
+  const handlePrint = (check: Check) => {
+    // TODO: Implémenter l'impression
+    toast({
+      title: 'Impression',
+      description: `Impression du chèque n°${check.checkNumber} (à implémenter).`,
+    });
+  };
+
+  /**
+   * Voir la transaction liée.
+   */
+  const handleViewTransaction = (check: Check) => {
+    // TODO: Navigation vers la transaction liée
+    toast({
+      title: 'Transaction',
+      description: `Voir la transaction liée au chèque n°${check.checkNumber} (à implémenter).`,
+    });
+  };
+
+  // ---------------------------------------------------------------------------
   // RENDU
   // ---------------------------------------------------------------------------
 
   return (
     <>
+      {/* Badges des filtres actifs */}
+      {hasActiveFilters && (
+        <div className="p-4 pb-0">
+          <ActiveFilterBadges />
+        </div>
+      )}
+
       {/* Liste des chèques */}
       <CheckList
         checks={checks}
@@ -330,6 +532,13 @@ export default function ChecksPage() {
         onReject={setCheckToReject}
         onCancel={setCheckToCancel}
         onRefresh={fetchChecks}
+        onEmit={handleEmit}
+        onPrint={handlePrint}
+        onMarkReceived={handleMarkReceived}
+        onMarkProcessing={handleMarkProcessing}
+        onMarkPaid={handleMarkPaid}
+        onViewTransaction={handleViewTransaction}
+        onViewDetails={handleViewDetails}
       />
 
       {/* Modale Formulaire */}
@@ -506,8 +715,8 @@ export default function ChecksPage() {
       </AlertDialog>
 
       {/* Confirmation Annulation */}
-      <AlertDialog 
-        open={!!checkToCancel} 
+      <AlertDialog
+        open={!!checkToCancel}
         onOpenChange={() => setCheckToCancel(null)}
       >
         <AlertDialogContent>
@@ -526,6 +735,24 @@ export default function ChecksPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Popup de détails du chèque */}
+      <CheckDetailDialog
+        check={selectedCheck}
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+        onEdit={handleEdit}
+        onEmit={handleEmit}
+        onDeposit={(check) => setCheckToDeposit(check)}
+        onCash={(check) => setCheckToCash(check)}
+        onReject={(check) => setCheckToReject(check)}
+        onCancel={(check) => setCheckToCancel(check)}
+        onPrint={handlePrint}
+        onMarkReceived={handleMarkReceived}
+        onMarkProcessing={handleMarkProcessing}
+        onMarkPaid={handleMarkPaid}
+        onViewTransaction={handleViewTransaction}
+      />
     </>
   );
 }

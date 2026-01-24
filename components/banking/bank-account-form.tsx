@@ -19,16 +19,17 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
 // Types
-import { BankAccount, Bank } from '@/types/banking';
+import { BankAccount, Bank, AccountType, AccountSubType } from '@/types/banking';
 import { Journal } from '@/types/accounting';
 
 // API
-import { getBanks } from '@/lib/api/banking';
+import { getBanks, getAccountTypes } from '@/lib/api/banking';
 import { getBankJournals } from '@/lib/api/accounting';
 
 // Composants UI
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { IbanInput } from '@/components/banking/iban-input';
 import { 
   Form, 
   FormControl, 
@@ -45,8 +46,9 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { Loader2, CreditCard, AlertCircle } from 'lucide-react';
+import { Loader2, CreditCard, AlertCircle, Banknote, PiggyBank } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 
 // =============================================================================
 // VALIDATION SCHEMA
@@ -54,36 +56,47 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 /**
  * Schéma de validation Zod pour le formulaire de compte bancaire.
- * 
- * @version 2.0.0 - bankName remplacé par bankId
+ *
+ * @version 2.1.0 - Validation IBAN déléguée au composant IbanInput
  */
-const ibanRegex = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/;
-
 const bankAccountSchema = z.object({
+  // Type de compte (CRITIQUE - nouveau champ)
+  accountTypeId: z
+    .string({ required_error: "Veuillez sélectionner un type de compte." })
+    .min(1, { message: "Veuillez sélectionner un type de compte." }),
+
+  // Sous-type de compte (optionnel, dépend du type)
+  accountSubTypeId: z.string().optional(),
+
   name: z
     .string()
     .min(2, { message: "Le nom doit contenir au moins 2 caractères." })
     .max(100, { message: "Le nom ne peut pas dépasser 100 caractères." }),
-  
+
   bankId: z
     .string({ required_error: "Veuillez sélectionner une banque." })
     .min(1, { message: "Veuillez sélectionner une banque." }),
-  
+
   accountNumber: z
     .string()
-    .min(1, { message: "Le numéro de compte (IBAN) est requis."})
-    .transform(val => val.toUpperCase().replace(/\s/g, ''))
-    .refine(ibanRegex.test, {
-      message: "Format IBAN invalide (ex: FR7630001007941234567890185)"
-    }),
-  
+    .min(15, { message: "Le numéro de compte (IBAN) est requis." })
+    .max(34, { message: "L'IBAN ne peut pas dépasser 34 caractères." })
+    .transform(val => val.toUpperCase().replace(/\s/g, '')),
+
   journalId: z
     .string({ required_error: "Veuillez sélectionner un journal comptable." })
     .min(1, { message: "Veuillez sélectionner un journal comptable." }),
-  
-  currency: z.enum(['EUR', 'USD', 'XAF', 'XOF', 'GBP'], { 
-    required_error: "La devise est requise." 
+
+  currency: z.enum(['EUR', 'USD', 'XAF', 'XOF', 'GBP'], {
+    required_error: "La devise est requise."
   }),
+
+  // Gestion du découvert
+  overdraftAllowed: z.boolean().default(false),
+  overdraftLimit: z.number().min(0).optional(),
+
+  // Solde initial
+  initialBalance: z.number().default(0),
 });
 
 /**
@@ -134,8 +147,10 @@ export function BankAccountForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [journals, setJournals] = useState<Journal[]>([]);
+  const [accountTypes, setAccountTypes] = useState<AccountType[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(true);
   const [isLoadingJournals, setIsLoadingJournals] = useState(true);
+  const [isLoadingAccountTypes, setIsLoadingAccountTypes] = useState(true);
   const [loadingError, setLoadingError] = useState<string | null>(null);
 
   // Déterminer si on est en mode édition
@@ -148,13 +163,24 @@ export function BankAccountForm({
   const form = useForm<BankAccountFormData>({
     resolver: zodResolver(bankAccountSchema),
     defaultValues: {
+      accountTypeId: initialData?.accountTypeId || undefined,
+      accountSubTypeId: initialData?.accountSubTypeId || undefined,
       name: initialData?.name || '',
       bankId: initialData?.bankId || undefined,
       accountNumber: initialData?.accountNumber || '',
       journalId: initialData?.journalId || undefined,
-      currency: initialData?.currency || 'EUR',
+      currency: initialData?.currency || 'XAF',
+      overdraftAllowed: initialData?.overdraftAllowed || false,
+      overdraftLimit: initialData?.overdraftLimit || 0,
+      initialBalance: initialData?.initialBalance || 0,
     },
   });
+
+  // Observer le type de compte sélectionné pour afficher les sous-types
+  const watchAccountTypeId = form.watch('accountTypeId');
+  const selectedType = accountTypes.find(t => t.id === watchAccountTypeId);
+  const availableSubTypes = selectedType?.subTypes || [];
+  const watchOverdraftAllowed = form.watch('overdraftAllowed');
 
   // ---------------------------------------------------------------------------
   // CHARGEMENT DES DONNÉES DE RÉFÉRENCE
@@ -163,7 +189,7 @@ export function BankAccountForm({
   useEffect(() => {
     async function loadReferenceData() {
       setLoadingError(null);
-      
+
       // Charger les banques
       try {
         setIsLoadingBanks(true);
@@ -175,7 +201,7 @@ export function BankAccountForm({
       } finally {
         setIsLoadingBanks(false);
       }
-      
+
       // Charger les journaux comptables
       try {
         setIsLoadingJournals(true);
@@ -183,16 +209,32 @@ export function BankAccountForm({
         setJournals(journalsData);
       } catch (error) {
         console.error("[BankAccountForm] Erreur chargement journaux:", error);
-        setLoadingError(prev => 
-          prev 
+        setLoadingError(prev =>
+          prev
             ? `${prev} Impossible de charger les journaux comptables.`
             : "Impossible de charger les journaux comptables."
         );
       } finally {
         setIsLoadingJournals(false);
       }
+
+      // Charger les types de compte
+      try {
+        setIsLoadingAccountTypes(true);
+        const typesData = await getAccountTypes();
+        setAccountTypes(typesData);
+      } catch (error) {
+        console.error("[BankAccountForm] Erreur chargement types de compte:", error);
+        setLoadingError(prev =>
+          prev
+            ? `${prev} Impossible de charger les types de compte.`
+            : "Impossible de charger les types de compte."
+        );
+      } finally {
+        setIsLoadingAccountTypes(false);
+      }
     }
-    
+
     loadReferenceData();
   }, []);
 
@@ -237,7 +279,9 @@ export function BankAccountForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full">
+        {/* Zone scrollable */}
+        <div className="flex-1 overflow-y-auto space-y-6 pr-1">
         {/* En-tête du formulaire */}
         <div className="flex items-center gap-3 pb-4 border-b">
           <div className="p-2 bg-green-100 rounded-lg">
@@ -248,13 +292,94 @@ export function BankAccountForm({
               {isEditMode ? 'Modifier le compte bancaire' : 'Nouveau compte bancaire'}
             </h3>
             <p className="text-sm text-gray-500">
-              {isEditMode 
+              {isEditMode
                 ? 'Modifiez les informations du compte bancaire.'
                 : 'Configurez un nouveau compte bancaire pour votre organisation.'
               }
             </p>
           </div>
         </div>
+
+        {/* NOUVEAU: Type de compte */}
+        <FormField
+          control={form.control}
+          name="accountTypeId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Type de compte *</FormLabel>
+              <Select
+                onValueChange={(value) => {
+                  field.onChange(value);
+                  // Reset le sous-type quand le type change
+                  form.setValue('accountSubTypeId', undefined);
+                }}
+                defaultValue={field.value}
+                disabled={isLoadingAccountTypes || accountTypes.length === 0}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        isLoadingAccountTypes
+                          ? "Chargement des types..."
+                          : accountTypes.length === 0
+                            ? "Aucun type disponible"
+                            : "Sélectionnez le type de compte..."
+                      }
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {accountTypes.map(type => (
+                    <SelectItem key={type.id} value={type.id}>
+                      <div className="flex items-center gap-2">
+                        {type.code === 'CHEQUE' && <CreditCard className="h-4 w-4" />}
+                        {type.code === 'ESPECES' && <Banknote className="h-4 w-4" />}
+                        {type.code === 'EPARGNE' && <PiggyBank className="h-4 w-4" />}
+                        <span>{type.libelle}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Détermine les opérations autorisées sur ce compte.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* NOUVEAU: Sous-type de compte (conditionnel) */}
+        {availableSubTypes.length > 0 && (
+          <FormField
+            control={form.control}
+            name="accountSubTypeId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sous-type de compte</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionnez un sous-type..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {availableSubTypes.map(subType => (
+                      <SelectItem key={subType.id} value={subType.id}>
+                        {subType.libelle}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Précise la catégorie du compte (Interne, Fournisseur, Client, Employé...).
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         {/* Champ Nom du Compte */}
         <FormField
@@ -264,9 +389,9 @@ export function BankAccountForm({
             <FormItem>
               <FormLabel>Nom du compte *</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="Ex: Compte Courant Principal, Compte Épargne..." 
-                  {...field} 
+                <Input
+                  placeholder="Ex: Compte Courant Principal, Compte Épargne..."
+                  {...field}
                 />
               </FormControl>
               <FormDescription>
@@ -332,22 +457,31 @@ export function BankAccountForm({
           )}
         />
         
-        {/* Champ Numéro de Compte (IBAN) */}
+        {/* Champ Numéro de Compte (IBAN) avec validation temps réel */}
         <FormField
           control={form.control}
           name="accountNumber"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Numéro de compte (IBAN) *</FormLabel>
               <FormControl>
-                <Input 
-                  placeholder="FR76 3000 1007 9412 3456 7890 185" 
-                  {...field} 
-                  className="font-mono"
+                <IbanInput
+                  value={field.value || ""}
+                  onChange={(value, isValid) => {
+                    field.onChange(value);
+                    if (!isValid && value.length >= 15) {
+                      form.setError("accountNumber", { message: "IBAN invalide" });
+                    } else {
+                      form.clearErrors("accountNumber");
+                    }
+                  }}
+                  label="Numéro de compte (IBAN)"
+                  required
+                  placeholder="CM21 1000 2000 0000 0000 0000 30"
+                  disabled={isSubmitting}
                 />
               </FormControl>
               <FormDescription>
-                Le numéro IBAN complet du compte bancaire.
+                Le numéro IBAN complet du compte bancaire (format Cameroun : 27 caractères).
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -429,8 +563,97 @@ export function BankAccountForm({
           )}
         />
 
-        {/* Pied de page avec boutons d'action */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
+        {/* NOUVEAU: Solde initial */}
+        <FormField
+          control={form.control}
+          name="initialBalance"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Solde initial</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    {...field}
+                    onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                    className="pr-16"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                    {form.watch('currency') || 'XAF'}
+                  </span>
+                </div>
+              </FormControl>
+              <FormDescription>
+                Solde du compte à la date d'ouverture.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* NOUVEAU: Section Découvert (conditionnelle si le type autorise) */}
+        {selectedType?.decouvertAutorise && (
+          <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+            <h4 className="font-medium">Gestion du découvert</h4>
+
+            <FormField
+              control={form.control}
+              name="overdraftAllowed"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <FormLabel>Autoriser le découvert</FormLabel>
+                    <FormDescription>
+                      Permet au solde de devenir négatif jusqu'à une limite définie.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {watchOverdraftAllowed && (
+              <FormField
+                control={form.control}
+                name="overdraftLimit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Limite de découvert *</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={0}
+                          step="1"
+                          placeholder="Ex: 10000000"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          className="pr-16"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                          {form.watch('currency') || 'XAF'}
+                        </span>
+                      </div>
+                    </FormControl>
+                    <FormDescription>
+                      Montant maximum autorisé en négatif.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </div>
+        )}
+        </div>
+        {/* Fin zone scrollable */}
+
+        {/* Pied de page avec boutons d'action - toujours visible */}
+        <div className="flex justify-end gap-3 pt-4 border-t mt-4 flex-shrink-0 bg-background">
           <Button 
             type="button" 
             variant="outline" 

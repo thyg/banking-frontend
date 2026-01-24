@@ -14,16 +14,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 // Types
-import { 
-  BankTransaction, 
+import {
+  BankTransaction,
   CreateBankTransactionData,
   BankAccount,
-  TransactionType 
+  TransactionType,
+  Check,
 } from '@/types/banking';
 
 // API
 import { getBankAccounts } from '@/lib/api/banking';
 import { getTransactionTypes } from '@/lib/api/banking';
+import { getChecks } from '@/lib/api/check';
+import { amountToWords } from '@/lib/utils/number-to-words';
 
 // Composants UI
 import { Button } from '@/components/ui/button';
@@ -46,7 +49,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, ArrowDownLeft, ArrowUpRight, Receipt } from 'lucide-react';
+import { Loader2, ArrowDownLeft, ArrowUpRight, Receipt, CreditCard } from 'lucide-react';
 
 // =============================================================================
 // VALIDATION SCHEMA
@@ -83,18 +86,28 @@ const bankTransactionFormSchema = z.object({
   
   valueDate: z.string().optional(),
   
+  paymentMethod: z.enum(['BANK_TRANSFER', 'CHECK', 'CASH', 'MOBILE_MONEY', 'OTHER']).optional(),
+
+  externalReference: z
+    .string()
+    .max(50, { message: "La reference ne peut pas depasser 50 caracteres." })
+    .optional()
+    .or(z.literal('')),
+
   partnerName: z
     .string()
     .max(100, { message: "Le nom ne peut pas dépasser 100 caractères." })
     .optional()
     .or(z.literal('')),
-  
+
   description: z
     .string()
     .min(3, { message: "La description doit contenir au moins 3 caractères." })
     .max(200, { message: "La description ne peut pas dépasser 200 caractères." })
     .optional()
     .or(z.literal('')),
+
+  checkId: z.string().optional().or(z.literal('')),
 });
 
 type BankTransactionFormData = z.infer<typeof bankTransactionFormSchema>;
@@ -126,6 +139,8 @@ export function BankTransactionForm({
   const [transactionTypes, setTransactionTypes] = useState<TransactionType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
+  const [availableChecks, setAvailableChecks] = useState<Check[]>([]);
+  const [isLoadingChecks, setIsLoadingChecks] = useState(false);
 
   const isEditMode = initialData !== null;
   const isValidated = initialData?.status === 'VALIDATED';
@@ -145,11 +160,14 @@ export function BankTransactionForm({
       bankAccountId: initialData?.bankAccountId ?? preselectedAccountId ?? '',
       transactionTypeId: initialData?.transactionTypeId ?? '',
       direction: initialData?.direction ?? 'DEBIT',
+      paymentMethod: initialData?.paymentMethod ?? undefined,
       amount: initialData?.amount ?? 0,
       transactionDate: initialData?.transactionDate ?? new Date().toISOString().split('T')[0],
       valueDate: initialData?.valueDate ?? '',
+      externalReference: initialData?.externalReference ?? '',
       partnerName: initialData?.partnerName ?? '',
       description: initialData?.description ?? '',
+      checkId: '',
     },
   });
 
@@ -170,7 +188,6 @@ export function BankTransactionForm({
           const account = accountsData.find(a => a.id === preselectedAccountId);
           if (account) {
             setSelectedAccount(account);
-            form.setValue('currency', account.currency);
           }
         }
       } catch (error) {
@@ -187,12 +204,56 @@ export function BankTransactionForm({
     const account = accounts.find(a => a.id === accountId);
     if (account) {
       setSelectedAccount(account);
-      form.setValue('currency', account.currency);
     }
+    // Réinitialiser le chèque sélectionné si le compte change
+    form.setValue('checkId', '');
   };
+
+  // Charger les chèques disponibles lorsque le compte bancaire change
+  const watchBankAccountId = form.watch('bankAccountId');
+  useEffect(() => {
+    if (!watchBankAccountId || isEditMode) {
+      setAvailableChecks([]);
+      return;
+    }
+    const fetchChecks = async () => {
+      setIsLoadingChecks(true);
+      try {
+        const checksData = await getChecks({
+          bankAccountId: watchBankAccountId,
+          status: ['PENDING', 'ISSUED', 'RECEIVED', 'DEPOSITED'],
+        });
+        setAvailableChecks(checksData);
+      } catch (error) {
+        console.error("[BankTransactionForm] Erreur chargement chèques:", error);
+        setAvailableChecks([]);
+      } finally {
+        setIsLoadingChecks(false);
+      }
+    };
+    fetchChecks();
+  }, [watchBankAccountId, isEditMode]);
+
+  // Pré-remplir le formulaire quand un chèque est sélectionné
+  const watchCheckId = form.watch('checkId');
+  useEffect(() => {
+    if (!watchCheckId) return;
+    const selectedCheck = availableChecks.find(c => c.id === watchCheckId);
+    if (selectedCheck) {
+      form.setValue('amount', selectedCheck.amount);
+      form.setValue('partnerName', selectedCheck.partnerName);
+      form.setValue('description', `Règlement par chèque n°${selectedCheck.checkNumber}`);
+      form.setValue('direction', selectedCheck.checkType === 'RECEIVED' ? 'CREDIT' : 'DEBIT');
+      form.setValue('paymentMethod', 'CHECK');
+    }
+  }, [watchCheckId, availableChecks, form]);
 
   // Filtrer les types de transactions (la direction a été supprimée, donc pas de filtre)
   const filteredTypes = transactionTypes;
+
+  // Montant en lettres
+  const watchAmount = form.watch('amount');
+  const amountInWordsText = amountToWords(watchAmount, selectedAccount?.currency || 'FCFA');
 
   /**
    * Gère la soumission du formulaire.
@@ -206,11 +267,14 @@ export function BankTransactionForm({
         transactionTypeId: data.transactionTypeId,
         transactionDate: data.transactionDate,
         valueDate: data.valueDate || undefined,
-        // La référence est générée côté serveur
+        // La référence (Nos Réf.) est générée côté serveur
+        externalReference: data.externalReference || undefined, // Vos Réf.
         description: data.description || undefined,
         amount: data.amount,
         direction: data.direction,
+        paymentMethod: data.paymentMethod || undefined,
         partnerName: data.partnerName || undefined,
+        checkId: data.checkId || undefined,
       };
 
       await onSave(saveData);
@@ -256,30 +320,52 @@ export function BankTransactionForm({
           </div>
         )}
         
-        {/* Référence (read-only) et Date Système (read-only) */}
+        {/* Références et Date Système */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormItem>
-            <FormLabel>Référence</FormLabel>
+            <FormLabel>Nos Réf.</FormLabel>
             <FormControl>
-              <Input 
-                readOnly 
+              <Input
+                readOnly
                 value={initialData?.reference || 'Sera générée automatiquement'}
                 className="font-bold text-gray-700 bg-gray-100"
               />
             </FormControl>
+            <FormDescription>Référence interne (auto-générée)</FormDescription>
           </FormItem>
 
-          <FormItem>
-            <FormLabel>Date système</FormLabel>
-            <FormControl>
-              <Input 
-                readOnly 
-                value={initialData?.systemDate ? new Date(initialData.systemDate).toLocaleString() : 'N/A'}
-                className="bg-gray-100"
-              />
-            </FormControl>
-          </FormItem>
+          <FormField
+            control={form.control}
+            name="externalReference"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Vos Réf.</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="N° document source..."
+                    {...field}
+                    disabled={isValidated}
+                  />
+                </FormControl>
+                <FormDescription>Référence externe (optionnel)</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
+
+        {/* Date système */}
+        <FormItem>
+          <FormLabel>Date système</FormLabel>
+          <FormControl>
+            <Input
+              readOnly
+              value={initialData?.systemDate ? new Date(initialData.systemDate).toLocaleString() : new Date().toLocaleString()}
+              className="bg-gray-100"
+            />
+          </FormControl>
+          <FormDescription>Date d'enregistrement dans le système</FormDescription>
+        </FormItem>
 
         {/* Type de transaction */}
         <FormField
@@ -352,6 +438,40 @@ export function BankTransactionForm({
           )}
         />
 
+        {/* Moyen de paiement */}
+        <FormField
+          control={form.control}
+          name="paymentMethod"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                Moyen de paiement
+              </FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value}
+                disabled={isValidated}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionnez..." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="BANK_TRANSFER">Virement bancaire</SelectItem>
+                  <SelectItem value="CHECK">Chèque</SelectItem>
+                  <SelectItem value="CASH">Espèces</SelectItem>
+                  <SelectItem value="MOBILE_MONEY">Mobile Money (OM, MoMo)</SelectItem>
+                  <SelectItem value="OTHER">Autre</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription>Mode de règlement utilisé (optionnel)</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         {/* Compte bancaire */}
         <FormField
           control={form.control}
@@ -385,6 +505,53 @@ export function BankTransactionForm({
           )}
         />
 
+        {/* Lier à un chèque (optionnel, uniquement en création) */}
+        {!isEditMode && (
+          <FormField
+            control={form.control}
+            name="checkId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Lier à un chèque (optionnel)</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  disabled={!watchBankAccountId || isLoadingChecks}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={
+                        isLoadingChecks
+                          ? "Chargement des chèques..."
+                          : !watchBankAccountId
+                            ? "Sélectionnez un compte d'abord"
+                            : "Aucun chèque sélectionné"
+                      } />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {availableChecks.length > 0 ? (
+                      availableChecks.map(check => (
+                        <SelectItem key={check.id} value={check.id}>
+                          {`N°${check.checkNumber} | ${check.partnerName} | ${check.amount.toLocaleString('fr-FR')} ${check.currency || 'FCFA'} | ${check.status}`}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="__none__" disabled>
+                        {watchBankAccountId ? "Aucun chèque disponible" : "Sélectionnez un compte"}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Lier un chèque valide automatiquement la transaction et passe le chèque en "Encaissé".
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
         {/* Montant */}
         <FormField
             control={form.control}
@@ -413,6 +580,14 @@ export function BankTransactionForm({
               </FormItem>
             )}
           />
+
+        {/* Montant en lettres */}
+        <FormItem>
+          <FormLabel>Montant en lettres</FormLabel>
+          <FormControl>
+            <Input readOnly value={amountInWordsText} className="bg-gray-100 italic" />
+          </FormControl>
+        </FormItem>
 
         {/* Dates */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,11 +1,10 @@
 /**
  * @file lib/api/checkbook.ts
  * @description API pour la gestion des chéquiers.
- *
- * @version 1.0.0
+ * @version 2.0.0 - Suppression du mock "default-erp-checkbook" et simplification pour utiliser uniquement le backend.
  */
 
-import type { Checkbook, BankAccount } from '@/types/banking';
+import type { Checkbook } from '@/types/banking';
 
 // =============================================================================
 // CONFIGURATION
@@ -18,23 +17,29 @@ const headers = {
 };
 
 // =============================================================================
-// TYPES
+// TYPES (déjà définis, mais laissés ici pour le contexte)
 // =============================================================================
 
 export interface CreateCheckbookData {
   bankAccountId: string;
-  rib: string;
   prefix: string;
   startNumber: number;
-  endNumber: number;
+  numberOfPages: number;
 }
 
 export interface UpdateCheckbookData {
   status?: 'ACTIVE' | 'FINISHED' | 'CANCELLED';
 }
 
+export interface CheckbookStats {
+  usedChecksCount: number;
+  totalAmountIssued: number;
+  totalAmountCashed: number;
+  remainingChecks: number;
+}
+
 // =============================================================================
-// HELPERS
+// HELPER
 // =============================================================================
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -45,42 +50,17 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return response.json();
 }
 
-// Chéquier par défaut de l'ERP (nombre illimité de chèques)
-const DEFAULT_CHECKBOOK: Checkbook = {
-  id: 'default-erp-checkbook',
-  bankAccountId: '',
-  bankAccountName: 'Chéquier ERP (par défaut)',
-  rib: 'N/A',
-  prefix: 'CHQ-',
-  startNumber: 1,
-  endNumber: 999999999, // Nombre illimité
-  currentNumber: 1,
-  availableChecks: 999999999,
-  status: 'ACTIVE',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-};
-
 // =============================================================================
 // API CHÉQUIERS - LECTURE
 // =============================================================================
 
 /**
- * Récupère tous les chéquiers.
+ * Récupère tous les chéquiers (réels et système) depuis le backend.
  */
 export async function getCheckbooks(): Promise<Checkbook[]> {
   console.log('[API:Checkbook] getCheckbooks');
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/checkbooks`);
-    const checkbooks = await handleResponse<Checkbook[]>(response);
-    // Ajouter le chéquier par défaut en premier
-    return [DEFAULT_CHECKBOOK, ...checkbooks];
-  } catch (error) {
-    console.error('[API:Checkbook] Erreur getCheckbooks:', error);
-    // En cas d'erreur, retourner au moins le chéquier par défaut
-    return [DEFAULT_CHECKBOOK];
-  }
+  const response = await fetch(`${API_BASE_URL}/checkbooks`);
+  return handleResponse<Checkbook[]>(response);
 }
 
 /**
@@ -88,17 +68,9 @@ export async function getCheckbooks(): Promise<Checkbook[]> {
  */
 export async function getCheckbookById(id: string): Promise<Checkbook | null> {
   console.log('[API:Checkbook] getCheckbookById:', id);
-
-  // Vérifier si c'est le chéquier par défaut
-  if (id === 'default-erp-checkbook') {
-    return DEFAULT_CHECKBOOK;
-  }
-
   try {
     const response = await fetch(`${API_BASE_URL}/checkbooks/${id}`);
-    if (response.status === 404) {
-      return null;
-    }
+    if (response.status === 404) return null;
     return handleResponse<Checkbook>(response);
   } catch (error) {
     console.error('[API:Checkbook] Erreur getCheckbookById:', error);
@@ -107,37 +79,16 @@ export async function getCheckbookById(id: string): Promise<Checkbook | null> {
 }
 
 /**
- * Récupère les chéquiers d'un compte bancaire.
- */
-export async function getCheckbooksForAccount(accountId: string): Promise<Checkbook[]> {
-  console.log('[API:Checkbook] getCheckbooksForAccount:', accountId);
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/checkbooks/account/${accountId}`);
-    const checkbooks = await handleResponse<Checkbook[]>(response);
-    // Ajouter le chéquier par défaut adapté au compte
-    const defaultForAccount = {
-      ...DEFAULT_CHECKBOOK,
-      bankAccountId: accountId,
-    };
-    return [defaultForAccount, ...checkbooks];
-  } catch (error) {
-    console.error('[API:Checkbook] Erreur getCheckbooksForAccount:', error);
-    // En cas d'erreur, retourner au moins le chéquier par défaut
-    return [{
-      ...DEFAULT_CHECKBOOK,
-      bankAccountId: accountId,
-    }];
-  }
-}
-
-/**
- * Récupère les chéquiers actifs d'un compte.
+ * Récupère les chéquiers actifs pour un compte donné.
+ * Cela inclut les chéquiers physiques du compte ET le chéquier système global.
  */
 export async function getActiveCheckbooksForAccount(accountId: string): Promise<Checkbook[]> {
-  const checkbooks = await getCheckbooksForAccount(accountId);
-  return checkbooks.filter(cb => cb.status === 'ACTIVE');
+  const allCheckbooks = await getCheckbooks();
+  return allCheckbooks.filter(cb => 
+    cb.status === 'ACTIVE' && (cb.bankAccountId === accountId || cb.isSystem)
+  );
 }
+
 
 // =============================================================================
 // API CHÉQUIERS - ÉCRITURE
@@ -148,45 +99,24 @@ export async function getActiveCheckbooksForAccount(accountId: string): Promise<
  */
 export async function createCheckbook(data: CreateCheckbookData): Promise<Checkbook> {
   console.log('[API:Checkbook] createCheckbook:', data);
-
   const response = await fetch(`${API_BASE_URL}/checkbooks`, {
     method: 'POST',
     headers,
     body: JSON.stringify(data),
   });
-
   return handleResponse<Checkbook>(response);
 }
 
 /**
- * Met à jour un chéquier.
+ * Annule un chéquier.
  */
-export async function updateCheckbook(id: string, data: UpdateCheckbookData): Promise<Checkbook> {
-  console.log('[API:Checkbook] updateCheckbook:', id, data);
-
-  const response = await fetch(`${API_BASE_URL}/checkbooks/${id}`, {
-    method: 'PUT',
+export async function cancelCheckbook(id: string): Promise<Checkbook> {
+  console.log('[API:Checkbook] cancelCheckbook:', id);
+  const response = await fetch(`${API_BASE_URL}/checkbooks/${id}/cancel`, {
+    method: 'POST',
     headers,
-    body: JSON.stringify(data),
   });
-
   return handleResponse<Checkbook>(response);
-}
-
-/**
- * Supprime un chéquier (seulement si aucun chèque n'a été émis).
- */
-export async function deleteCheckbook(id: string): Promise<void> {
-  console.log('[API:Checkbook] deleteCheckbook:', id);
-
-  const response = await fetch(`${API_BASE_URL}/checkbooks/${id}`, {
-    method: 'DELETE',
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Échec de la suppression' }));
-    throw new Error(error.message || 'Échec de la suppression');
-  }
 }
 
 // =============================================================================
@@ -194,43 +124,30 @@ export async function deleteCheckbook(id: string): Promise<void> {
 // =============================================================================
 
 /**
- * Réserve le prochain numéro de chèque disponible dans un chéquier.
- * Retourne le numéro complet (préfixe + numéro).
+ * Récupère le prochain numéro de chèque disponible sans le réserver.
+ * Pour affichage dans le formulaire.
  */
-export async function reserveNextCheckNumber(checkbookId: string): Promise<string> {
-  console.log('[API:Checkbook] reserveNextCheckNumber:', checkbookId);
+export async function peekNextCheckNumber(checkbookId: string): Promise<string> {
+  console.log('[API:Checkbook] peekNextCheckNumber:', checkbookId);
+  
+  const response = await fetch(`${API_BASE_URL}/checkbooks/${checkbookId}/peek-next-number`);
+  const result = await handleResponse<{ checkNumber: string }>(response);
+  return result.checkNumber;
+}
+// =============================================================================
+// STATISTIQUES
+// =============================================================================
 
-  // Pour le chéquier par défaut, générer un numéro basé sur le timestamp
-  if (checkbookId === 'default-erp-checkbook') {
-    const timestamp = Date.now().toString().slice(-8);
-    return `CHQ-${timestamp}`;
-  }
-
+/**
+ * Récupère les statistiques d'utilisation d'un chéquier depuis le backend.
+ */
+export async function getCheckbookStats(id: string): Promise<CheckbookStats> {
+  console.log('[API:Checkbook] getCheckbookStats:', id);
   try {
-    // Utiliser l'endpoint GET /api/checkbooks/{id}/next-number
-    const response = await fetch(`${API_BASE_URL}/checkbooks/${checkbookId}/next-number`);
-    const result = await handleResponse<{ checkbookId: string; checkNumber: string }>(response);
-    return result.checkNumber;
+    const response = await fetch(`${API_BASE_URL}/checkbooks/${id}/stats`);
+    return handleResponse<CheckbookStats>(response);
   } catch (error) {
-    // Fallback: récupérer le chéquier et calculer le prochain numéro
-    const checkbook = await getCheckbookById(checkbookId);
-    if (checkbook) {
-      return `${checkbook.prefix}${String(checkbook.currentNumber).padStart(6, '0')}`;
-    }
-    throw error;
+    console.error('[API:Checkbook] Erreur getCheckbookStats:', error);
+    throw error; // Propage l'erreur pour que le composant UI puisse l'afficher.
   }
-}
-
-/**
- * Marque un chéquier comme terminé.
- */
-export async function finishCheckbook(id: string): Promise<Checkbook> {
-  return updateCheckbook(id, { status: 'FINISHED' });
-}
-
-/**
- * Annule un chéquier.
- */
-export async function cancelCheckbook(id: string): Promise<Checkbook> {
-  return updateCheckbook(id, { status: 'CANCELLED' });
 }

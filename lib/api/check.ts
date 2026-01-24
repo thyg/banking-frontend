@@ -101,32 +101,55 @@ function enrichCheck(check: Check): Check {
  */
 export async function getChecks(filters?: CheckFilters): Promise<Check[]> {
   console.log('[API:Check] getChecks - filters:', filters);
-  
+
   let checks: Check[] = [];
-  
+
+  // Construction des paramètres backend
+  const params: Record<string, any> = {};
+  if (filters?.checkbookId) params.checkbookId = filters.checkbookId;
+
+  // Normaliser le statut en tableau pour un traitement uniforme
+  const statusFilter = filters?.status
+    ? (Array.isArray(filters.status) ? filters.status : [filters.status])
+    : null;
+  const isSingleStatus = statusFilter && statusFilter.length === 1;
+
   // Déterminer quel endpoint utiliser selon les filtres
-  if (filters?.bankAccountId) {
+  if (filters?.checkbookId) {
+    // Filtrer par chéquier (via query param backend)
+    const response = await fetch(buildUrl('/checks', params));
+    checks = await handleResponse<Check[]>(response);
+  } else if (filters?.bankAccountId) {
     // Filtrer par compte bancaire
     const response = await fetch(`${API_BASE_URL}/checks/account/${filters.bankAccountId}`);
     checks = await handleResponse<Check[]>(response);
-  } else if (filters?.type && filters?.status) {
-    // Filtrer par type ET statut
+  } else if (filters?.type && isSingleStatus) {
+    // Filtrer par type ET statut unique (endpoint backend dédié)
     const checkType = filters.type === 'RECEIVED' ? 'RECEIVED' : 'ISSUED';
-    const response = await fetch(`${API_BASE_URL}/checks/type/${checkType}/status/${filters.status}`);
+    const response = await fetch(`${API_BASE_URL}/checks/type/${checkType}/status/${statusFilter[0]}`);
     checks = await handleResponse<Check[]>(response);
   } else if (filters?.type) {
-    // Filtrer par type seulement
+    // Filtrer par type seulement (statuts multiples filtrés côté client)
     const checkType = filters.type === 'RECEIVED' ? 'RECEIVED' : 'ISSUED';
     const response = await fetch(`${API_BASE_URL}/checks/type/${checkType}`);
     checks = await handleResponse<Check[]>(response);
-  } else if (filters?.status) {
-    // Filtrer par statut seulement
-    const response = await fetch(`${API_BASE_URL}/checks/status/${filters.status}`);
+  } else if (isSingleStatus) {
+    // Filtrer par statut unique seulement
+    const response = await fetch(`${API_BASE_URL}/checks/status/${statusFilter[0]}`);
     checks = await handleResponse<Check[]>(response);
   } else {
-    // Récupérer tous les chèques
+    // Récupérer tous les chèques (statuts multiples filtrés côté client)
     const response = await fetch(`${API_BASE_URL}/checks`);
     checks = await handleResponse<Check[]>(response);
+  }
+
+  // Filtrage par statuts côté client lorsque l'endpoint utilisé ne l'a pas géré
+  // (cas: bankAccountId, checkbookId, ou multi-statuts)
+  if (statusFilter && statusFilter.length > 0) {
+    const endpointHandledStatus = !filters?.bankAccountId && !filters?.checkbookId && isSingleStatus;
+    if (!endpointHandledStatus) {
+      checks = checks.filter(c => statusFilter.includes(c.status));
+    }
   }
   
   // Appliquer les filtres supplémentaires côté client
@@ -157,7 +180,7 @@ export async function getChecks(filters?: CheckFilters): Promise<Check[]> {
         c.checkNumber.toLowerCase().includes(searchLower) ||
         c.partnerName.toLowerCase().includes(searchLower) ||
         c.description?.toLowerCase().includes(searchLower) ||
-        c.reference?.toLowerCase().includes(searchLower)
+        c.referenceCode?.toLowerCase().includes(searchLower)
       );
     }
   }
@@ -246,44 +269,24 @@ export async function getPendingChecksDueBefore(date: string): Promise<Check[]> 
  * @param data - Données du chèque à créer
  * @returns Le chèque créé avec son ID
  * @throws Error si le compte bancaire n'existe pas ou si le numéro de chèque existe déjà
- */
-export async function createCheck(data: CreateCheckData): Promise<Check> {
-  // Nettoyer les données avant envoi
-  const cleanedData: Record<string, unknown> = {
-    bankAccountId: data.bankAccountId,
-    checkType: data.checkType,
-    amount: data.amount,
-    partnerName: data.partnerName,
-    issueDate: data.issueDate,
-  };
+ */export async function createCheck(data: CreateCheckData): Promise<Check> {
+  // On prend une copie des données du formulaire
+  const saveData: Partial<CreateCheckData> = { ...data };
 
-  // Ne pas envoyer checkNumber s'il est vide (le backend le génèrera depuis le chéquier)
-  if (data.checkNumber && data.checkNumber.trim() !== '') {
-    cleanedData.checkNumber = data.checkNumber;
-  }
+  // On nettoie les valeurs optionnelles qui sont vides
+  if (!saveData.checkbookId) delete saveData.checkbookId;
+  if (!saveData.dueDate) delete saveData.dueDate;
+  if (!saveData.description) delete saveData.description;
+   if (!saveData.issuerBank) delete saveData.issuerBank;
+  if (!saveData.receiptDate) delete saveData.receiptDate;
+  // ... ajoutez d'autres champs optionnels à nettoyer si nécessaire
 
-  // Ne pas envoyer checkbookId s'il est vide ou s'il s'agit du chéquier fictif
-  // 'default-erp-checkbook' n'est pas un UUID valide et causerait une erreur 500
-  if (data.checkbookId && data.checkbookId.trim() !== '' && data.checkbookId !== 'default-erp-checkbook') {
-    cleanedData.checkbookId = data.checkbookId;
-  }
-
-  // Ne pas envoyer dueDate s'il est vide
-  if (data.dueDate) {
-    cleanedData.dueDate = data.dueDate;
-  }
-
-  // Ne pas envoyer description s'il est vide
-  if (data.description && data.description.trim() !== '') {
-    cleanedData.description = data.description;
-  }
-
-  console.log('[API:Check] createCheck - données envoyées:', cleanedData);
+  console.log('[API:Check] createCheck - données envoyées:', saveData);
 
   const response = await fetch(`${API_BASE_URL}/checks`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(cleanedData),
+    body: JSON.stringify(saveData),
   });
 
   const check = await handleResponse<Check>(response);
@@ -291,7 +294,6 @@ export async function createCheck(data: CreateCheckData): Promise<Check> {
 
   return enrichCheck(check);
 }
-
 /**
  * Met à jour un chèque existant.
  * 
@@ -514,4 +516,68 @@ export async function getPendingChecks(
   });
   
   return checks.slice(0, limit);
+}
+
+// =============================================================================
+// ACTIONS SUPPLÉMENTAIRES
+// =============================================================================
+
+/**
+ * Émettre un chèque (PENDING -> ISSUED).
+ * Change le statut d'un chèque créé en émis.
+ */
+export async function emitCheck(id: string): Promise<Check> {
+  console.log('[API:Check] emitCheck - id:', id);
+
+  const response = await fetch(`${API_BASE_URL}/checks/${id}/emit`, {
+    method: 'POST',
+    headers,
+  });
+
+  return handleResponse<Check>(response);
+}
+
+/**
+ * Marquer un chèque comme reçu (PENDING -> RECEIVED).
+ * Pour les chèques de type RECEIVED uniquement.
+ */
+export async function markReceivedCheck(id: string, receivedDate?: string): Promise<Check> {
+  console.log('[API:Check] markReceivedCheck - id:', id);
+
+  const params = new URLSearchParams();
+  if (receivedDate) params.set('receivedDate', receivedDate);
+
+  const url = params.toString()
+    ? `${API_BASE_URL}/checks/${id}/receive?${params.toString()}`
+    : `${API_BASE_URL}/checks/${id}/receive`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+  });
+
+  return handleResponse<Check>(response);
+}
+
+/**
+ * Marquer un chèque en cours de traitement (DEPOSITED -> IN_PROGRESS).
+ */
+export async function markProcessingCheck(id: string): Promise<Check> {
+  console.log('[API:Check] markProcessingCheck - id:', id);
+
+  const response = await fetch(`${API_BASE_URL}/checks/${id}/processing`, {
+    method: 'POST',
+    headers,
+  });
+
+  return handleResponse<Check>(response);
+}
+
+/**
+ * Marquer un chèque émis comme payé.
+ * Alias de cashCheck pour plus de clarté.
+ */
+export async function markPaidCheck(id: string, paidDate?: string): Promise<Check> {
+  console.log('[API:Check] markPaidCheck - id:', id);
+  return cashCheck(id, paidDate);
 }

@@ -134,81 +134,88 @@ export function AccountTransactionsList({
   // Liste des transactions
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">Transactions récentes</CardTitle>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={onRefresh}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Actualiser
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <CardTitle className="text-base sm:text-lg">Transactions recentes</CardTitle>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" size="sm" onClick={onRefresh} className="flex-1 sm:flex-none">
+            <RefreshCw className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Actualiser</span>
           </Button>
-          <Link href="/banking/transactions">
-            <Button variant="outline" size="sm">
-              Voir tout
-              <ExternalLink className="h-4 w-4 ml-2" />
+          <Link href="/banking/transactions" className="flex-1 sm:flex-none">
+            <Button variant="outline" size="sm" className="w-full">
+              <span className="hidden sm:inline">Voir tout</span>
+              <span className="sm:hidden">Tout</span>
+              <ExternalLink className="h-4 w-4 ml-1 sm:ml-2" />
             </Button>
           </Link>
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[100px]">Date</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Partenaire</TableHead>
-              <TableHead className="text-right">Montant</TableHead>
-              <TableHead className="w-[100px]">Statut</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {transactions.slice(0, 10).map((transaction) => {
-              const isCredit = transaction.direction === 'CREDIT';
-              
-              return (
-                <TableRow key={transaction.id} className="hover:bg-muted/50">
-                  <TableCell className="font-medium">
-                    {formatDate(transaction.transactionDate)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {isCredit ? (
-                        <ArrowDownCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <ArrowUpCircle className="h-4 w-4 text-red-600" />
-                      )}
-                      <span className="text-sm">
-                        {transaction.transactionTypeLabel || transaction.transactionTypeCode || '-'}
+        <div className="table-responsive">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[90px] sm:w-[100px]">Date</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead className="hidden md:table-cell">Description</TableHead>
+                <TableHead className="hidden lg:table-cell">Partenaire</TableHead>
+                <TableHead className="text-right">Montant</TableHead>
+                <TableHead className="hidden sm:table-cell w-[90px] sm:w-[100px]">Statut</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {transactions.slice(0, 10).map((transaction) => {
+                const isCredit = transaction.direction === 'CREDIT';
+
+                return (
+                  <TableRow key={transaction.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium text-xs sm:text-sm">
+                      {formatDate(transaction.transactionDate)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        {isCredit ? (
+                          <ArrowDownCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        ) : (
+                          <ArrowUpCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                        )}
+                        <span className="text-xs sm:text-sm truncate max-w-[60px] sm:max-w-none">
+                          {transaction.transactionTypeLabel || transaction.transactionTypeCode || '-'}
+                        </span>
+                      </div>
+                      {/* Show description on mobile below type */}
+                      <p className="md:hidden text-xs text-muted-foreground truncate max-w-[100px] mt-0.5">
+                        {transaction.description || transaction.partnerName || '-'}
+                      </p>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell max-w-[180px] truncate text-sm">
+                      {transaction.description || '-'}
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell max-w-[120px] truncate text-sm">
+                      {transaction.partnerName || '-'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span className={cn(
+                        "font-mono font-medium text-xs sm:text-sm",
+                        isCredit ? "text-green-600" : "text-foreground"
+                      )}>
+                        {isCredit ? '+' : '-'}{formatCurrency(transaction.amount, currency)}
                       </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate">
-                    {transaction.description || '-'}
-                  </TableCell>
-                  <TableCell className="max-w-[150px] truncate">
-                    {transaction.partnerName || '-'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <span className={cn(
-                      "font-mono font-medium",
-                      isCredit ? "text-green-600" : "text-foreground"
-                    )}>
-                      {isCredit ? '+' : '-'}{formatCurrency(transaction.amount, currency)}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    {getStatusBadge(transaction.status)}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-        
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {getStatusBadge(transaction.status)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+
         {transactions.length > 10 && (
-          <div className="p-4 text-center border-t">
+          <div className="p-3 sm:p-4 text-center border-t">
             <Link href="/banking/transactions">
-              <Button variant="link">
+              <Button variant="link" className="text-sm">
                 Voir les {transactions.length - 10} autres transactions
               </Button>
             </Link>

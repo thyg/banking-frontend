@@ -49,6 +49,14 @@ import {
   AlertTriangle,
   Building2,
   BookOpen,
+  Send,
+  Trash2,
+  Printer,
+  Download,
+  Eye,
+  ExternalLink,
+  Ban,
+  type LucideIcon,
 } from 'lucide-react';
 
 // =============================================================================
@@ -70,6 +78,102 @@ const formatDate = (dateString: string): string => {
     year: 'numeric',
   });
 };
+
+// =============================================================================
+// ACTIONS DYNAMIQUES SELON ÉTAT
+// =============================================================================
+
+interface CheckAction {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  variant?: 'default' | 'destructive' | 'warning';
+  separator?: boolean;
+}
+
+/**
+ * Retourne les actions disponibles selon le type et le statut du chèque
+ * Conforme aux spécifications validées
+ */
+function getAvailableActions(check: Check): CheckAction[] {
+  const actions: CheckAction[] = [];
+
+  if (check.checkType === 'ISSUED') {
+    // --- NOUVEAU WORKFLOW POUR CHÈQUE ÉMIS ---
+    switch (check.status) {
+      case 'PENDING':
+        actions.push(
+          { id: 'edit', label: 'Modifier', icon: Pencil },
+          { id: 'emit', label: 'Émettre (remettre)', icon: Send },
+          { id: 'print', label: 'Imprimer', icon: Printer },
+          { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true },
+          { id: 'delete', label: 'Supprimer', icon: Trash2, variant: 'destructive' }
+        );
+        break;
+      case 'ISSUED':
+        actions.push(
+          { id: 'mark_paid', label: 'Marquer comme Payé', icon: CheckCircle }, // Action principale : le chèque a été débité
+          { id: 'print', label: 'Imprimer', icon: Printer },
+          { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true }
+        );
+        break;
+      case 'CASHED': // Renommé de "Payé" à "Encaissé/Débité" pour être cohérent
+        actions.push(
+          { id: 'view_transaction', label: 'Voir la Transaction', icon: ExternalLink },
+          { id: 'view_details', label: 'Voir Détails', icon: Eye }
+        );
+        break;
+      case 'REJECTED':
+      case 'CANCELLED':
+        actions.push({ id: 'view_details', label: 'Voir Détails', icon: Eye });
+        break;
+      // Les statuts DEPOSITED et IN_PROGRESS ne sont plus pertinents pour un chèque ÉMIS.
+      // Si un chèque émis est dans cet état par erreur, on affiche juste les détails.
+      default:
+        actions.push({ id: 'view_details', label: 'Voir Détails', icon: Eye });
+        break;
+    }
+  } else {
+    // --- WORKFLOW CLARIFIÉ POUR CHÈQUE REÇU ---
+    switch (check.status) {
+      case 'PENDING':
+        actions.push(
+          { id: 'edit', label: 'Modifier', icon: Pencil },
+          { id: 'mark_received', label: 'Marquer comme Reçu', icon: Download },
+          { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true },
+          { id: 'delete', label: 'Supprimer', icon: Trash2, variant: 'destructive' }
+        );
+        break;
+      case 'RECEIVED':
+        actions.push(
+          { id: 'deposit', label: 'Déposer en banque', icon: Building2 }, // C'est l'action correcte ici
+          { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true }
+        );
+        break;
+      case 'DEPOSITED':
+        actions.push(
+          { id: 'cash', label: 'Encaisser', icon: Banknote },
+          { id: 'reject', label: 'Rejeter', icon: Ban, variant: 'destructive', separator: true }
+        );
+        break;
+      case 'CASHED':
+        actions.push(
+          { id: 'view_transaction', label: 'Voir la Transaction', icon: ExternalLink },
+          { id: 'view_details', label: 'Voir Détails', icon: Eye }
+        );
+        break;
+      case 'REJECTED':
+      case 'CANCELLED':
+        actions.push({ id: 'view_details', label: 'Voir Détails', icon: Eye });
+        break;
+      default:
+        actions.push({ id: 'view_details', label: 'Voir Détails', icon: Eye });
+        break;
+    }
+  }
+
+  return actions;
+}
 
 // =============================================================================
 // SOUS-COMPOSANTS
@@ -99,10 +203,27 @@ function StatusBadge({ status }: { status: CheckStatus }) {
       label: 'En attente',
       className: 'bg-amber-50 text-amber-700 border-amber-200',
     },
+    // --- NOUVEAU ---
+    ISSUED: {
+      icon: <Send className="h-3 w-3 mr-1" />,
+      label: 'Émis',
+      className: 'bg-purple-50 text-purple-700 border-purple-200',
+    },
+    // --- NOUVEAU ---
+    RECEIVED: {
+      icon: <Download className="h-3 w-3 mr-1" />,
+      label: 'Reçu',
+      className: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    },
     DEPOSITED: {
       icon: <Building2 className="h-3 w-3 mr-1" />,
       label: 'Remis',
       className: 'bg-blue-50 text-blue-700 border-blue-200',
+    },
+      IN_PROGRESS: {
+      icon: <RefreshCw className="h-3 w-3 mr-1 animate-spin" />,
+      label: 'En cours',
+      className: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     },
     CASHED: {
       icon: <CheckCircle className="h-3 w-3 mr-1" />,
@@ -122,6 +243,18 @@ function StatusBadge({ status }: { status: CheckStatus }) {
   };
 
   const config = configs[status];
+
+    // --- SÉCURITÉ SUPPLÉMENTAIRE ---
+  // Si un statut inconnu arrive, on affiche une valeur par défaut au lieu de planter.
+  if (!config) {
+    return (
+      <Badge variant="outline" className="bg-gray-100 text-gray-500 border-gray-200">
+        <AlertTriangle className="h-3 w-3 mr-1" />
+        {status} (Inconnu)
+      </Badge>
+    );
+  }
+  
   
   return (
     <Badge variant="outline" className={config.className}>
@@ -149,6 +282,14 @@ interface CheckListProps {
   onCancel?: (check: Check) => void;
   onPost?: (check: Check) => void;
   onRefresh: () => void;
+  // Nouvelles actions
+  onEmit?: (check: Check) => void;
+  onPrint?: (check: Check) => void;
+  onMarkReceived?: (check: Check) => void;
+  onMarkProcessing?: (check: Check) => void;
+  onMarkPaid?: (check: Check) => void;
+  onViewTransaction?: (check: Check) => void;
+  onViewDetails?: (check: Check) => void;
 }
 
 // =============================================================================
@@ -169,7 +310,40 @@ export function CheckList({
   onCancel,
   onPost,
   onRefresh,
+  onEmit,
+  onPrint,
+  onMarkReceived,
+  onMarkProcessing,
+  onMarkPaid,
+  onViewTransaction,
+  onViewDetails,
 }: CheckListProps) {
+  // Mapper les actions aux handlers
+  const actionHandlers: Record<string, ((check: Check) => void) | undefined> = {
+    edit: onEdit,
+    delete: onDelete,
+    deposit: onDeposit,
+    cash: onCash,
+    reject: onReject,
+    cancel: onCancel,
+    post: onPost,
+    emit: onEmit,
+    print: onPrint,
+    mark_received: onMarkReceived,
+    mark_processing: onMarkProcessing,
+    mark_paid: onMarkPaid,
+    view_transaction: onViewTransaction,
+    view_details: onViewDetails,
+  };
+
+  const handleAction = (actionId: string, check: Check) => {
+    const handler = actionHandlers[actionId];
+    if (handler) {
+      handler(check);
+    } else {
+      console.warn(`Action "${actionId}" non implémentée`);
+    }
+  };
   const [searchValue, setSearchValue] = useState(filters.search || '');
   const [activeTab, setActiveTab] = useState<'all' | 'RECEIVED' | 'ISSUED'>('all');
 
@@ -282,7 +456,8 @@ export function CheckList({
           {checksToShow.map(check => (
             <TableRow
               key={check.id}
-              className={check.status === 'CANCELLED' ? 'opacity-50' : ''}
+              className={`${check.status === 'CANCELLED' ? 'opacity-50' : ''} cursor-pointer hover:bg-muted/50 transition-colors`}
+              onClick={() => onViewDetails?.(check)}
             >
               <TableCell className="font-mono font-medium">
                 {check.checkNumber}
@@ -319,7 +494,7 @@ export function CheckList({
               <TableCell>
                 <StatusBadge status={check.status} />
               </TableCell>
-              <TableCell>
+              <TableCell onClick={(e) => e.stopPropagation()}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -328,69 +503,26 @@ export function CheckList({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => onEdit(check)}
-                      disabled={check.status !== 'PENDING'}
-                    >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Modifier
-                    </DropdownMenuItem>
-                    
-                    {/* Actions spécifiques selon le statut */}
-                    {check.checkType === 'RECEIVED' && check.status === 'PENDING' && onDeposit && (
-                      <DropdownMenuItem onClick={() => onDeposit(check)}>
-                        <Building2 className="mr-2 h-4 w-4" />
-                        Remettre en banque
-                      </DropdownMenuItem>
-                    )}
-                    
-                    {check.checkType === 'RECEIVED' && check.status === 'DEPOSITED' && onCash && (
-                      <DropdownMenuItem onClick={() => onCash(check)}>
-                        <Banknote className="mr-2 h-4 w-4" />
-                        Marquer encaissé
-                      </DropdownMenuItem>
-                    )}
-                    
-                    {check.checkType === 'ISSUED' && check.status === 'PENDING' && onCash && (
-                      <DropdownMenuItem onClick={() => onCash(check)}>
-                        <Banknote className="mr-2 h-4 w-4" />
-                        Marquer débité
-                      </DropdownMenuItem>
-                    )}
-                    
-                    {['PENDING', 'DEPOSITED'].includes(check.status) && onReject && (
-                      <DropdownMenuItem 
-                        onClick={() => onReject(check)}
-                        className="text-amber-600"
-                      >
-                        <AlertTriangle className="mr-2 h-4 w-4" />
-                        Marquer rejeté
-                      </DropdownMenuItem>
-                    )}
-                    
-                    {check.status === 'PENDING' && onCancel && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => onCancel(check)}
-                          className="text-gray-600"
-                        >
-                          <XCircle className="mr-2 h-4 w-4" />
-                          Annuler
-                        </DropdownMenuItem>
-                      </>
-                    )}
+                    {getAvailableActions(check).map((action, index) => {
+                      const Icon = action.icon;
+                      const variantClass =
+                        action.variant === 'destructive' ? 'text-red-600 focus:text-red-600' :
+                        action.variant === 'warning' ? 'text-amber-600 focus:text-amber-600' :
+                        '';
 
-                    {/* Comptabiliser - seulement pour chèques encaissés */}
-                    {check.status === 'CASHED' && onPost && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onPost(check)}>
-                          <BookOpen className="mr-2 h-4 w-4" />
-                          Comptabiliser
-                        </DropdownMenuItem>
-                      </>
-                    )}
+                      return (
+                        <React.Fragment key={action.id}>
+                          {action.separator && index > 0 && <DropdownMenuSeparator />}
+                          <DropdownMenuItem
+                            onClick={() => handleAction(action.id, check)}
+                            className={variantClass}
+                          >
+                            <Icon className="mr-2 h-4 w-4" />
+                            {action.label}
+                          </DropdownMenuItem>
+                        </React.Fragment>
+                      );
+                    })}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

@@ -16,8 +16,10 @@ export type TransactionDirection = 'CREDIT' | 'DEBIT';
 export type TransactionCategory = 'BANK' | 'CASH' | 'CHECK' | 'OTHER';
 export type TransactionStatus = 'DRAFT' | 'VALIDATED' | 'CANCELLED';
 export type CheckType = 'ISSUED' | 'RECEIVED';
-export type CheckStatus = 'PENDING' | 'DEPOSITED' | 'CASHED' | 'REJECTED' | 'CANCELLED';
+export type CheckStatus = 'PENDING' | 'ISSUED' | 'RECEIVED' | 'DEPOSITED' | 'IN_PROGRESS' | 'CASHED' | 'REJECTED' | 'CANCELLED';
+export type PaymentMethod = 'BANK_TRANSFER' | 'CHECK' | 'CASH' | 'MOBILE_MONEY' | 'OTHER';
 export type CheckbookStatus = 'ACTIVE' | 'FINISHED' | 'CANCELLED';
+export type CheckbookType = 'REEL' | 'FICTIF';
 export type StatementStatus = 'IMPORTED' | 'IN_PROGRESS' | 'RECONCILED' | 'CLOSED';
 export type ReconciliationStatus = 'UNMATCHED' | 'MATCHED' | 'PARTIALLY_MATCHED' | 'IGNORED';
 export type MatchType = 'TRANSACTION' | 'CHECK' | 'MULTIPLE' | 'PARTIAL';
@@ -35,6 +37,47 @@ export interface Bank {
   country?: string;
   address?: string;
   isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AccountType {
+  id: string;
+  code: string;
+  libelle: string;
+  description?: string;
+  peutEmettreChecques: boolean;
+  peutRecevoirChecques: boolean;
+  peutTransactionsEspeces: boolean;
+  decouvertAutorise: boolean;
+  decouvertParDefaut: number;
+  isActive: boolean;
+  ordreAffichage: number;
+  createdAt: string;
+  updatedAt: string;
+  subTypes?: AccountSubType[];
+}
+
+export interface AccountSubType {
+  id: string;
+  accountTypeId: string;
+  code: string;
+  libelle: string;
+  description?: string;
+  // Override values (null = inherit from parent)
+  peutEmettreChequesOverride?: boolean;
+  peutRecevoirChequesOverride?: boolean;
+  peutTransactionsEspecesOverride?: boolean;
+  decouvertAutoriseOverride?: boolean;
+  decouvertParDefautOverride?: number;
+  // Effective values (computed)
+  peutEmettreChecques: boolean;
+  peutRecevoirChecques: boolean;
+  peutTransactionsEspeces: boolean;
+  decouvertAutorise: boolean;
+  decouvertParDefaut: number;
+  isActive: boolean;
+  ordreAffichage: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,6 +105,8 @@ export interface BankAccount {
   currentBalance: number;
   reconciledBalance: number;
   isActive: boolean;
+  overdraftAuthorized?: boolean;
+  overdraftLimit?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -74,10 +119,12 @@ export interface BankTransaction {
   transactionTypeCode?: string;
   transactionTypeLabel?: string;
   reference?: string;
+  externalReference?: string; // Vos Ref. - reference du document source
   transactionDate: string;
   valueDate?: string;
   amount: number;
   direction: TransactionDirection;
+  paymentMethod?: PaymentMethod;
   description?: string;
   partnerName?: string;
   status: TransactionStatus;
@@ -91,15 +138,19 @@ export interface BankTransaction {
 
 export interface Checkbook {
   id: string;
-  bankAccountId: string;
-  bankAccountName: string;
-  rib: string;
-  prefix: string;
-  startNumber: number;
-  endNumber: number;
-  currentNumber: number;
+  bankAccountId: string | null;
+  bankAccountName: string | null;
+  iban: string | null;
+  prefix: string | null;
+  startNumber: number | null;
+  endNumber: number | null;
+  numberOfPages: number | null;
+  currentNumber: number | null;
   availableChecks: number;
   status: CheckbookStatus;
+  type: CheckbookType;
+  isSystem: boolean;
+  nextSequence: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -122,9 +173,14 @@ export interface Check {
   depositDate?: string;
   cashedDate?: string;
   rejectedDate?: string;
+  receiptDate?: string;
+  emitDate?: string;
   status: CheckStatus;
   description?: string;
   rejectionReason?: string;
+  referenceCode?: string;
+  imageUrl?: string;
+  issuerBank?: string;
   bankTransactionId?: string;
   createdAt: string;
   updatedAt: string;
@@ -375,12 +431,16 @@ export interface CreateBankTransactionRequest {
   bankAccountId: string;
   transactionTypeId: string;
   reference?: string;
+  externalReference?: string; // Vos Ref. - reference du document source
   transactionDate: string;
   valueDate?: string;
   amount: number;
   direction: TransactionDirection;
+  paymentMethod?: PaymentMethod;
   description?: string;
   partnerName?: string;
+  /** Optional: ID of a check to link. Auto-validates transaction and updates check to CASHED. */
+  checkId?: string;
 }
 
 export interface UpdateBankTransactionRequest {
@@ -414,6 +474,9 @@ export interface CreateCheckRequest {
   partnerId?: string;
   issueDate: string;
   dueDate?: string;
+  receiptDate?: string;
+  issuerBank?: string;
+  imageUrl?: string;
   description?: string;
 }
 
@@ -430,6 +493,8 @@ export interface UpdateCheckRequest {
   status?: CheckStatus;
   description?: string;
   rejectionReason?: string;
+  issuerBank?: string;
+  imageUrl?: string;
 }
 
 /**
@@ -562,15 +627,18 @@ export interface TransactionFilters {
 
 export interface CheckFilters {
   bankAccountId?: string;
+  checkbookId?: string;
   checkType?: CheckType;
   type?: CheckType; // Alias pour compatibilité
-  status?: CheckStatus;
+  status?: CheckStatus | CheckStatus[];
   startDate?: string;
   endDate?: string;
   dateFrom?: string;  // Alias
   dateTo?: string;    // Alias
   minAmount?: number;
   maxAmount?: number;
+  amountMin?: string;  // Alias pour URL
+  amountMax?: string;  // Alias pour URL
   search?: string;
 }
 
@@ -658,3 +726,71 @@ export interface CashFlowReport {
   };
   netFlow: number;
 }
+
+// =============================================================================
+// DTOs ACCOUNT TYPES
+// =============================================================================
+
+export interface CreateAccountTypeRequest {
+  code: string;
+  libelle: string;
+  description?: string;
+  peutEmettreChecques?: boolean;
+  peutRecevoirChecques?: boolean;
+  peutTransactionsEspeces?: boolean;
+  decouvertAutorise?: boolean;
+  decouvertParDefaut?: number;
+  ordreAffichage?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateAccountTypeRequest {
+  code?: string;
+  libelle?: string;
+  description?: string;
+  peutEmettreChecques?: boolean;
+  peutRecevoirChecques?: boolean;
+  peutTransactionsEspeces?: boolean;
+  decouvertAutorise?: boolean;
+  decouvertParDefaut?: number;
+  ordreAffichage?: number;
+  isActive?: boolean;
+}
+
+export type CreateAccountTypeData = CreateAccountTypeRequest;
+export type UpdateAccountTypeData = UpdateAccountTypeRequest;
+
+// =============================================================================
+// DTOs ACCOUNT SUB-TYPES
+// =============================================================================
+
+export interface CreateAccountSubTypeRequest {
+  accountTypeId: string;
+  code: string;
+  libelle: string;
+  description?: string;
+  // Override values (null = inherit from parent type)
+  peutEmettreChequesOverride?: boolean | null;
+  peutRecevoirChequesOverride?: boolean | null;
+  peutTransactionsEspecesOverride?: boolean | null;
+  decouvertAutoriseOverride?: boolean | null;
+  decouvertParDefautOverride?: number | null;
+  ordreAffichage?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateAccountSubTypeRequest {
+  code?: string;
+  libelle?: string;
+  description?: string;
+  peutEmettreChequesOverride?: boolean | null;
+  peutRecevoirChequesOverride?: boolean | null;
+  peutTransactionsEspecesOverride?: boolean | null;
+  decouvertAutoriseOverride?: boolean | null;
+  decouvertParDefautOverride?: number | null;
+  ordreAffichage?: number;
+  isActive?: boolean;
+}
+
+export type CreateAccountSubTypeData = CreateAccountSubTypeRequest;
+export type UpdateAccountSubTypeData = UpdateAccountSubTypeRequest;

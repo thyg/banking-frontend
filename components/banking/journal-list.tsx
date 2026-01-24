@@ -143,121 +143,131 @@ export function JournalList({
     <div className="space-y-4">
       {/* Table */}
       <div className="rounded-md border overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              <TableHead className="w-[160px]">Date</TableHead>
-              <TableHead className="w-[150px]">Module</TableHead>
-              <TableHead className="w-[130px]">Action</TableHead>
-              <TableHead>Référence / Description</TableHead>
-              <TableHead className="w-[140px]">Utilisateur</TableHead>
-              <TableHead className="w-[70px] text-center">Détail</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {logs.map((log) => (
-              <TableRow 
-                key={log.id} 
-                className="hover:bg-muted/50 cursor-pointer"
-                onClick={() => onViewDetail(log)}
-              >
-                {/* Date */}
-                <TableCell className="text-sm">
-                  <div className="flex flex-col">
-                    <span className="font-medium">{log.formattedDate}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {log.relativeTime}
-                    </span>
-                  </div>
-                </TableCell>
-
-                {/* Module */}
-                <TableCell>
-                  <Badge variant="outline" className="font-normal">
-                    {log.moduleLabel}
-                  </Badge>
-                </TableCell>
-
-                {/* Action */}
-                <TableCell>
-                  <Badge className={getSeverityClass(log.actionSeverity)}>
-                    {getActionIcon(log.action)}
-                    {log.actionLabel}
-                  </Badge>
-                </TableCell>
-
-                {/* Référence & Description */}
-                <TableCell>
-                  <div className="flex flex-col gap-0.5">
-                    {log.entityReference && (
-                      <span className="font-mono text-sm font-medium">
-                        {log.entityReference}
-                      </span>
-                    )}
-                    <span className="text-xs text-muted-foreground truncate max-w-[350px]">
-                      {log.description}
-                    </span>
-                  </div>
-                </TableCell>
-
-                {/* Utilisateur */}
-                <TableCell>
-                  <div className="flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                    <span className="text-sm truncate max-w-[100px]">
-                      {log.userName}
-                    </span>
-                  </div>
-                </TableCell>
-
-                {/* Action Détail */}
-                <TableCell className="text-center">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onViewDetail(log);
-                    }}
-                    title="Voir les détails"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                </TableCell>
+        <div className="table-responsive">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/50">
+                <TableHead className="w-[140px] sm:w-[160px]">Date</TableHead>
+                <TableHead className="hidden sm:table-cell w-[120px] sm:w-[150px]">Module</TableHead>
+                <TableHead className="w-[100px] sm:w-[130px]">Action</TableHead>
+                <TableHead>Reference</TableHead>
+                <TableHead className="hidden md:table-cell w-[120px] sm:w-[140px]">Utilisateur</TableHead>
+                <TableHead className="w-[50px] sm:w-[70px] text-center">Detail</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {logs.map((log) => (
+                <TableRow
+                  key={log.id}
+                  className="hover:bg-muted/50 cursor-pointer"
+                  onClick={() => onViewDetail(log)}
+                >
+                  {/* Date */}
+                  <TableCell className="text-xs sm:text-sm">
+                    <div className="flex flex-col">
+                      <span className="font-medium">{log.formattedDate}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {log.relativeTime}
+                      </span>
+                    </div>
+                  </TableCell>
+
+                  {/* Module - Hidden on mobile */}
+                  <TableCell className="hidden sm:table-cell">
+                    <Badge variant="outline" className="font-normal text-xs">
+                      {log.moduleLabel}
+                    </Badge>
+                  </TableCell>
+
+                  {/* Action */}
+                  <TableCell>
+                    <Badge className={`text-xs ${getSeverityClass(log.actionSeverity)}`}>
+                      {getActionIcon(log.action)}
+                      <span className="hidden sm:inline">{log.actionLabel}</span>
+                      <span className="sm:hidden">{log.actionLabel.substring(0, 6)}</span>
+                    </Badge>
+                  </TableCell>
+
+                  {/* Reference & Description */}
+                  <TableCell>
+                    <div className="flex flex-col gap-0.5">
+                      {log.entityReference && (
+                        <span className="font-mono text-xs sm:text-sm font-medium truncate max-w-[100px] sm:max-w-none">
+                          {log.entityReference}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-[350px]">
+                        {log.description}
+                      </span>
+                      {/* Show module on mobile */}
+                      <span className="sm:hidden text-xs text-muted-foreground">
+                        {log.moduleLabel}
+                      </span>
+                    </div>
+                  </TableCell>
+
+                  {/* Utilisateur - Hidden on mobile */}
+                  <TableCell className="hidden md:table-cell">
+                    <div className="flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <span className="text-sm truncate max-w-[100px]">
+                        {log.userName}
+                      </span>
+                    </div>
+                  </TableCell>
+
+                  {/* Action Detail */}
+                  <TableCell className="text-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetail(log);
+                      }}
+                      title="Voir les details"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-sm text-muted-foreground">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+          <p className="text-sm text-muted-foreground order-2 sm:order-1">
             Page {currentPage + 1} sur {totalPages}
           </p>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 order-1 sm:order-2">
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8"
               onClick={() => onPageChange(0)}
               disabled={currentPage === 0}
-              title="Première page"
+              title="Premiere page"
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8"
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage === 0}
-              title="Page précédente"
+              title="Page precedente"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            
-            {/* Indicateur de page */}
-            <div className="flex items-center gap-1 px-2">
+
+            {/* Page indicator - simplified on mobile */}
+            <div className="hidden sm:flex items-center gap-1 px-2">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 let pageNum: number;
                 if (totalPages <= 5) {
@@ -269,7 +279,7 @@ export function JournalList({
                 } else {
                   pageNum = currentPage - 2 + i;
                 }
-                
+
                 return (
                   <Button
                     key={pageNum}
@@ -283,10 +293,16 @@ export function JournalList({
                 );
               })}
             </div>
-            
+
+            {/* Simple page indicator on mobile */}
+            <span className="sm:hidden px-2 text-sm font-medium">
+              {currentPage + 1}/{totalPages}
+            </span>
+
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8"
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage >= totalPages - 1}
               title="Page suivante"
@@ -296,9 +312,10 @@ export function JournalList({
             <Button
               variant="outline"
               size="icon"
+              className="h-8 w-8"
               onClick={() => onPageChange(totalPages - 1)}
               disabled={currentPage >= totalPages - 1}
-              title="Dernière page"
+              title="Derniere page"
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>

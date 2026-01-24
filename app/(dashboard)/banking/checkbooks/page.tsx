@@ -1,11 +1,13 @@
 /**
  * @file app/(dashboard)/banking/checkbooks/page.tsx
  * @description Page de gestion des chéquiers.
- * Affiche la liste des chéquiers et permet d'en ajouter de nouveaux.
+ * Affiche la liste des chéquiers avec popup de détails et formulaire de création.
  *
- * @version 1.1.0
- * @date 2024-12-25
- * @changelog Connexion à la vraie API backend (suppression des mocks)
+ * @version 2.0.0
+ * @date 2024-12-31
+ * @changelog
+ * - Ajout du popup de détails (CheckbookDetailDialog)
+ * - Séparation du formulaire et de la vue détails
  */
 "use client";
 
@@ -21,6 +23,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from "@/components/ui/use-toast";
 import { CheckbookList } from '@/components/banking/checkbook-list';
 import { CheckbookForm } from '@/components/banking/checkbook-form';
+import { CheckbookDetailDialog } from '@/components/banking/checkbook-detail-dialog';
 import {
   Dialog,
   DialogContent,
@@ -43,7 +46,11 @@ export default function CheckbooksPage() {
   const [checkbooks, setCheckbooks] = useState<Checkbook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
+
+  // État pour le popup de détails
   const [selectedCheckbook, setSelectedCheckbook] = useState<Checkbook | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+
   const { toast } = useToast();
 
   const fetchCheckbooks = useCallback(async () => {
@@ -68,20 +75,10 @@ export default function CheckbooksPage() {
 
   const handleSave = async (data: CreateCheckbookData) => {
     try {
-      if (selectedCheckbook) {
-        // Les chéquiers ne peuvent pas être modifiés après création
-        toast({
-          title: "Information",
-          description: "Les chéquiers ne peuvent pas être modifiés.",
-          variant: "default",
-        });
-      } else {
-        await createCheckbook(data);
-        toast({ title: "Succès", description: "Nouveau chéquier créé." });
-      }
+      await createCheckbook(data);
+      toast({ title: "Succès", description: "Nouveau chéquier créé." });
       fetchCheckbooks();
       setIsFormOpen(false);
-      setSelectedCheckbook(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "L'opération a échoué.";
       toast({
@@ -92,18 +89,20 @@ export default function CheckbooksPage() {
     }
   };
 
+  /**
+   * Ouvre le popup de détails du chéquier
+   */
   const handleView = (checkbook: Checkbook) => {
-    // Ouvrir le formulaire en mode lecture seule
     setSelectedCheckbook(checkbook);
-    setIsFormOpen(true);
+    setIsDetailOpen(true);
   };
 
   const handleCancel = async (checkbook: Checkbook) => {
-    // Empêcher l'annulation du chéquier par défaut
-    if (checkbook.id === 'default-erp-checkbook') {
+    // Empêcher l'annulation du chéquier système
+    if (checkbook.isSystem) {
       toast({
         title: "Action non autorisée",
-        description: "Le chéquier ERP par défaut ne peut pas être annulé.",
+        description: "Le chéquier système ne peut pas être annulé.",
         variant: "destructive",
       });
       return;
@@ -136,20 +135,20 @@ export default function CheckbooksPage() {
           </h1>
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => setSelectedCheckbook(null)}>
+              <Button>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Nouveau Chéquier
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
-                <DialogTitle>{selectedCheckbook ? "Modifier le" : "Créer un"} chéquier</DialogTitle>
+                <DialogTitle>Créer un chéquier</DialogTitle>
                 <DialogDescription>
-                  {selectedCheckbook ? "Les chéquiers ne peuvent pas être modifiés." : "Ajoutez un nouveau chéquier pour un compte bancaire."}
+                  Ajoutez un nouveau chéquier pour un compte bancaire.
                 </DialogDescription>
               </DialogHeader>
               <CheckbookForm
-                initialData={selectedCheckbook}
+                initialData={null}
                 onSave={handleSave}
                 onCancel={() => setIsFormOpen(false)}
               />
@@ -161,7 +160,7 @@ export default function CheckbooksPage() {
           <CardHeader>
             <CardTitle>Liste des chéquiers</CardTitle>
             <CardDescription>
-              Affichez et gérez les chéquiers de vos comptes bancaires.
+              Cliquez sur un chéquier pour voir ses détails et statistiques.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -174,6 +173,14 @@ export default function CheckbooksPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Popup de détails du chéquier */}
+      <CheckbookDetailDialog
+        checkbook={selectedCheckbook}
+        open={isDetailOpen}
+        onOpenChange={setIsDetailOpen}
+        currency="XAF"
+      />
     </>
   );
 }

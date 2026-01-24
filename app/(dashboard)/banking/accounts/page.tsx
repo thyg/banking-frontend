@@ -231,21 +231,21 @@ export default function BankAccountsPage() {
         onUpload={handleUpload}
       />
 
-      {/* Modal de formulaire */}
+      {/* Modal de formulaire avec scroll */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>
               {editingAccount ? `Modifier "${editingAccount.name}"` : 'Nouveau Compte Bancaire'}
             </DialogTitle>
             <DialogDescription>
-              {editingAccount 
+              {editingAccount
                 ? 'Modifiez les informations du compte bancaire.'
                 : 'Remplissez les informations pour créer un nouveau compte bancaire.'
               }
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4">
+          <div className="mt-4 overflow-y-auto flex-1 pr-2">
             <BankAccountForm
               initialData={editingAccount}
               onSave={handleSave}

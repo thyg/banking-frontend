@@ -7,7 +7,7 @@
  */
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -35,20 +35,25 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2 } from 'lucide-react';
-import { getBankAccounts } from '@/lib/api/banking'; // Supposé exister
+import { Loader2, Calculator, Info, Wallet, AlertTriangle } from 'lucide-react';
+import { getBankAccounts } from '@/lib/api/banking';
 
-// Schéma de validation Zod
+// Schéma de validation Zod (IBAN n'est pas inclus car récupéré automatiquement du compte bancaire)
 const checkbookFormSchema = z.object({
   bankAccountId: z.string().min(1, "Le compte bancaire est obligatoire."),
-  rib: z.string().min(1, "Le RIB est obligatoire."),
   prefix: z.string().min(1, "La racine est obligatoire.").max(20),
   startNumber: z.coerce.number().int().positive("Le numéro de début doit être positif."),
-  endNumber: z.coerce.number().int().positive("Le numéro de fin doit être positif."),
-}).refine(data => data.endNumber > data.startNumber, {
-  message: "Le numéro de fin doit être supérieur au numéro de début.",
-  path: ["endNumber"],
+  numberOfPages: z.coerce.number().int().min(1, "Minimum 1 feuille.").max(500, "Maximum 500 feuilles."),
 });
+
+// Fonction utilitaire pour formater les montants
+const formatCurrency = (amount: number, currency: string = 'XAF'): string => {
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: currency === 'XAF' || currency === 'XOF' ? 0 : 2,
+  }).format(amount);
+};
 
 type CheckbookFormData = z.infer<typeof checkbookFormSchema>;
 
@@ -64,16 +69,42 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
   const isEditMode = initialData !== null;
 
+  // Calculer numberOfPages à partir des données initiales si disponibles
+  const initialNumberOfPages = initialData
+    ? (initialData.endNumber - initialData.startNumber + 1)
+    : ('' as unknown as number);
+
   const form = useForm<CheckbookFormData>({
     resolver: zodResolver(checkbookFormSchema),
     defaultValues: {
       bankAccountId: initialData?.bankAccountId ?? '',
-      rib: initialData?.rib ?? '',
       prefix: initialData?.prefix ?? '',
       startNumber: initialData?.startNumber ?? ('' as unknown as number),
-      endNumber: initialData?.endNumber ?? ('' as unknown as number),
+      numberOfPages: initialNumberOfPages,
     },
   });
+
+  // Observer les valeurs pour le calcul automatique
+  const watchPrefix = form.watch('prefix');
+  const watchStartNumber = form.watch('startNumber');
+  const watchNumberOfPages = form.watch('numberOfPages');
+
+  // Calcul automatique du premier et dernier chèque
+  const calculatedFirstCheck = useMemo(() => {
+    if (!watchPrefix || !watchStartNumber) return null;
+    return `${watchPrefix}-${watchStartNumber}`;
+  }, [watchPrefix, watchStartNumber]);
+
+  const calculatedLastCheck = useMemo(() => {
+    if (!watchPrefix || !watchStartNumber || !watchNumberOfPages) return null;
+    const lastNumber = Number(watchStartNumber) + Number(watchNumberOfPages) - 1;
+    return `${watchPrefix}-${lastNumber}`;
+  }, [watchPrefix, watchStartNumber, watchNumberOfPages]);
+
+  const calculatedEndNumber = useMemo(() => {
+    if (!watchStartNumber || !watchNumberOfPages) return null;
+    return Number(watchStartNumber) + Number(watchNumberOfPages) - 1;
+  }, [watchStartNumber, watchNumberOfPages]);
 
   // Charger les comptes bancaires
   useEffect(() => {
@@ -95,16 +126,6 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
   const selectedAccountId = form.watch('bankAccountId');
   const selectedAccount = bankAccounts.find(a => a.id === selectedAccountId);
 
-  const handleAccountChange = (accountId: string) => {
-    const account = bankAccounts.find(a => a.id === accountId);
-    if (account) {
-      // Mettre à jour le RIB avec l'IBAN du compte (sans espaces pour respecter la limite de 30 car)
-      const rib = account.iban
-        ? account.iban.replace(/\s/g, '')
-        : account.accountNumber;
-      form.setValue('rib', rib);
-    }
-  };
 
   const handleSubmit = async (data: CheckbookFormData) => {
     setIsSubmitting(true);
@@ -136,10 +157,7 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
             <FormItem>
               <FormLabel>Compte bancaire *</FormLabel>
               <Select
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  handleAccountChange(value);
-                }}
+                onValueChange={field.onChange}
                 value={field.value}
                 disabled={isEditMode}
               >
@@ -163,20 +181,49 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="rib"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>RIB *</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="RIB du compte" disabled={isEditMode} />
-              </FormControl>
-              <FormDescription>Auto-rempli depuis le compte si possible.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Informations du compte sélectionné */}
+        {selectedAccount && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+            <h4 className="font-medium text-blue-800 flex items-center gap-2">
+              <Info className="h-4 w-4" />
+              Informations du compte sélectionné
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-blue-600">IBAN :</span>
+                <span className="font-mono ml-2 text-blue-900">
+                  {selectedAccount.iban || selectedAccount.accountNumber || 'Non renseigné'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-blue-600" />
+                <span className="text-blue-600">Solde actuel :</span>
+                <span className="font-bold text-blue-900">
+                  {formatCurrency(selectedAccount.currentBalance || 0, selectedAccount.currency)}
+                </span>
+              </div>
+              {selectedAccount.overdraftAuthorized && (
+                <div className="flex items-center gap-2 sm:col-span-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <span className="text-amber-700">
+                    Découvert autorisé : {formatCurrency(selectedAccount.overdraftLimit || 0, selectedAccount.currency)}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* IBAN affiché en lecture seule */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">IBAN / RIB</label>
+          <Input
+            value={selectedAccount?.iban || selectedAccount?.accountNumber || ''}
+            placeholder="Sélectionnez un compte bancaire"
+            disabled
+          />
+          <p className="text-sm text-muted-foreground">Récupéré automatiquement du compte bancaire.</p>
+        </div>
         
         <FormField
           control={form.control}
@@ -202,7 +249,7 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
                 <FormControl>
                   <Input
                     type="number"
-                    placeholder="Ex: 458701"
+                    placeholder="Ex: 209"
                     disabled={isEditMode}
                     value={field.value || ''}
                     onChange={(e) => field.onChange(e.target.valueAsNumber || '')}
@@ -211,21 +258,24 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
                     ref={field.ref}
                   />
                 </FormControl>
+                <FormDescription>Premier numéro de chèque du carnet.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
           <FormField
             control={form.control}
-            name="endNumber"
+            name="numberOfPages"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Numéro de fin *</FormLabel>
+                <FormLabel>Nombre de feuilles *</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
-                    placeholder="Ex: 458750"
+                    placeholder="Ex: 100"
                     disabled={isEditMode}
+                    min={1}
+                    max={500}
                     value={field.value || ''}
                     onChange={(e) => field.onChange(e.target.valueAsNumber || '')}
                     onBlur={field.onBlur}
@@ -233,11 +283,40 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
                     ref={field.ref}
                   />
                 </FormControl>
+                <FormDescription>Nombre total de chèques dans le carnet.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
+
+        {/* Aperçu calculé automatiquement */}
+        {calculatedFirstCheck && calculatedLastCheck && watchNumberOfPages > 0 && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-3">
+            <h4 className="font-medium text-emerald-800 flex items-center gap-2">
+              <Calculator className="h-4 w-4" />
+              Aperçu calculé automatiquement
+            </h4>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-emerald-600 block">Racine :</span>
+                <span className="font-mono font-bold text-emerald-900">{watchPrefix}</span>
+              </div>
+              <div>
+                <span className="text-emerald-600 block">Premier chèque :</span>
+                <span className="font-mono font-bold text-emerald-900">{calculatedFirstCheck}</span>
+              </div>
+              <div>
+                <span className="text-emerald-600 block">Dernier chèque :</span>
+                <span className="font-mono font-bold text-emerald-900">{calculatedLastCheck}</span>
+              </div>
+              <div>
+                <span className="text-emerald-600 block">Total feuilles :</span>
+                <span className="font-bold text-emerald-900">{watchNumberOfPages}</span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end gap-3 pt-4">
           <Button type="button" variant="outline" onClick={onCancel}>

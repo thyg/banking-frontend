@@ -226,28 +226,28 @@ export function StatementLinesTable({
           isProcessed && !isSelected && "opacity-60"
         )}
       >
-        {/* Numéro de ligne */}
-        <TableCell className="w-[60px] text-center font-mono text-sm text-muted-foreground">
+        {/* Numero de ligne - Hidden on mobile */}
+        <TableCell className="hidden sm:table-cell w-[50px] sm:w-[60px] text-center font-mono text-xs sm:text-sm text-muted-foreground">
           {line.lineNumber}
         </TableCell>
 
         {/* Date */}
-        <TableCell className="w-[120px]">
+        <TableCell className="w-[100px] sm:w-[120px]">
           <div className="flex flex-col">
-            <span className="font-medium">{formatDate(line.transactionDate)}</span>
+            <span className="font-medium text-xs sm:text-sm">{formatDate(line.transactionDate)}</span>
             {line.valueDate && line.valueDate !== line.transactionDate && (
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground hidden sm:block">
                 Valeur: {formatDate(line.valueDate)}
               </span>
             )}
           </div>
         </TableCell>
 
-        {/* Description / Libellé */}
-        <TableCell className="max-w-[300px]">
+        {/* Description / Libelle */}
+        <TableCell className="max-w-[150px] sm:max-w-[300px]">
           <div className="flex flex-col">
-            <p className="font-medium truncate" title={line.description || undefined}>
-              {line.description || 'Sans libellé'}
+            <p className="font-medium truncate text-xs sm:text-sm" title={line.description || undefined}>
+              {line.description || 'Sans libelle'}
             </p>
             {line.partnerName && (
               <p className="text-xs text-muted-foreground truncate" title={line.partnerName}>
@@ -255,34 +255,45 @@ export function StatementLinesTable({
               </p>
             )}
             {line.reference && (
-              <p className="text-xs text-muted-foreground font-mono">
-                Réf: {line.reference}
+              <p className="text-xs text-muted-foreground font-mono hidden sm:block">
+                Ref: {line.reference}
               </p>
             )}
+            {/* Show direction on mobile */}
+            <div className="md:hidden flex items-center gap-1 mt-0.5">
+              {isCredit ? (
+                <ArrowDownCircle className="h-3 w-3 text-green-600" />
+              ) : (
+                <ArrowUpCircle className="h-3 w-3 text-red-600" />
+              )}
+              <span className={cn("text-xs", isCredit ? "text-green-600" : "text-red-600")}>
+                {isCredit ? 'Credit' : 'Debit'}
+              </span>
+            </div>
           </div>
         </TableCell>
 
-        {/* Direction */}
-        <TableCell className="w-[100px]">
+        {/* Direction - Hidden on mobile */}
+        <TableCell className="hidden md:table-cell w-[80px] sm:w-[100px]">
           <div className="flex items-center gap-1">
             {isCredit ? (
               <>
                 <ArrowDownCircle className="h-4 w-4 text-green-600" />
-                <span className="text-xs text-green-600 font-medium">Crédit</span>
+                <span className="text-xs text-green-600 font-medium">Credit</span>
               </>
             ) : (
               <>
                 <ArrowUpCircle className="h-4 w-4 text-red-600" />
-                <span className="text-xs text-red-600 font-medium">Débit</span>
+                <span className="text-xs text-red-600 font-medium">Debit</span>
               </>
             )}
           </div>
         </TableCell>
 
         {/* Montant */}
-        <TableCell className="text-right w-[150px]">
+        <TableCell className="text-right w-[120px] sm:w-[150px]">
           <span className={cn(
-            'font-semibold font-mono text-base',
+            'font-semibold font-mono text-xs sm:text-base',
             isCredit ? 'text-green-600' : 'text-foreground',
             isProcessed && 'font-normal opacity-70'
           )}>
@@ -291,16 +302,17 @@ export function StatementLinesTable({
         </TableCell>
 
         {/* Statut */}
-        <TableCell className="w-[130px]">
-          <Badge 
+        <TableCell className="w-[100px] sm:w-[130px]">
+          <Badge
             variant={statusInfo.variant}
             className={cn(
-              "flex items-center w-fit",
+              "flex items-center w-fit text-xs",
               line.reconciliationStatus === 'MATCHED' && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
             )}
           >
             {statusInfo.icon}
-            {statusInfo.label}
+            <span className="hidden sm:inline">{statusInfo.label}</span>
+            <span className="sm:hidden">{statusInfo.label.substring(0, 3)}</span>
           </Badge>
         </TableCell>
       </TableRow>
@@ -310,27 +322,27 @@ export function StatementLinesTable({
   return (
     <Card className="h-full shadow-sm">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <CardTitle className="text-lg">{title}</CardTitle>
+            <CardTitle className="text-base sm:text-lg">{title}</CardTitle>
             {description && (
-              <CardDescription>{description}</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">{description}</CardDescription>
             )}
           </div>
-          
+
           {/* Badge de statistiques */}
           {stats && !isLoading && (
-            <div className="flex items-center gap-2 text-sm">
-              <Badge variant="outline" className="bg-green-50 dark:bg-green-950">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm flex-wrap">
+              <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-xs">
                 <CheckCircle2 className="h-3 w-3 mr-1 text-green-600" />
                 {stats.matched}
               </Badge>
-              <Badge variant="outline">
+              <Badge variant="outline" className="text-xs">
                 <Circle className="h-3 w-3 mr-1" />
                 {stats.unmatched}
               </Badge>
               {stats.ignored > 0 && (
-                <Badge variant="outline" className="opacity-60">
+                <Badge variant="outline" className="opacity-60 text-xs">
                   <MinusCircle className="h-3 w-3 mr-1" />
                   {stats.ignored}
                 </Badge>
@@ -341,16 +353,16 @@ export function StatementLinesTable({
       </CardHeader>
       
       <CardContent className="p-0">
-        <div className="overflow-x-auto">
+        <div className="table-responsive">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead className="w-[60px] text-center">#</TableHead>
-                <TableHead className="w-[120px]">Date</TableHead>
-                <TableHead>Libellé</TableHead>
-                <TableHead className="w-[100px]">Type</TableHead>
-                <TableHead className="text-right w-[150px]">Montant</TableHead>
-                <TableHead className="w-[130px]">Statut</TableHead>
+                <TableHead className="hidden sm:table-cell w-[50px] sm:w-[60px] text-center">#</TableHead>
+                <TableHead className="w-[100px] sm:w-[120px]">Date</TableHead>
+                <TableHead>Libelle</TableHead>
+                <TableHead className="hidden md:table-cell w-[80px] sm:w-[100px]">Type</TableHead>
+                <TableHead className="text-right w-[120px] sm:w-[150px]">Montant</TableHead>
+                <TableHead className="w-[100px] sm:w-[130px]">Statut</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
