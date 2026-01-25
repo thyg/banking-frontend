@@ -375,7 +375,7 @@ const handleSubmit = async (data: CheckFormData) => {
         </div>
 
         <FormField control={form.control} name="amount" render={({ field }) => (
-          <FormItem><FormLabel>Montant *</FormLabel><FormControl><div className="relative"><Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={isProcessed} className="pr-16" /><span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{selectedAccount?.currency || 'EUR'}</span></div></FormControl><FormMessage /></FormItem>
+          <FormItem><FormLabel>Montant *</FormLabel><FormControl><div className="flex h-10 items-center rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:outline-none"><Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={isProcessed} className="h-full flex-1 border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none" /><span className="text-gray-500 text-sm">{selectedAccount?.currency || 'EUR'}</span></div></FormControl><FormMessage /></FormItem>
         )} />
         <FormItem><FormLabel>Montant en lettres</FormLabel><FormControl><Input readOnly value={amountInWordsText} className="bg-gray-100 italic" /></FormControl></FormItem>
         

@@ -27,40 +27,41 @@ const wait = (ms: number): Promise<void> =>
 
 /**
  * Liste des journaux comptables simulés.
+ * Les IDs sont des UUIDs valides pour compatibilité avec le backend.
  */
 const mockJournals: Journal[] = [
   {
-    id: 'journal_001',
+    id: 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d',
     code: 'BQ1',
     name: 'Banque Principale',
     type: 'banque',
   },
   {
-    id: 'journal_002',
+    id: 'b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e',
     code: 'BQ2',
     name: 'Banque Secondaire',
     type: 'banque',
   },
   {
-    id: 'journal_003',
+    id: 'c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f',
     code: 'BQ3',
     name: 'Banque XAF',
     type: 'banque',
   },
   {
-    id: 'journal_004',
+    id: 'd4e5f6a7-b8c9-4d0e-1f2a-3b4c5d6e7f8a',
     code: 'VT',
     name: 'Journal des Ventes',
     type: 'vente',
   },
   {
-    id: 'journal_005',
+    id: 'e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b',
     code: 'AC',
     name: 'Journal des Achats',
     type: 'achat',
   },
   {
-    id: 'journal_006',
+    id: 'f6a7b8c9-d0e1-4f2a-3b4c-5d6e7f8a9b0c',
     code: 'OD',
     name: 'Opérations Diverses',
     type: 'divers',

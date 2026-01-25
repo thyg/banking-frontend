@@ -11,14 +11,16 @@ import { useCompose } from "@/hooks/use-compose-store";
 import { CustomerForm } from "../customers/customer-form";
 import { ProductForm } from "../products/product-form";
 import { SupplierForm } from "../suppliers/supplier-form";
+import { useRouter } from "next/navigation";
 
 export function SecondarySidebar() {
   const { isCollapsed } = useSecondarySidebar();
   const { activeModule } = useNavigationStore();
   const { onOpen } = useCompose();
+  const router = useRouter();
 
   const currentModuleData = modules[activeModule];
-  
+
   const handleCompose = () => {
     switch(activeModule) {
       case 'ventes':
@@ -26,6 +28,10 @@ export function SecondarySidebar() {
         break;
       case 'stock':
         onOpen({ title: 'Nouvel Article', content: <ProductForm initialData={null} onSave={() => {}} onCancel={() => {}} />});
+        break;
+      case 'tresorerie':
+        // Navigate to transactions page with new=true to trigger form dialog
+        router.push('/banking/transactions?action=new');
         break;
       case 'personnel':
          console.log("Ouvrir dialogue nouvel utilisateur");

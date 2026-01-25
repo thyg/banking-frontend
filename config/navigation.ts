@@ -32,6 +32,8 @@ import {
   Shield,
   Database,
   BookOpen,
+  Tag,
+  CreditCard,
 } from 'lucide-react';
 
 // =============================================================================
@@ -44,6 +46,10 @@ export interface SidebarLink {
   icon: LucideIcon;
   badge?: string | number;
   disabled?: boolean;
+  /** If true, renders a separator line before this link */
+  separatorBefore?: boolean;
+  /** Optional section label to display before separator */
+  sectionLabel?: string;
 }
 
 export interface ModuleConfig {
@@ -91,7 +97,7 @@ export const modules: Record<ModuleKey, ModuleConfig> = {
   },
 
   // ---------------------------------------------------------------------------
-  // MODULE TRÉSORERIE (Incrément 4 - Rapprochement)
+  // MODULE TRÉSORERIE
   // ---------------------------------------------------------------------------
   tresorerie: {
     name: 'Trésorerie',
@@ -100,20 +106,24 @@ export const modules: Record<ModuleKey, ModuleConfig> = {
     sidebarLinks: [
       // Tableau de bord
       { title: 'Vue d\'ensemble', href: '/banking', icon: BarChart3 },
-      // Opérations
+      // Institutions & Comptes
+      { title: 'Banques', href: '/banking/banks', icon: Landmark },
       { title: 'Comptes Bancaires', href: '/banking/accounts', icon: Building2 },
-      { title: 'Transactions', href: '/banking/transactions', icon: ArrowLeftRight },
-      { title: 'Chèques', href: '/banking/checks', icon: FileText },
+      // Chèques
       { title: 'Chéquiers', href: '/banking/checkbooks', icon: BookOpen },
-      // Rapprochement (NOUVEAU - Incrément 4)
+      { title: 'Chèques', href: '/banking/checks', icon: FileText },
+      // Opérations
+      { title: 'Transactions', href: '/banking/transactions', icon: ArrowLeftRight },
+      // Rapprochement
       { title: 'Relevés Bancaires', href: '/banking/statements', icon: ClipboardList },
       { title: 'Rapprochement', href: '/banking/reconciliation', icon: FileCheck },
       // Caisse (désactivé - autre membre équipe)
       { title: 'Caisses', href: '/banking/cash-registers', icon: Wallet, disabled: true },
       { title: 'Opérations Caisse', href: '/banking/cash-operations', icon: CircleDollarSign, disabled: true },
-      // Paramétrage
-      { title: 'Banques', href: '/banking/banks', icon: Landmark },
+      // Configuration (avec séparateur)
+      { title: 'Catégories Banques', href: '/banking/configuration/bank-categories', icon: Tag, separatorBefore: true, sectionLabel: 'Configuration' },
       { title: 'Types Transactions', href: '/banking/transaction-types', icon: Receipt },
+      { title: 'Types de Comptes', href: '/banking/configuration/account-types', icon: CreditCard },
     ],
   },
 

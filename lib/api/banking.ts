@@ -9,7 +9,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/a
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Une erreur est survenue' }));
-    throw new Error(error.message || `Erreur HTTP: ${response.status}`);
+    // Extraire le message d'erreur le plus pertinent
+    const errorMessage = error.message || error.error || error.detail || `Erreur HTTP: ${response.status}`;
+    console.error('[API] Erreur:', { status: response.status, error });
+    throw new Error(errorMessage);
   }
   return response.json();
 }
@@ -36,6 +39,7 @@ const headers = {
 
 import type {
   Bank, CreateBankRequest, UpdateBankRequest,
+  BankCategory, BankCategoryRequest, AccountConnectorType, AccountConnectorField, AccountConnectorResponse,
   TransactionType, CreateTransactionTypeRequest,
   AccountType, CreateAccountTypeRequest, UpdateAccountTypeRequest,
   AccountSubType, CreateAccountSubTypeRequest, UpdateAccountSubTypeRequest,
@@ -80,6 +84,48 @@ export async function updateBank(id: string, data: UpdateBankRequest): Promise<B
 export async function deleteBank(id: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/banks/${id}`, { method: 'DELETE' });
   if (!response.ok) throw new Error('Échec de la suppression');
+}
+
+// ============================================================================
+// CONFIGURATION API (Bank Categories & Connectors)
+// ============================================================================
+
+export async function getBankCategories(): Promise<BankCategory[]> {
+  const response = await fetch(`${API_BASE_URL}/bank-categories`);
+  return handleResponse<BankCategory[]>(response);
+}
+
+export async function createBankCategory(data: BankCategoryRequest): Promise<BankCategory> {
+  const response = await fetch(`${API_BASE_URL}/bank-categories`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<BankCategory>(response);
+}
+
+export async function updateBankCategory(id: string, data: BankCategoryRequest): Promise<BankCategory> {
+  const response = await fetch(`${API_BASE_URL}/bank-categories/${id}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(data),
+  });
+  return handleResponse<BankCategory>(response);
+}
+
+export async function deleteBankCategory(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/bank-categories/${id}`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Impossible de supprimer la catégorie.');
+}
+
+export async function getConnectorTypesByCategory(categoryId: string): Promise<AccountConnectorType[]> {
+  const response = await fetch(buildUrl('/configuration/account-connector-types', { bankCategoryId: categoryId }));
+  return handleResponse<AccountConnectorType[]>(response);
+}
+
+export async function getConnectorTypeWithFields(connectorTypeId: string): Promise<AccountConnectorResponse> {
+  const response = await fetch(`${API_BASE_URL}/configuration/account-connector-types/${connectorTypeId}`);
+  return handleResponse<AccountConnectorResponse>(response);
 }
 
 // ============================================================================

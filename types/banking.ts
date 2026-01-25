@@ -29,13 +29,43 @@ export type MatchMethod = 'AUTO_EXACT' | 'AUTO_FUZZY' | 'MANUAL' | 'RULE_BASED';
 // ENTITÉS PRINCIPALES
 // =============================================================================
 
+export interface BankCategory {
+  id: string;
+  code: string;    // "BANK", "MOBILE_MONEY", "MICROFINANCE", "OTHER"
+  label: string;   // "Banque traditionnelle", "Opérateur Mobile Money", etc.
+}
+
+export interface AccountConnectorType {
+  id: string;
+  code: string;           // "STD_BANK", "MOBILE_MONEY"
+  name: string;           // "Compte Bancaire Standard", "Compte Mobile Money"
+  bankCategoryId: string;
+}
+
+export interface AccountConnectorField {
+  id: string;
+  connectorTypeId: string;
+  fieldKey: string;       // "accountNumber", "phoneNumber", etc.
+  label: string;          // "Numéro de Compte", "Numéro de Téléphone"
+  fieldType: string;      // "TEXT", "PHONE"
+  isRequired: boolean;
+  displayOrder: number;
+}
+
+export interface AccountConnectorResponse {
+  connectorType: AccountConnectorType;
+  fields: AccountConnectorField[];
+}
+
 export interface Bank {
   id: string;
   code: string;
   name: string;
   swiftCode?: string;
+  bankCode?: string; // Code banque national (5 chiffres) pour génération IBAN
   country?: string;
   address?: string;
+  bankCategoryId?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -98,15 +128,30 @@ export interface BankAccount {
   bankId: string;
   bankName?: string;
   name: string;
-  accountNumber: string;
+  // Champs pour génération IBAN
+  branchCode?: string; // Code guichet (5 chiffres)
+  accountNumber?: string;
+  generatedIban?: string; // IBAN généré automatiquement
   iban?: string;
   bic?: string;
   currency: string;
   currentBalance: number;
   reconciledBalance: number;
   isActive: boolean;
-  overdraftAuthorized?: boolean;
+  // Type de compte
+  accountTypeId?: string;
+  accountSubTypeId?: string;
+  // Journal comptable
+  journalId?: string;
+  // Découvert
+  overdraftAllowed?: boolean;
+  overdraftAuthorized?: boolean; // Alias backend
   overdraftLimit?: number;
+  // Solde initial (utilisé à la création)
+  initialBalance?: number;
+  // Connecteur dynamique
+  connectorTypeId?: string;
+  details?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
 }
@@ -345,8 +390,10 @@ export interface CreateBankRequest {
   code: string;
   name: string;
   swiftCode?: string;
+  bankCode?: string; // Code banque national (5 chiffres)
   country?: string;
   address?: string;
+  bankCategoryId?: string;
   isActive?: boolean;
 }
 
@@ -354,9 +401,16 @@ export interface UpdateBankRequest {
   code?: string;
   name?: string;
   swiftCode?: string;
+  bankCode?: string;
   country?: string;
   address?: string;
+  bankCategoryId?: string;
   isActive?: boolean;
+}
+
+export interface BankCategoryRequest {
+  code: string;
+  label: string;
 }
 
 export interface CreateTransactionTypeRequest {
@@ -402,18 +456,31 @@ export type UpdateBankData = UpdateBankRequest;
 export interface CreateBankAccountRequest {
   bankId: string;
   name: string;
-  accountNumber: string;
+  connectorTypeId?: string;
+  details?: Record<string, any>;
+  // Champs pour génération IBAN
+  branchCode?: string; // Code guichet (5 chiffres)
+  accountNumber?: string;
+  generatedIban?: string;
   iban?: string;
   bic?: string;
   currency?: string;
   initialBalance?: number;
   isActive?: boolean;
+  // Champs supplémentaires
+  accountTypeId?: string;
+  accountSubTypeId?: string;
+  journalId?: string;
+  overdraftAllowed?: boolean;
+  overdraftLimit?: number;
 }
 
 export interface UpdateBankAccountRequest {
   bankId?: string;
   name?: string;
+  branchCode?: string;
   accountNumber?: string;
+  generatedIban?: string;
   iban?: string;
   bic?: string;
   currency?: string;

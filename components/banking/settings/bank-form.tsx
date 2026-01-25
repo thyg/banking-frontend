@@ -8,13 +8,16 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 // Types
-import { Bank, CreateBankData } from '@/types/banking';
+import { Bank, BankCategory, CreateBankData } from '@/types/banking';
+
+// API
+import { getBankCategories } from '@/lib/api/banking';
 
 // Composants UI
 import { Button } from '@/components/ui/button';
@@ -29,6 +32,13 @@ import {
   FormLabel, 
   FormMessage 
 } from '@/components/ui/form';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
 import { Loader2, Building2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea'
 
@@ -57,8 +67,17 @@ const bankFormSchema = z.object({
   swiftCode: z
     .string()
     .max(11, { message: "Le code BIC/SWIFT ne peut pas dépasser 11 caractères." })
-    .regex(/^[A-Za-z0-9]*$/, { 
-      message: "Le code BIC ne peut contenir que des lettres et chiffres." 
+    .regex(/^[A-Za-z0-9]*$/, {
+      message: "Le code BIC ne peut contenir que des lettres et chiffres."
+    })
+    .optional()
+    .or(z.literal('')),
+
+  bankCode: z
+    .string()
+    .length(5, { message: "Le code banque doit contenir exactement 5 chiffres." })
+    .regex(/^[0-9]{5}$/, {
+      message: "Le code banque doit contenir uniquement 5 chiffres."
     })
     .optional()
     .or(z.literal('')),
@@ -68,7 +87,11 @@ const bankFormSchema = z.object({
     .max(500, { message: "L'adresse ne peut pas dépasser 500 caractères." })
     .optional()
     .or(z.literal('')),
-  
+
+  bankCategoryId: z
+    .string({ required_error: "Veuillez sélectionner une catégorie." })
+    .min(1, { message: "Veuillez sélectionner une catégorie." }),
+
   isActive: z.boolean(),
 });
 
@@ -97,9 +120,26 @@ interface BankFormProps {
 export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
   // État de soumission
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [categories, setCategories] = useState<BankCategory[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
 
   // Déterminer si on est en mode édition
   const isEditMode = initialData !== null;
+
+  // Charger les catégories de banques
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const data = await getBankCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error("[BankForm] Erreur chargement catégories:", error);
+      } finally {
+        setIsLoadingCategories(false);
+      }
+    }
+    loadCategories();
+  }, []);
 
   // Configuration du formulaire avec react-hook-form et Zod
   const form = useForm<BankFormData>({
@@ -108,7 +148,9 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
       code: initialData?.code ?? '',
       name: initialData?.name ?? '',
       swiftCode: initialData?.swiftCode ?? '',
+      bankCode: initialData?.bankCode ?? '',
       address: initialData?.address ?? '',
+      bankCategoryId: initialData?.bankCategoryId ?? '',
       isActive: initialData?.isActive ?? true,
     },
   });
@@ -125,7 +167,9 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
         code: data.code,
         name: data.name,
         swiftCode: data.swiftCode || undefined,
+        bankCode: data.bankCode || undefined,
         address: data.address || undefined,
+        bankCategoryId: data.bankCategoryId,
         isActive: data.isActive,
       };
       
@@ -204,6 +248,45 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
           )}
         />
 
+        {/* Champ Catégorie */}
+        <FormField
+          control={form.control}
+          name="bankCategoryId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Catégorie *</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+                disabled={isLoadingCategories}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        isLoadingCategories
+                          ? "Chargement..."
+                          : "Sélectionnez une catégorie..."
+                      }
+                    />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {categories.map(cat => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Détermine le type d'institution (Banque, Mobile Money, Microfinance...).
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         {/* Champ Code BIC/SWIFT */}
         <FormField
           control={form.control}
@@ -220,6 +303,28 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
               </FormControl>
               <FormDescription>
                 Code d'identification bancaire international (optionnel).
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Champ Code Banque National */}
+        <FormField
+          control={form.control}
+          name="bankCode"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Code Banque National</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Ex: 10005"
+                  maxLength={5}
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                Code à 5 chiffres utilisé pour la génération d'IBAN (ex: 10005 pour Afriland).
               </FormDescription>
               <FormMessage />
             </FormItem>

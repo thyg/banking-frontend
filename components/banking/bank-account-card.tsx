@@ -35,12 +35,35 @@ const formatCurrency = (amount: number, currencyCode: string = 'EUR') => {
 };
 
 const maskAccountNumber = (accountNumber: string) => {
+  if (!accountNumber) return '—';
   if (accountNumber.length <= 8) {
-    return accountNumber; // Ne pas masquer si le numéro est trop court
+    return accountNumber;
   }
-  // Affiche les 4 premiers et les 4 derniers caractères (standard pour les IBAN)
   return `${accountNumber.slice(0, 4)} **** **** ${accountNumber.slice(-4)}`;
 };
+
+/**
+ * Extrait l'identifiant principal du compte depuis les détails dynamiques.
+ * Retourne le label et la valeur à afficher.
+ */
+function getAccountIdentifier(account: BankAccount): { label: string; value: string } {
+  const details = account.details;
+
+  if (details?.phoneNumber) {
+    return { label: 'Numéro de téléphone', value: details.phoneNumber };
+  }
+  if (details?.accountNumber) {
+    return { label: 'Numéro de compte', value: details.accountNumber };
+  }
+  if (details?.iban) {
+    return { label: 'IBAN', value: details.iban };
+  }
+  // Fallback: ancien champ direct
+  if (account.accountNumber) {
+    return { label: 'Numéro de compte', value: account.accountNumber };
+  }
+  return { label: 'Identifiant', value: '—' };
+}
 
 // Définition des props
 interface BankAccountCardProps {
@@ -94,8 +117,15 @@ export function BankAccountCard({ account, onEdit, onDelete, onUpload }: BankAcc
 
       <CardContent className="flex-grow">
         <div className="mb-4">
-          <p className="text-sm text-gray-500">Numéro de compte</p>
-          <p className="font-mono text-gray-800">{maskAccountNumber(account.accountNumber)}</p>
+          {(() => {
+            const identifier = getAccountIdentifier(account);
+            return (
+              <>
+                <p className="text-sm text-gray-500">{identifier.label}</p>
+                <p className="font-mono text-gray-800">{maskAccountNumber(identifier.value)}</p>
+              </>
+            );
+          })()}
         </div>
         <div>
           <p className="text-sm text-gray-500">Solde actuel</p>

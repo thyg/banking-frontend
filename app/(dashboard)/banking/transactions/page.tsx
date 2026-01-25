@@ -9,6 +9,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 // Types
 import {
@@ -72,6 +73,21 @@ export default function BankTransactionsPage() {
   const [transactionToCancel, setTransactionToCancel] = useState<BankTransaction | null>(null);
   
   const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // ---------------------------------------------------------------------------
+  // AUTO-OPEN FORM FROM URL PARAM
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (searchParams.get('action') === 'new') {
+      setEditingTransaction(null);
+      setIsFormOpen(true);
+      // Clean the URL param after opening
+      router.replace('/banking/transactions', { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // ---------------------------------------------------------------------------
   // CHARGEMENT DES DONNÉES

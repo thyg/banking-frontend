@@ -22,6 +22,8 @@ export { StatementUploader } from './statement-uploader';
 
  export { BankForm } from './settings/bank-form';
  export { BankList } from './settings/bank-list';
+ export { BankCategoryForm } from './settings/bank-category-form';
+ export { BankCategoryList } from './settings/bank-category-list';
  export { TransactionTypeForm } from './settings/transaction-type-form';
  export { TransactionTypeList } from './settings/transaction-type-list';
 
@@ -54,6 +56,7 @@ export { BalanceIndicator } from './balance-indicator';
 //export { BankAccountList } from './bank-account-list';
 export { BankAccountCard } from './bank-account-card';
 export { BankAccountForm } from './bank-account-form';
+export { DynamicConnectorFields, validateConnectorFields } from './dynamic-connector-fields';
 export { BankAccountFilters } from './bank-account-filters';
 export { AccountTransactionsList } from './account-transactions-list';
 export { AccountStatementsList } from './account-statements-list';

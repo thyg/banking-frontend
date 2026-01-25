@@ -521,8 +521,16 @@ function AccountCard({ account }: { account: BankAccount }) {
             </span>
           </div>
           <div className="flex items-center justify-between mt-1">
-            <span className="text-sm text-muted-foreground">IBAN</span>
-            <span className="text-sm font-mono">{account.iban?.slice(-8) || 'N/A'}</span>
+            <span className="text-sm text-muted-foreground">
+              {account.details?.phoneNumber ? 'Tél.' : 'IBAN'}
+            </span>
+            <span className="text-sm font-mono">
+              {account.details?.phoneNumber
+                || account.details?.iban?.slice(-8)
+                || account.details?.accountNumber?.slice(-8)
+                || account.iban?.slice(-8)
+                || 'N/A'}
+            </span>
           </div>
         </CardContent>
       </Card>

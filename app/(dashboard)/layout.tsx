@@ -3,9 +3,11 @@
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { useSidebar } from "@/hooks/useSidebar";
-import { cn } from "@/lib/utils";
-import React from "react";
+import React, { useEffect } from "react";
 import { ComposeWindow } from "@/components/ui/compose-window";
+import { usePathname } from "next/navigation";
+import { useNavigationStore } from "@/hooks/use-navigation-store";
+import { findModuleByPath } from "@/config/navigation";
 
 export const dynamic = 'force-dynamic';
 
@@ -15,9 +17,20 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { isCollapsed } = useSidebar();
+  const pathname = usePathname();
+  const { activeModule, setActiveModule } = useNavigationStore();
+
+  useEffect(() => {
+    if (pathname) {
+      const currentModule = findModuleByPath(pathname);
+      if (currentModule && currentModule !== activeModule) {
+        setActiveModule(currentModule);
+      }
+    }
+  }, [pathname, activeModule, setActiveModule]);
 
   return (
-    <div className="h-screen w-screen overflow-hidden flex bg-[#f6f8fc]">
+    <div className="h-screen w-screen overflow-hidden flex bg-background">
       {/* Sidebar - cachée sur mobile, visible sur tablette et desktop */}
       <div className="hidden md:block">
         <Sidebar />

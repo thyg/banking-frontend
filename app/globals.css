@@ -210,7 +210,7 @@
   /* Brighter lime green */
 
   /* Sidebar */
-  --sidebar: var(--background);
+  --sidebar: var(--card);
   /* Match main bg */
   --sidebar-foreground: var(--foreground);
   --sidebar-border: var(--border);

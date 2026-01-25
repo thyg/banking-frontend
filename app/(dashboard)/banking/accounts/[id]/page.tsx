@@ -89,7 +89,6 @@ import {
   Wallet,
   Calendar,
   Hash,
-  Globe,
   Plus,
   ExternalLink,
   ArrowDownCircle,
@@ -457,27 +456,33 @@ export default function BankAccountDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <div className="flex items-start gap-3">
-                <Hash className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Numéro de compte</p>
-                  <p className="font-medium">{account.accountNumber}</p>
+              {/* Champs dynamiques depuis details */}
+              {account.details && Object.entries(account.details).map(([key, value]) => (
+                <div key={key} className="flex items-start gap-3">
+                  <Hash className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {key === 'accountNumber' ? 'Numéro de compte'
+                        : key === 'iban' ? 'IBAN'
+                        : key === 'bic' ? 'BIC/SWIFT'
+                        : key === 'phoneNumber' ? 'Téléphone'
+                        : key === 'holderName' ? 'Titulaire'
+                        : key}
+                    </p>
+                    <p className="font-medium font-mono text-sm">{String(value) || 'Non renseigné'}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Globe className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">IBAN</p>
-                  <p className="font-medium font-mono text-sm">{account.iban || 'Non renseigné'}</p>
+              ))}
+              {/* Fallback si pas de details (ancien format) */}
+              {!account.details && account.accountNumber && (
+                <div className="flex items-start gap-3">
+                  <Hash className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Numéro de compte</p>
+                    <p className="font-medium">{account.accountNumber}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <Building2 className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">BIC/SWIFT</p>
-                  <p className="font-medium font-mono text-sm">{account.bic || 'Non renseigné'}</p>
-                </div>
-              </div>
+              )}
               <div className="flex items-start gap-3">
                 <CreditCard className="h-4 w-4 text-muted-foreground mt-0.5" />
                 <div>

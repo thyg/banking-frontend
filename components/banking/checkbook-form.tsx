@@ -192,7 +192,7 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
               <div>
                 <span className="text-blue-600">IBAN :</span>
                 <span className="font-mono ml-2 text-blue-900">
-                  {selectedAccount.iban || selectedAccount.accountNumber || 'Non renseigné'}
+                  {selectedAccount.generatedIban || selectedAccount.iban || selectedAccount.accountNumber || 'Non renseigné'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -218,7 +218,7 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
         <div className="space-y-2">
           <label className="text-sm font-medium">IBAN / RIB</label>
           <Input
-            value={selectedAccount?.iban || selectedAccount?.accountNumber || ''}
+            value={selectedAccount?.generatedIban || selectedAccount?.iban || selectedAccount?.accountNumber || ''}
             placeholder="Sélectionnez un compte bancaire"
             disabled
           />
