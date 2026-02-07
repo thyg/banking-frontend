@@ -90,21 +90,24 @@ interface CheckAction {
   variant?: 'default' | 'destructive' | 'warning';
   separator?: boolean;
 }
-
 /**
- * Retourne les actions disponibles selon le type et le statut du chèque
- * Conforme aux spécifications validées
+ * Retourne les actions disponibles selon le type et le statut du chèque,
+ * en suivant le workflow métier optimal.
  */
 function getAvailableActions(check: Check): CheckAction[] {
   const actions: CheckAction[] = [];
 
+  // Actions communes de consultation
+  const viewDetailsAction = { id: 'view_details', label: 'Voir Détails', icon: Eye };
+  const viewTransactionAction = { id: 'view_transaction', label: 'Voir la Transaction', icon: ExternalLink };
+
   if (check.checkType === 'ISSUED') {
-    // --- NOUVEAU WORKFLOW POUR CHÈQUE ÉMIS ---
+    // --- WORKFLOW CHÈQUE ÉMIS ---
     switch (check.status) {
       case 'PENDING':
         actions.push(
-          { id: 'edit', label: 'Modifier', icon: Pencil },
           { id: 'emit', label: 'Émettre (remettre)', icon: Send },
+          { id: 'edit', label: 'Modifier', icon: Pencil },
           { id: 'print', label: 'Imprimer', icon: Printer },
           { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true },
           { id: 'delete', label: 'Supprimer', icon: Trash2, variant: 'destructive' }
@@ -112,41 +115,33 @@ function getAvailableActions(check: Check): CheckAction[] {
         break;
       case 'ISSUED':
         actions.push(
-          { id: 'mark_paid', label: 'Marquer comme Payé', icon: CheckCircle }, // Action principale : le chèque a été débité
+          { id: 'mark_paid', label: 'Marquer comme Payé', icon: CheckCircle },
           { id: 'print', label: 'Imprimer', icon: Printer },
           { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true }
         );
         break;
-      case 'CASHED': // Renommé de "Payé" à "Encaissé/Débité" pour être cohérent
-        actions.push(
-          { id: 'view_transaction', label: 'Voir la Transaction', icon: ExternalLink },
-          { id: 'view_details', label: 'Voir Détails', icon: Eye }
-        );
+      case 'CASHED':
+        if (check.bankTransactionId) actions.push(viewTransactionAction);
+        actions.push(viewDetailsAction);
         break;
-      case 'REJECTED':
-      case 'CANCELLED':
-        actions.push({ id: 'view_details', label: 'Voir Détails', icon: Eye });
-        break;
-      // Les statuts DEPOSITED et IN_PROGRESS ne sont plus pertinents pour un chèque ÉMIS.
-      // Si un chèque émis est dans cet état par erreur, on affiche juste les détails.
-      default:
-        actions.push({ id: 'view_details', label: 'Voir Détails', icon: Eye });
+      default: // Pour CANCELLED, REJECTED
+        actions.push(viewDetailsAction);
         break;
     }
   } else {
-    // --- WORKFLOW CLARIFIÉ POUR CHÈQUE REÇU ---
+    // --- WORKFLOW CHÈQUE REÇU ---
     switch (check.status) {
       case 'PENDING':
         actions.push(
-          { id: 'edit', label: 'Modifier', icon: Pencil },
           { id: 'mark_received', label: 'Marquer comme Reçu', icon: Download },
+          { id: 'edit', label: 'Modifier', icon: Pencil },
           { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true },
           { id: 'delete', label: 'Supprimer', icon: Trash2, variant: 'destructive' }
         );
         break;
       case 'RECEIVED':
         actions.push(
-          { id: 'deposit', label: 'Déposer en banque', icon: Building2 }, // C'est l'action correcte ici
+          { id: 'deposit', label: 'Déposer en banque', icon: Building2 },
           { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true }
         );
         break;
@@ -156,18 +151,18 @@ function getAvailableActions(check: Check): CheckAction[] {
           { id: 'reject', label: 'Rejeter', icon: Ban, variant: 'destructive', separator: true }
         );
         break;
-      case 'CASHED':
+      case 'IN_PROGRESS': // Statut intermédiaire, mêmes actions que DEPOSITED
         actions.push(
-          { id: 'view_transaction', label: 'Voir la Transaction', icon: ExternalLink },
-          { id: 'view_details', label: 'Voir Détails', icon: Eye }
+          { id: 'cash', label: 'Encaisser', icon: Banknote },
+          { id: 'reject', label: 'Rejeter', icon: Ban, variant: 'destructive', separator: true }
         );
         break;
-      case 'REJECTED':
-      case 'CANCELLED':
-        actions.push({ id: 'view_details', label: 'Voir Détails', icon: Eye });
+      case 'CASHED':
+        if (check.bankTransactionId) actions.push(viewTransactionAction);
+        actions.push(viewDetailsAction);
         break;
-      default:
-        actions.push({ id: 'view_details', label: 'Voir Détails', icon: Eye });
+      default: // Pour CANCELLED, REJECTED
+        actions.push(viewDetailsAction);
         break;
     }
   }
