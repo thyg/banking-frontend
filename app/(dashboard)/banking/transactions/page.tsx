@@ -19,8 +19,9 @@ import {
 } from '@/types/banking';
 
 // API
-import { 
+import {
   getBankTransactions,
+  getBankTransactionById,
   createBankTransaction,
   updateBankTransaction,
   deleteBankTransaction,
@@ -88,6 +89,56 @@ export default function BankTransactionsPage() {
       router.replace('/banking/transactions', { scroll: false });
     }
   }, [searchParams, router]);
+
+  // ---------------------------------------------------------------------------
+  // AUTO-SHOW TRANSACTION FROM URL PARAM (from checks page)
+  // ---------------------------------------------------------------------------
+
+  useEffect(() => {
+    const transactionId = searchParams.get('transactionId');
+    if (transactionId) {
+      // Fetch the specific transaction and show its details
+      getBankTransactionById(transactionId)
+        .then((transaction) => {
+          if (transaction) {
+            const formatCurrency = (amount: number, currency: string = 'XAF') => {
+              return new Intl.NumberFormat('fr-FR', {
+                style: 'currency',
+                currency,
+                minimumFractionDigits: currency === 'XAF' || currency === 'XOF' ? 0 : 2,
+              }).format(amount);
+            };
+            const sign = transaction.direction === 'CREDIT' ? '+' : '-';
+            toast({
+              title: `Transaction trouvée: ${transaction.reference || 'N/A'}`,
+              description: `${sign}${formatCurrency(transaction.amount, transaction.currency || 'XAF')} - ${transaction.partnerName || transaction.description || 'N/A'}`,
+              duration: 8000,
+            });
+            // Set the filter to show this transaction's account
+            if (transaction.bankAccountId) {
+              setFilters(prev => ({ ...prev, bankAccountId: transaction.bankAccountId }));
+            }
+          } else {
+            toast({
+              variant: 'destructive',
+              title: 'Transaction non trouvée',
+              description: 'La transaction liée n\'existe pas ou a été supprimée.',
+            });
+          }
+          // Clean the URL param after processing
+          router.replace('/banking/transactions', { scroll: false });
+        })
+        .catch((error) => {
+          console.error('[TransactionsPage] Erreur chargement transaction:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Erreur',
+            description: 'Impossible de charger la transaction liée.',
+          });
+          router.replace('/banking/transactions', { scroll: false });
+        });
+    }
+  }, [searchParams, router, toast]);
 
   // ---------------------------------------------------------------------------
   // CHARGEMENT DES DONNÉES

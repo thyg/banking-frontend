@@ -179,6 +179,10 @@ export interface BankTransaction {
   statementLineId?: string;
   createdAt: string;
   updatedAt: string;
+  // Champs optionnels pour l'affichage
+  label?: string;          // Libellé de la transaction pour affichage
+  currency?: string;       // Devise (héritée du compte)
+  runningBalance?: number; // Solde après transaction (calculé)
 }
 
 export interface Checkbook {
@@ -273,6 +277,10 @@ export interface StatementLine {
   reconciledAt?: string;
   createdAt: string;
   updatedAt: string;
+  // Propriétés optionnelles pour l'affichage
+  label?: string;    // Libellé pour affichage
+  date?: string;     // Alias pour transactionDate
+  currency?: string; // Devise (héritée du relevé)
 }
 
 export interface ReconciliationMatch {
@@ -318,7 +326,7 @@ export interface ReconciliationSummary {
 
 export interface ReconciliationSuggestion {
   id: string;
-  type: 'TRANSACTION' | 'CHECK';
+  type: ReconciliationTargetType;
   reference: string;
   label: string;
   amount: number;
@@ -327,6 +335,21 @@ export interface ReconciliationSuggestion {
   partnerName?: string;
   confidenceScore: number;
   matchReasons: string[];
+  // Propriétés additionnelles pour l'affichage et le scoring
+  matchScore?: number;
+  matchDetails?: {
+    amountMatch?: boolean;
+    dateMatch?: boolean;
+    referenceMatch?: boolean;
+    partnerMatch?: boolean;
+    amountScore?: number;
+    dateScore?: number;
+    labelScore?: number;
+    partnerScore?: number;
+    reasons?: string[];
+  };
+  amountDifference?: number;
+  currency?: string;
 }
 
 export interface ReconciliationStats {
@@ -375,7 +398,10 @@ export type BankStatementLine = StatementLine;
 /**
  * @deprecated Utilisez ReconciliationStatus à la place
  */
-export type ReconciliationTargetType = 'TRANSACTION' | 'CHECK';
+// Type étendu pour supporter les deux formats (majuscules et minuscules)
+export type ReconciliationTargetType =
+  | 'TRANSACTION' | 'CHECK'
+  | 'transaction' | 'check' | 'invoice' | 'bill' | 'manual';
 
 /**
  * @deprecated Utilisez TransactionDirection à la place
@@ -686,6 +712,8 @@ export interface TransactionFilters {
   direction?: TransactionDirection;
   startDate?: string;
   endDate?: string;
+  dateFrom?: string;  // Alias pour startDate
+  dateTo?: string;    // Alias pour endDate
   minAmount?: number;
   maxAmount?: number;
   isReconciled?: boolean;

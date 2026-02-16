@@ -140,7 +140,9 @@ interface SuggestionCardProps {
 
 function SuggestionCard({ suggestion, isSubmitting, onReconcile }: SuggestionCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const isAutoMatch = suggestion.matchScore >= 90 && suggestion.matchDetails.amountScore === 40;
+  const matchScore = suggestion.matchScore ?? suggestion.confidenceScore ?? 0;
+  const matchDetails = suggestion.matchDetails ?? {};
+  const isAutoMatch = matchScore >= 90 && (matchDetails.amountScore ?? 0) === 40;
   
   return (
     <div className={`border rounded-lg p-4 transition-all ${
@@ -165,26 +167,26 @@ function SuggestionCard({ suggestion, isSubmitting, onReconcile }: SuggestionCar
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs ${getScoreColor(suggestion.matchScore)}`}
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${getScoreColor(matchScore)}`}
                     >
                       {isAutoMatch && <Sparkles className="h-3 w-3 mr-1" />}
-                      {suggestion.matchScore}%
+                      {matchScore}%
                     </Badge>
                   </TooltipTrigger>
                   <TooltipContent side="top" className="max-w-xs">
                     <div className="space-y-1 text-xs">
                       <p className="font-semibold">Détail du score:</p>
-                      <p>Montant: {suggestion.matchDetails.amountScore}/40</p>
-                      <p>Date: {suggestion.matchDetails.dateScore}/30</p>
-                      <p>Libellé: {suggestion.matchDetails.labelScore}/20</p>
-                      <p>Partenaire: {suggestion.matchDetails.partnerScore}/10</p>
-                      {suggestion.matchDetails.reasons.length > 0 && (
+                      <p>Montant: {matchDetails.amountScore ?? 0}/40</p>
+                      <p>Date: {matchDetails.dateScore ?? 0}/30</p>
+                      <p>Libellé: {matchDetails.labelScore ?? 0}/20</p>
+                      <p>Partenaire: {matchDetails.partnerScore ?? 0}/10</p>
+                      {(matchDetails.reasons?.length ?? 0) > 0 && (
                         <>
                           <Separator className="my-1" />
                           <p className="font-semibold">Raisons:</p>
-                          {suggestion.matchDetails.reasons.map((r, i) => (
+                          {matchDetails.reasons?.map((r: string, i: number) => (
                             <p key={i}>• {r}</p>
                           ))}
                         </>
@@ -238,7 +240,7 @@ function SuggestionCard({ suggestion, isSubmitting, onReconcile }: SuggestionCar
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-2 pt-2 border-t text-sm text-gray-600 space-y-1">
-          {suggestion.matchDetails.reasons.map((reason, index) => (
+          {(matchDetails.reasons ?? suggestion.matchReasons ?? []).map((reason: string, index: number) => (
             <p key={index} className="flex items-center gap-1">
               <CheckCircle className="h-3 w-3 text-green-500" />
               {reason}
@@ -388,9 +390,11 @@ export function ReconciliationPanel({
     }
 
     // Séparer les suggestions par niveau de confiance
-    const autoMatches = suggestions.filter(s => s.matchScore >= 90 && s.matchDetails.amountScore === 40);
-    const goodMatches = suggestions.filter(s => s.matchScore >= 70 && !autoMatches.includes(s));
-    const otherMatches = suggestions.filter(s => s.matchScore < 70);
+    const getScore = (s: ReconciliationSuggestion) => s.matchScore ?? s.confidenceScore ?? 0;
+    const getAmountScore = (s: ReconciliationSuggestion) => s.matchDetails?.amountScore ?? 0;
+    const autoMatches = suggestions.filter(s => getScore(s) >= 90 && getAmountScore(s) === 40);
+    const goodMatches = suggestions.filter(s => getScore(s) >= 70 && !autoMatches.includes(s));
+    const otherMatches = suggestions.filter(s => getScore(s) < 70);
 
     return (
       <div className="space-y-4">
@@ -555,8 +559,8 @@ export function ReconciliationPanel({
           <div>
             <CardTitle className="text-lg">Rapprochement</CardTitle>
             <CardDescription>
-              {selectedLine 
-                ? `${formatDate(selectedLine.date)} • ${formatCurrency(selectedLine.amount, selectedLine.currency)}`
+              {selectedLine
+                ? `${formatDate(selectedLine.date ?? selectedLine.transactionDate)} • ${formatCurrency(selectedLine.amount, selectedLine.currency ?? 'XAF')}`
                 : 'Aucune ligne sélectionnée'
               }
             </CardDescription>

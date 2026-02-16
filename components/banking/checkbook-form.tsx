@@ -70,7 +70,7 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
   const isEditMode = initialData !== null;
 
   // Calculer numberOfPages à partir des données initiales si disponibles
-  const initialNumberOfPages = initialData
+  const initialNumberOfPages = initialData && initialData.endNumber !== null && initialData.startNumber !== null
     ? (initialData.endNumber - initialData.startNumber + 1)
     : ('' as unknown as number);
 

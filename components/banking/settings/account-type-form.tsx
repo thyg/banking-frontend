@@ -1,274 +1,207 @@
-/**
- * @file components/banking/settings/account-type-form.tsx
- * @description Formulaire de creation/edition d'un type de compte.
- *
- * @version 1.0.0
- * @date 2024-12-30
- */
-
 "use client";
 
 import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { AccountType, CreateAccountTypeData } from '@/types/banking';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Loader2, AlertCircle, CheckSquare, Banknote, PackageOpen, UserCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+// Schéma Zod
+const accountTypeSchema = z.object({
+  code: z.string().min(1, "Le code est requis").max(20).regex(/^[A-Za-z0-9_]+$/, "Le code ne doit contenir que des lettres, chiffres et underscores"),
+  libelle: z.string().min(1, "Le libellé est requis").max(100),
+  description: z.string().max(500).optional(),
+  peutEmettreChecques: z.boolean(),
+  peutRecevoirChecques: z.boolean(),
+  peutTransactionsEspeces: z.boolean(),
+  decouvertAutorise: z.boolean(),
+  ordreAffichage: z.coerce.number().int("Doit être un nombre entier").optional(),
+  isActive: z.boolean(),
+});
+
+type AccountTypeFormData = z.infer<typeof accountTypeSchema>;
 
 interface AccountTypeFormProps {
-  initialData: AccountType | null;
-  onSave: (data: CreateAccountTypeData) => Promise<void>;
+  initialData?: AccountType;
+  onSave: (data: CreateAccountTypeData, id?: string) => Promise<void>;
   onCancel: () => void;
 }
 
+// SOUS-COMPOSANT TOGGLE AMÉLIORÉ (avec correction pour les thèmes)
+function PermissionToggle({ field, icon, title, description }: { field: any; icon: React.ReactNode; title: string; description: string; }) {
+  return (
+    <FormItem
+      className={cn(
+        "flex flex-row items-center justify-between rounded-lg border border-border p-3 shadow-sm transition-colors",
+        field.value
+          ? "bg-blue-50 border-blue-200 dark:bg-blue-950/50 dark:border-blue-800"
+          : "bg-background hover:bg-muted/50 dark:border-muted"
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className={cn("mt-1", field.value ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground")}>{icon}</div>
+        <div className="space-y-0.5">
+          <FormLabel>{title}</FormLabel>
+          <FormDescription>{description}</FormDescription>
+        </div>
+      </div>
+      <FormControl>
+        <Switch
+          checked={field.value}
+          onCheckedChange={field.onChange}
+          className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-slate-300 dark:data-[state=unchecked]:bg-slate-700"
+        />
+      </FormControl>
+    </FormItem>
+  );
+}
+
+// COMPOSANT PRINCIPAL
 export function AccountTypeForm({ initialData, onSave, onCancel }: AccountTypeFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Form state
-  const [code, setCode] = useState(initialData?.code || '');
-  const [libelle, setLibelle] = useState(initialData?.libelle || '');
-  const [description, setDescription] = useState(initialData?.description || '');
-  const [peutEmettreChecques, setPeutEmettreChecques] = useState(initialData?.peutEmettreChecques || false);
-  const [peutRecevoirChecques, setPeutRecevoirChecques] = useState(initialData?.peutRecevoirChecques || false);
-  const [peutTransactionsEspeces, setPeutTransactionsEspeces] = useState(initialData?.peutTransactionsEspeces || false);
-  const [decouvertAutorise, setDecouvertAutorise] = useState(initialData?.decouvertAutorise || false);
-  const [decouvertParDefaut, setDecouvertParDefaut] = useState(initialData?.decouvertParDefaut?.toString() || '0');
-  const [ordreAffichage, setOrdreAffichage] = useState(initialData?.ordreAffichage?.toString() || '0');
-  const [isActive, setIsActive] = useState(initialData?.isActive ?? true);
+  const form = useForm<AccountTypeFormData>({
+    resolver: zodResolver(accountTypeSchema),
+    defaultValues: {
+      code: initialData?.code || '',
+      libelle: initialData?.libelle || '',
+      description: initialData?.description || '',
+      peutEmettreChecques: initialData?.peutEmettreChecques || false,
+      peutRecevoirChecques: initialData?.peutRecevoirChecques || false,
+      peutTransactionsEspeces: initialData?.peutTransactionsEspeces || false,
+      decouvertAutorise: initialData?.decouvertAutorise || false,
+      ordreAffichage: initialData?.ordreAffichage || 0,
+      isActive: initialData?.isActive ?? true,
+    },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (data: AccountTypeFormData) => {
     setError(null);
     setIsSubmitting(true);
-
-    // Validation
-    if (!code.trim()) {
-      setError('Le code est requis');
-      setIsSubmitting(false);
-      return;
-    }
-
-    if (!libelle.trim()) {
-      setError('Le libelle est requis');
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
-      const data: CreateAccountTypeData = {
-        code: code.toUpperCase().trim(),
-        libelle: libelle.trim(),
-        description: description.trim() || undefined,
-        peutEmettreChecques,
-        peutRecevoirChecques,
-        peutTransactionsEspeces,
-        decouvertAutorise,
-        decouvertParDefaut: decouvertAutorise ? parseFloat(decouvertParDefaut) || 0 : 0,
-        ordreAffichage: parseInt(ordreAffichage) || 0,
-        isActive,
+      const finalData: CreateAccountTypeData = {
+        ...data,
+        decouvertParDefaut: 0,
       };
-
-      await onSave(data);
+      await onSave(finalData, initialData?.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Une erreur est survenue');
+      setError(err instanceof Error ? err.message : 'Une erreur inattendue est survenue.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 bg-background text-foreground p-1">
+        {error && (<Alert variant="destructive"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>)}
 
-      {/* Informations de base */}
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField control={form.control} name="code" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Code</FormLabel>
+                <FormControl>
+                  <Input placeholder="Ex: COMP_COURANT" {...field} />
+                </FormControl>
+                <FormDescription>Code unique du type de compte (lettres, chiffres et underscores)</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="libelle" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Libellé</FormLabel>
+                <FormControl>
+                  <Input placeholder="Ex: Compte Courant" {...field} />
+                </FormControl>
+                <FormDescription>Nom d'affichage du type</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+          </div>
+          <FormField control={form.control} name="description" render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Description du type de compte..." {...field} />
+              </FormControl>
+              <FormDescription>Description détaillée (optionnelle)</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )} />
+        </div>
+        <Separator />
+
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Permissions</h3>
           <div className="space-y-2">
-            <Label htmlFor="code">Code *</Label>
-            <Input
-              id="code"
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="CHEQUE"
-              maxLength={20}
-              disabled={isSubmitting}
-            />
-            <p className="text-xs text-muted-foreground">
-              Identifiant unique (lettres, chiffres, underscores)
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="ordreAffichage">Ordre d'affichage</Label>
-            <Input
-              id="ordreAffichage"
-              type="number"
-              value={ordreAffichage}
-              onChange={(e) => setOrdreAffichage(e.target.value)}
-              min={0}
-              disabled={isSubmitting}
-            />
+            <FormField control={form.control} name="peutEmettreChecques" render={({ field }) => (<PermissionToggle field={field} icon={<CheckSquare size={20} />} title="Émission de chèques" description="Autorise la création de chèques." />)} />
+            <FormField control={form.control} name="peutRecevoirChecques" render={({ field }) => (<PermissionToggle field={field} icon={<PackageOpen size={20} />} title="Réception de chèques" description="Autorise l'encaissement de chèques." />)} />
+            <FormField control={form.control} name="peutTransactionsEspeces" render={({ field }) => (<PermissionToggle field={field} icon={<Banknote size={20} />} title="Transactions en espèces" description="Autorise les dépôts et retraits." />)} />
           </div>
         </div>
+        <Separator />
 
-        <div className="space-y-2">
-          <Label htmlFor="libelle">Libelle *</Label>
-          <Input
-            id="libelle"
-            value={libelle}
-            onChange={(e) => setLibelle(e.target.value)}
-            placeholder="Compte Cheque"
-            maxLength={100}
-            disabled={isSubmitting}
-          />
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Découvert</h3>
+          <FormField control={form.control} name="decouvertAutorise" render={({ field }) => (
+            <PermissionToggle field={field} icon={<UserCheck size={20} />} title="Découvert autorisé" description="Permet aux comptes de ce type d'avoir un solde négatif." />
+          )} />
         </div>
+        <Separator />
 
-        <div className="space-y-2">
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description optionnelle du type de compte..."
-            maxLength={500}
-            rows={3}
-            disabled={isSubmitting}
-          />
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Permissions Cheques */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium">Permissions Cheques</h3>
-
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label>Peut emettre des cheques</Label>
-            <p className="text-xs text-muted-foreground">
-              Autorise l'emission de cheques depuis ce type de compte
-            </p>
+        <div className="space-y-3">
+          <h3 className="text-sm font-medium text-muted-foreground">Configuration Avancée</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField control={form.control} name="ordreAffichage" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Ordre d'affichage</FormLabel>
+                <FormControl>
+                  <Input type="number" placeholder="0" {...field} />
+                </FormControl>
+                <FormDescription>Position dans la liste (optionnelle)</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="isActive" render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border border-border dark:border-muted p-3 shadow-sm">
+                <div className="space-y-0.5">
+                  <FormLabel>Type actif</FormLabel>
+                  <FormDescription>Le type est disponible pour utilisation</FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    className="data-[state=checked]:bg-blue-600 data-[state=unchecked]:bg-slate-300 dark:data-[state=unchecked]:bg-slate-700"
+                  />
+                </FormControl>
+              </FormItem>
+            )} />
           </div>
-          <Switch
-            checked={peutEmettreChecques}
-            onCheckedChange={setPeutEmettreChecques}
-            disabled={isSubmitting}
-          />
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label>Peut recevoir des cheques</Label>
-            <p className="text-xs text-muted-foreground">
-              Autorise la reception de cheques sur ce type de compte
-            </p>
-          </div>
-          <Switch
-            checked={peutRecevoirChecques}
-            onCheckedChange={setPeutRecevoirChecques}
-            disabled={isSubmitting}
-          />
+        <div className="flex justify-end gap-2 pt-4">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+            Annuler
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {isSubmitting ? 'Enregistrement...' : (initialData ? 'Mettre à jour' : 'Créer')}
+          </Button>
         </div>
-      </div>
-
-      <Separator />
-
-      {/* Permissions Especes */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium">Permissions Especes</h3>
-
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label>Transactions en especes</Label>
-            <p className="text-xs text-muted-foreground">
-              Autorise les depots et retraits en especes
-            </p>
-          </div>
-          <Switch
-            checked={peutTransactionsEspeces}
-            onCheckedChange={setPeutTransactionsEspeces}
-            disabled={isSubmitting}
-          />
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Decouvert */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-medium">Decouvert</h3>
-
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label>Decouvert autorise</Label>
-            <p className="text-xs text-muted-foreground">
-              Permet aux comptes de ce type d'avoir un solde negatif
-            </p>
-          </div>
-          <Switch
-            checked={decouvertAutorise}
-            onCheckedChange={setDecouvertAutorise}
-            disabled={isSubmitting}
-          />
-        </div>
-
-        {decouvertAutorise && (
-          <div className="space-y-2">
-            <Label htmlFor="decouvertParDefaut">Limite de decouvert par defaut (XAF)</Label>
-            <Input
-              id="decouvertParDefaut"
-              type="number"
-              value={decouvertParDefaut}
-              onChange={(e) => setDecouvertParDefaut(e.target.value)}
-              min={0}
-              step={1000}
-              disabled={isSubmitting}
-            />
-            <p className="text-xs text-muted-foreground">
-              Montant par defaut pour les nouveaux comptes (modifiable par compte)
-            </p>
-          </div>
-        )}
-      </div>
-
-      <Separator />
-
-      {/* Statut */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <Label>Type actif</Label>
-          <p className="text-xs text-muted-foreground">
-            Les types inactifs ne peuvent pas etre assignes a de nouveaux comptes
-          </p>
-        </div>
-        <Switch
-          checked={isActive}
-          onCheckedChange={setIsActive}
-          disabled={isSubmitting}
-        />
-      </div>
-
-      {/* Actions */}
-      <div className="flex justify-end gap-3 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
-          Annuler
-        </Button>
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          {initialData ? 'Mettre a jour' : 'Creer'}
-        </Button>
-      </div>
-    </form>
+      </form>
+    </Form>
   );
 }

@@ -79,6 +79,27 @@ export async function getCheckbookById(id: string): Promise<Checkbook | null> {
 }
 
 /**
+ * Récupère le chéquier système (type=FICTIF, isSystem=true).
+ * Ce chéquier est utilisé pour suivre les chèques reçus.
+ *
+ * @returns Le chéquier système ou null si non trouvé
+ */
+export async function getSystemCheckbook(): Promise<Checkbook | null> {
+  console.log('[API:Checkbook] getSystemCheckbook');
+  try {
+    const response = await fetch(`${API_BASE_URL}/checkbooks/system`);
+    if (response.status === 404) {
+      console.warn('[API:Checkbook] Chéquier système non trouvé');
+      return null;
+    }
+    return handleResponse<Checkbook>(response);
+  } catch (error) {
+    console.error('[API:Checkbook] Erreur getSystemCheckbook:', error);
+    return null;
+  }
+}
+
+/**
  * Récupère les chéquiers actifs pour un compte donné.
  * Cela inclut les chéquiers physiques du compte ET le chéquier système global.
  */

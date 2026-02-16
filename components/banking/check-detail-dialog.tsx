@@ -366,12 +366,12 @@ export function CheckDetailDialog({
                   <p>{formatDate(check.depositDate)}</p>
                 </div>
               )}
-              {check.cashDate && (
+              {check.cashedDate && (
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">
                     {isReceived ? 'Date d\'encaissement' : 'Date de paiement'}
                   </p>
-                  <p>{formatDate(check.cashDate)}</p>
+                  <p>{formatDate(check.cashedDate)}</p>
                 </div>
               )}
             </div>
@@ -402,11 +402,24 @@ export function CheckDetailDialog({
           )}
 
           {check.status === 'REJECTED' && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <span className="font-semibold text-red-700">Chèque Rejeté</span>
+              </div>
               <p className="text-sm text-red-600">
-                <AlertTriangle className="h-4 w-4 inline mr-1" />
                 Ce chèque a été rejeté par la banque.
               </p>
+              {check.rejectionReason && (
+                <div className="bg-white/60 border border-red-100 rounded-md p-3 mt-2">
+                  <p className="text-xs text-red-500 uppercase font-medium mb-1">
+                    Motif du rejet
+                  </p>
+                  <p className="text-sm text-red-800 font-medium">
+                    {check.rejectionReason}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

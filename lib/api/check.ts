@@ -438,48 +438,57 @@ export async function cancelCheck(id: string): Promise<Check> {
 // =============================================================================
 
 /**
- * Récupère les statistiques des chèques.
- * Note: Cette fonction fait des calculs côté client en attendant un endpoint dédié.
- * 
- * @param bankAccountId - Filtre par compte (optionnel)
- * @param type - Filtre par type (optionnel)
+ * Interface pour les statistiques de chèques retournées par le backend.
  */
-export async function getCheckStats(
-  bankAccountId?: string,
-  type?: CheckType
-): Promise<{
+export interface CheckStats {
+  // Totaux
   totalChecks: number;
+  totalAmount: number;
+  // Par statut
   pendingCount: number;
   pendingAmount: number;
+  issuedCount: number;
+  issuedAmount: number;
+  receivedCount: number;
+  receivedAmount: number;
   depositedCount: number;
   depositedAmount: number;
+  inProgressCount: number;
+  inProgressAmount: number;
   cashedCount: number;
   cashedAmount: number;
   rejectedCount: number;
   rejectedAmount: number;
-}> {
+  // Chèques en retard
+  overdueCount: number;
+  overdueAmount: number;
+  // Par type
+  totalIssuedTypeCount: number;
+  totalIssuedTypeAmount: number;
+  totalReceivedTypeCount: number;
+  totalReceivedTypeAmount: number;
+}
+
+/**
+ * Récupère les statistiques agrégées des chèques depuis le backend.
+ * Utilise l'endpoint dédié /api/checks/stats pour des performances optimales.
+ */
+export async function getCheckStats(): Promise<CheckStats> {
   console.log('[API:Check] getCheckStats');
-  
-  // Récupérer les chèques selon les filtres
-  let checks = await getChecks({ bankAccountId, type });
-  
-  // Exclure les annulés
-  checks = checks.filter(c => c.status !== 'CANCELLED');
-  
-  const byStatus = (status: CheckStatus) => checks.filter(c => c.status === status);
-  const sumAmount = (arr: Check[]) => arr.reduce((sum, c) => sum + c.amount, 0);
-  
-  return {
-    totalChecks: checks.length,
-    pendingCount: byStatus('PENDING').length,
-    pendingAmount: sumAmount(byStatus('PENDING')),
-    depositedCount: byStatus('DEPOSITED').length,
-    depositedAmount: sumAmount(byStatus('DEPOSITED')),
-    cashedCount: byStatus('CASHED').length,
-    cashedAmount: sumAmount(byStatus('CASHED')),
-    rejectedCount: byStatus('REJECTED').length,
-    rejectedAmount: sumAmount(byStatus('REJECTED')),
-  };
+
+  const response = await fetch(`${API_BASE_URL}/checks/stats`);
+  return handleResponse<CheckStats>(response);
+}
+
+/**
+ * Récupère les chèques en retard (date d'échéance dépassée).
+ */
+export async function getOverdueChecks(): Promise<Check[]> {
+  console.log('[API:Check] getOverdueChecks');
+
+  const response = await fetch(`${API_BASE_URL}/checks/overdue`);
+  const checks = await handleResponse<Check[]>(response);
+  return checks.map(enrichCheck);
 }
 
 /**

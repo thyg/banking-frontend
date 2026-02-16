@@ -122,9 +122,11 @@ function getAvailableActions(check: Check): CheckAction[] {
         break;
       case 'CASHED':
         if (check.bankTransactionId) actions.push(viewTransactionAction);
+        actions.push({ id: 'print', label: 'Imprimer', icon: Printer });
         actions.push(viewDetailsAction);
         break;
       default: // Pour CANCELLED, REJECTED
+        actions.push({ id: 'print', label: 'Imprimer', icon: Printer });
         actions.push(viewDetailsAction);
         break;
     }
@@ -135,6 +137,7 @@ function getAvailableActions(check: Check): CheckAction[] {
         actions.push(
           { id: 'mark_received', label: 'Marquer comme Reçu', icon: Download },
           { id: 'edit', label: 'Modifier', icon: Pencil },
+          { id: 'print', label: 'Imprimer', icon: Printer },
           { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true },
           { id: 'delete', label: 'Supprimer', icon: Trash2, variant: 'destructive' }
         );
@@ -142,26 +145,32 @@ function getAvailableActions(check: Check): CheckAction[] {
       case 'RECEIVED':
         actions.push(
           { id: 'deposit', label: 'Déposer en banque', icon: Building2 },
+          { id: 'print', label: 'Imprimer', icon: Printer },
           { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true }
         );
         break;
       case 'DEPOSITED':
         actions.push(
+          { id: 'mark_processing', label: 'Marquer En Cours', icon: Clock },
           { id: 'cash', label: 'Encaisser', icon: Banknote },
+          { id: 'print', label: 'Imprimer', icon: Printer },
           { id: 'reject', label: 'Rejeter', icon: Ban, variant: 'destructive', separator: true }
         );
         break;
       case 'IN_PROGRESS': // Statut intermédiaire, mêmes actions que DEPOSITED
         actions.push(
           { id: 'cash', label: 'Encaisser', icon: Banknote },
+          { id: 'print', label: 'Imprimer', icon: Printer },
           { id: 'reject', label: 'Rejeter', icon: Ban, variant: 'destructive', separator: true }
         );
         break;
       case 'CASHED':
         if (check.bankTransactionId) actions.push(viewTransactionAction);
+        actions.push({ id: 'print', label: 'Imprimer', icon: Printer });
         actions.push(viewDetailsAction);
         break;
       default: // Pour CANCELLED, REJECTED
+        actions.push({ id: 'print', label: 'Imprimer', icon: Printer });
         actions.push(viewDetailsAction);
         break;
     }
@@ -347,11 +356,29 @@ export function CheckList({
     ? checks
     : checks.filter(c => c.checkType === activeTab);
 
-  // Statistiques par statut
-  const pendingChecks = checks.filter(c => c.status === 'PENDING');
-  const depositedChecks = checks.filter(c => c.status === 'DEPOSITED');
+  // Statistiques par statut (excluant les annulés)
+  const activeChecks = checks.filter(c => c.status !== 'CANCELLED');
+  const pendingChecks = activeChecks.filter(c => c.status === 'PENDING');
+  const depositedChecks = activeChecks.filter(c => c.status === 'DEPOSITED');
+  const issuedChecks = activeChecks.filter(c => c.status === 'ISSUED'); // Chèques émis en circulation
+  const cashedChecks = activeChecks.filter(c => c.status === 'CASHED');
+  const rejectedChecks = activeChecks.filter(c => c.status === 'REJECTED');
+
+  // Chèques en retard (date d'échéance dépassée, non encaissés)
+  const today = new Date().toISOString().split('T')[0];
+  const overdueChecks = activeChecks.filter(c =>
+    c.checkType === 'RECEIVED' &&
+    c.dueDate &&
+    c.dueDate < today &&
+    ['PENDING', 'RECEIVED', 'DEPOSITED', 'IN_PROGRESS'].includes(c.status)
+  );
+
+  // Calcul des montants
   const pendingAmount = pendingChecks.reduce((sum, c) => sum + c.amount, 0);
   const depositedAmount = depositedChecks.reduce((sum, c) => sum + c.amount, 0);
+  const issuedAmount = issuedChecks.reduce((sum, c) => sum + c.amount, 0);
+  const cashedAmount = cashedChecks.reduce((sum, c) => sum + c.amount, 0);
+  const overdueAmount = overdueChecks.reduce((sum, c) => sum + c.amount, 0);
 
   // Gérer la recherche
   const handleSearchChange = (value: string) => {
@@ -575,67 +602,133 @@ export function CheckList({
         </div>
       </div>
 
-      {/* Statistiques */}
-      <div className="stats-grid">
+      {/* Statistiques - Ligne 1 */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        {/* Total */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
-              Total chèques
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-500">
+              Total
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{checks.length}</div>
+            <div className="text-xl sm:text-2xl font-bold">{activeChecks.length}</div>
           </CardContent>
         </Card>
 
+        {/* En attente */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-500" />
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1">
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500" />
               En attente
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">
+            <div className="text-xl sm:text-2xl font-bold text-amber-600">
               {pendingChecks.length}
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-500 truncate">
               {formatCurrency(pendingAmount)}
             </p>
           </CardContent>
         </Card>
 
+        {/* Émis en circulation */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-blue-500" />
-              Remis en banque
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1">
+              <Send className="h-3 w-3 sm:h-4 sm:w-4 text-purple-500" />
+              Émis
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">
+            <div className="text-xl sm:text-2xl font-bold text-purple-600">
+              {issuedChecks.length}
+            </div>
+            <p className="text-xs sm:text-sm text-gray-500 truncate">
+              {formatCurrency(issuedAmount)}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Remis en banque */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1">
+              <Building2 className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
+              Déposés
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl sm:text-2xl font-bold text-blue-600">
               {depositedChecks.length}
             </div>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-500 truncate">
               {formatCurrency(depositedAmount)}
             </p>
           </CardContent>
         </Card>
 
+        {/* Encaissés */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-500" />
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1">
+              <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
+              Encaissés
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl sm:text-2xl font-bold text-green-600">
+              {cashedChecks.length}
+            </div>
+            <p className="text-xs sm:text-sm text-gray-500 truncate">
+              {formatCurrency(cashedAmount)}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Rejetés */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1">
+              <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
               Rejetés
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {checks.filter(c => c.status === 'REJECTED').length}
+            <div className="text-xl sm:text-2xl font-bold text-red-600">
+              {rejectedChecks.length}
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Alerte échéances dépassées */}
+      {overdueChecks.length > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-orange-100 rounded-full">
+                  <AlertTriangle className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-orange-800">
+                    {overdueChecks.length} chèque{overdueChecks.length > 1 ? 's' : ''} en retard
+                  </p>
+                  <p className="text-sm text-orange-600">
+                    Montant total : {formatCurrency(overdueAmount)}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="outline" className="border-orange-300 text-orange-700 bg-orange-100">
+                Échéance dépassée
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recherche */}
       <Card>

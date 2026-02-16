@@ -59,7 +59,7 @@ export function CheckbookDetailDialog({ checkbook, open, onOpenChange, currency 
   const [isLoadingStats, setIsLoadingStats] = useState(false);
 
   useEffect(() => {
-    if (open && checkbook && !checkbook.isSystem) {
+    if (open && checkbook) {
       const fetchStats = async () => {
         setIsLoadingStats(true);
         try {
@@ -148,8 +148,8 @@ export function CheckbookDetailDialog({ checkbook, open, onOpenChange, currency 
             ) : stats ? (
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div className="p-3 bg-gray-50 rounded-lg"><p className="text-gray-500">Chèques enregistrés</p><p className="font-bold text-lg">{stats.usedChecksCount}</p></div>
-                <div className="p-3 bg-gray-50 rounded-lg"><p className="text-gray-500">Montant total émis</p><p className="font-bold text-base">{formatCurrency(stats.totalAmountIssued, currency)}</p></div>
-                <div className="p-3 bg-gray-50 rounded-lg"><p className="text-gray-500">Montant total encaissé</p><p className="font-bold text-base">{formatCurrency(stats.totalAmountCashed, currency)}</p></div>
+                <div className="p-3 bg-gray-50 rounded-lg"><p className="text-gray-500">Montant engagé</p><p className="font-bold text-base">{formatCurrency(stats.totalAmountIssued, currency)}</p></div>
+                <div className="p-3 bg-gray-50 rounded-lg"><p className="text-gray-500">Montant déjà payé</p><p className="font-bold text-base">{formatCurrency(stats.totalAmountCashed, currency)}</p></div>
               </div>
             ) : (
               <p className="text-sm text-red-500 p-3 bg-red-50 rounded-lg">Impossible de charger les statistiques.</p>

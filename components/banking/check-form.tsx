@@ -18,7 +18,7 @@ import { Check, CreateCheckData, CheckType, BankAccount, Checkbook } from '@/typ
 
 // API
 import { getBankAccounts } from '@/lib/api/banking';
-import { getActiveCheckbooksForAccount, peekNextCheckNumber } from '@/lib/api/checkbook';
+import { getActiveCheckbooksForAccount, peekNextCheckNumber, getSystemCheckbook } from '@/lib/api/checkbook';
 import { amountToWords } from '@/lib/utils/number-to-words';
 
 // Composants UI
@@ -42,7 +42,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, FileText, ArrowUpRight, ArrowDownLeft, Calendar, Building2, Clock, Camera, X, Image as ImageIcon } from 'lucide-react';
+import { Loader2, FileText, ArrowUpRight, ArrowDownLeft, Calendar, Building2, Clock, Camera, X, Image as ImageIcon, Download } from 'lucide-react';
 import { BalanceIndicator } from '@/components/banking/balance-indicator';
 import { Card } from '@/components/ui/card';
 
@@ -59,12 +59,16 @@ const checkFormSchema = z.object({
     .string()
     .min(1, { message: "Le numéro de chèque est requis." })
     .max(30, { message: "Le numéro ne peut pas dépasser 30 caractères." }),
-  bankAccountId: z.string({
-    required_error: "Veuillez sélectionner un compte bancaire.",
-  }),
+  // bankAccountId doit être un UUID valide (non vide)
+  bankAccountId: z
+    .string({
+      required_error: "Veuillez sélectionner un compte bancaire.",
+    })
+    .min(1, { message: "Veuillez sélectionner un compte bancaire." })
+    .uuid({ message: "Le compte bancaire sélectionné est invalide." }),
   issueDate: z.string({
     required_error: "La date d'émission est requise.",
-  }),
+  }).min(1, { message: "La date inscrite sur le chèque est requise." }),
   dueDate: z.string().optional(),
   receiptDate: z.string().optional(),
   issuerBank: z.string().max(100).optional(),
@@ -85,7 +89,19 @@ const checkFormSchema = z.object({
     .max(200, { message: "La description ne peut pas dépasser 200 caractères." })
     .optional()
     .or(z.literal('')),
-});
+}).refine(
+  (data) => {
+    // Validation: dueDate >= issueDate si les deux sont renseignées
+    if (data.dueDate && data.issueDate) {
+      return new Date(data.dueDate) >= new Date(data.issueDate);
+    }
+    return true;
+  },
+  {
+    message: "La date d'échéance ne peut pas être antérieure à la date inscrite sur le chèque.",
+    path: ["dueDate"],
+  }
+);
 
 type CheckFormData = z.infer<typeof checkFormSchema>;
 
@@ -118,9 +134,12 @@ export function CheckForm({
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAccount, setSelectedAccount] = useState<BankAccount | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(initialData?.imageUrl || null);
-  
-  // NOUVEAU: État pour savoir si le numéro de chèque doit être manuel
+
+  // État pour savoir si le numéro de chèque doit être manuel
   const [isCheckNumberManual, setIsCheckNumberManual] = useState(true);
+
+  // État pour le chéquier système (utilisé pour les chèques reçus)
+  const [systemCheckbookId, setSystemCheckbookId] = useState<string | null>(null);
 
   const isEditMode = initialData !== null;
   const isProcessed = !!(initialData && !['PENDING', 'RECEIVED'].includes(initialData.status));
@@ -155,8 +174,18 @@ export function CheckForm({
     async function fetchData() {
       setIsLoading(true);
       try {
-        const accountsData = await getBankAccounts();
+        // Charger les comptes bancaires et le chéquier système en parallèle
+        const [accountsData, systemCheckbook] = await Promise.all([
+          getBankAccounts(),
+          getSystemCheckbook()
+        ]);
+
         setAccounts(accountsData);
+
+        // Stocker l'ID du chéquier système pour les chèques reçus
+        if (systemCheckbook) {
+          setSystemCheckbookId(systemCheckbook.id);
+        }
 
         const accountId = form.getValues('bankAccountId');
         if (accountId) {
@@ -168,7 +197,7 @@ export function CheckForm({
           }
         }
       } catch (error) {
-        console.error("[CheckForm] Erreur chargement comptes:", error);
+        console.error("[CheckForm] Erreur chargement données:", error);
       } finally {
         setIsLoading(false);
       }
@@ -219,26 +248,27 @@ export function CheckForm({
 const handleSubmit = async (data: CheckFormData) => {
   setIsSubmitting(true);
   try {
-    // 1. On crée un nouvel objet 'saveData' qui sera envoyé à l'API.
-    //    Ce nouvel objet doit avoir exactement la structure de 'CreateCheckData'.
-    const saveData: CreateCheckData = {
+    // Déterminer le checkbookId approprié :
+    // - Pour les chèques ÉMIS : utiliser le chéquier sélectionné par l'utilisateur
+    // - Pour les chèques REÇUS : utiliser automatiquement le chéquier système
+    let resolvedCheckbookId: string | undefined;
 
-      // 2. On prend la valeur de 'data.type' et on la met dans 'checkType'.
-      //    C'est ici que l'on corrige l'incohérence de nom.
-      checkType: data.type, 
-      
-      // 3. On prend les autres valeurs de 'data' et on les assigne aux bons champs.
-      //    Les '|| undefined' sont une bonne pratique pour s'assurer qu'on n'envoie
-      //    pas de chaînes de caractères vides "" si le champ n'est pas rempli.
-      checkbookId: data.checkbookId || undefined,
+    if (data.type === 'RECEIVED') {
+      // Chèque reçu : lier au chéquier système pour les statistiques
+      resolvedCheckbookId = systemCheckbookId || undefined;
+    } else {
+      // Chèque émis : utiliser le chéquier sélectionné
+      resolvedCheckbookId = data.checkbookId || undefined;
+    }
+
+    const saveData: CreateCheckData = {
+      checkType: data.type,
+      checkbookId: resolvedCheckbookId,
       checkNumber: data.checkNumber,
       bankAccountId: data.bankAccountId,
       issueDate: data.issueDate,
       dueDate: data.dueDate || undefined,
-      
-      // 4. On corrige aussi le nom 'receptionDate' en 'receiptDate'.
-      receiptDate: data.receiptDate || undefined, 
-      
+      receiptDate: data.receiptDate || undefined,
       issuerBank: data.issuerBank || undefined,
       imageUrl: data.imageUrl || undefined,
       amount: data.amount,
@@ -246,12 +276,10 @@ const handleSubmit = async (data: CheckFormData) => {
       description: data.description || undefined,
     };
 
-    // 5. On appelle 'onSave' avec notre objet 'saveData' qui est maintenant 100% correct.
-    //    TypeScript est content, car il n'y a plus d'incohérence.
     await onSave(saveData);
 
   } catch (error) {
-    // ...
+    console.error("[CheckForm] Erreur lors de la soumission:", error);
   } finally {
     setIsSubmitting(false);
   }
@@ -361,7 +389,15 @@ const handleSubmit = async (data: CheckFormData) => {
               <FormItem><FormLabel className="flex items-center gap-2"><Building2 className="h-4 w-4" />Banque émettrice</FormLabel><FormControl><Input placeholder="Ex: Afriland First Bank, BICEC..." {...field} disabled={isProcessed} /></FormControl><FormDescription>Banque sur laquelle le chèque est tiré (optionnel)</FormDescription><FormMessage /></FormItem>
             )} />
             <FormField control={form.control} name="receiptDate" render={({ field }) => (
-              <FormItem><FormLabel>Date de réception</FormLabel><FormControl><Input type="date" {...field} disabled={isProcessed} /></FormControl><FormDescription>Date à laquelle vous avez reçu le chèque (optionnel)</FormDescription><FormMessage /></FormItem>
+              <FormItem>
+                <FormLabel className="flex items-center gap-2">
+                  <Download className="h-4 w-4" />
+                  Date de réception physique
+                </FormLabel>
+                <FormControl><Input type="date" {...field} disabled={isProcessed} /></FormControl>
+                <FormDescription>Date à laquelle vous avez physiquement reçu le chèque</FormDescription>
+                <FormMessage />
+              </FormItem>
             )} />
             {!isEditMode && (<FormField control={form.control} name="initialStatus" render={({ field }) => (
               <FormItem><FormLabel>État initial *</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez l'état..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="PENDING"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-gray-400" />Créé (en attente)</div></SelectItem><SelectItem value="RECEIVED"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500" />Reçu (en main)</div></SelectItem><SelectItem value="DEPOSITED"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500" />Déjà déposé en banque</div></SelectItem></SelectContent></Select><FormDescription>L'état actuel du chèque au moment de l'enregistrement</FormDescription><FormMessage /></FormItem>
@@ -370,8 +406,29 @@ const handleSubmit = async (data: CheckFormData) => {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormField control={form.control} name="issueDate" render={({ field }) => (<FormItem><FormLabel>Date d'émission *</FormLabel><FormControl><Input type="date" {...field} disabled={isProcessed} /></FormControl><FormMessage /></FormItem>)} />
-          {watchType === 'RECEIVED' && (<FormField control={form.control} name="dueDate" render={({ field }) => (<FormItem><FormLabel>Date d'échéance</FormLabel><FormControl><Input type="date" {...field} disabled={isProcessed} /></FormControl><FormDescription>Date à laquelle le chèque peut être encaissé</FormDescription><FormMessage /></FormItem>)} />)}
+          <FormField control={form.control} name="issueDate" render={({ field }) => (
+            <FormItem>
+              <FormLabel className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                {watchType === 'RECEIVED' ? 'Date inscrite sur le chèque *' : "Date d'émission *"}
+              </FormLabel>
+              <FormControl><Input type="date" {...field} disabled={isProcessed} /></FormControl>
+              {watchType === 'RECEIVED' && (
+                <FormDescription>Date figurant sur le chèque (renseignée par l'émetteur)</FormDescription>
+              )}
+              <FormMessage />
+            </FormItem>
+          )} />
+          {watchType === 'RECEIVED' && (
+            <FormField control={form.control} name="dueDate" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Encaissable à partir du</FormLabel>
+                <FormControl><Input type="date" {...field} disabled={isProcessed} /></FormControl>
+                <FormDescription>Date à partir de laquelle le chèque peut être présenté en banque</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )} />
+          )}
         </div>
 
         <FormField control={form.control} name="amount" render={({ field }) => (

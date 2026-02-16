@@ -11,7 +11,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 // Types
 import type {
@@ -41,6 +41,9 @@ import {
   markProcessingCheck,
   markPaidCheck,
 } from '@/lib/api/check';
+
+// Utilitaire de génération PDF
+import { generateCheckPDF } from '@/lib/utils/pdf-generator';
 
 // Composants
 import { CheckList } from '@/components/banking/check-list';
@@ -81,6 +84,7 @@ export default function ChecksPage() {
   // ---------------------------------------------------------------------------
 
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { currentFilters, hasActiveFilters } = useCheckNavigation();
 
   const [checks, setChecks] = useState<Check[]>([]);
@@ -484,25 +488,39 @@ export default function ChecksPage() {
   };
 
   /**
-   * Imprimer un chèque.
+   * Imprimer un chèque - Génère un PDF téléchargeable.
    */
   const handlePrint = (check: Check) => {
-    // TODO: Implémenter l'impression
-    toast({
-      title: 'Impression',
-      description: `Impression du chèque n°${check.checkNumber} (à implémenter).`,
-    });
+    try {
+      generateCheckPDF(check);
+      toast({
+        title: 'Chèque généré',
+        description: `Le PDF du chèque n°${check.checkNumber} a été ouvert dans un nouvel onglet.`,
+      });
+    } catch (error) {
+      console.error('[ChecksPage] Erreur génération PDF:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: error instanceof Error ? error.message : 'Erreur lors de la génération du PDF.',
+      });
+    }
   };
 
   /**
    * Voir la transaction liée.
    */
   const handleViewTransaction = (check: Check) => {
-    // TODO: Navigation vers la transaction liée
-    toast({
-      title: 'Transaction',
-      description: `Voir la transaction liée au chèque n°${check.checkNumber} (à implémenter).`,
-    });
+    if (check.bankTransactionId) {
+      // Naviguer vers la page des transactions avec l'ID de la transaction
+      router.push(`/banking/transactions?transactionId=${check.bankTransactionId}`);
+    } else {
+      toast({
+        variant: 'destructive',
+        title: 'Pas de transaction liée',
+        description: `Le chèque n°${check.checkNumber} n'a pas encore de transaction bancaire associée.`,
+      });
+    }
   };
 
   // ---------------------------------------------------------------------------

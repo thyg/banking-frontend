@@ -71,6 +71,8 @@ interface BankListProps {
   onEdit: (bank: Bank) => void;
   /** Callback pour supprimer une banque */
   onDelete: (bank: Bank) => void;
+  /** Callback pour afficher les détails d'une banque (clic sur ligne) */
+  onViewDetails?: (bank: Bank) => void;
 }
 
 // =============================================================================
@@ -84,6 +86,7 @@ export function BankList({
   onRefresh,
   onEdit,
   onDelete,
+  onViewDetails,
 }: BankListProps) {
   
   /**
@@ -104,12 +107,12 @@ export function BankList({
     // État vide
     if (banks.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-16 px-6 border-2 border-dashed border-gray-300 rounded-lg">
-          <Building2 className="h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-xl font-semibold text-gray-800">
+        <div className="flex flex-col items-center justify-center py-16 px-6 border-2 border-dashed border-border rounded-lg">
+          <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold text-foreground">
             Aucune banque configurée
           </h3>
-          <p className="text-gray-500 mt-2 mb-6 max-w-sm text-center">
+          <p className="text-muted-foreground mt-2 mb-6 max-w-sm text-center">
             Commencez par ajouter les établissements bancaires avec lesquels vous travaillez.
             Ces banques pourront ensuite être associées à vos comptes bancaires.
           </p>
@@ -126,47 +129,48 @@ export function BankList({
       <div className="border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="bg-gray-50/50">
+            <TableRow className="bg-muted/50">
               <TableHead className="w-[100px]">Code</TableHead>
               <TableHead>Nom</TableHead>
-              <TableHead className="w-[150px]">Code BIC</TableHead>
+              <TableHead className="w-[150px]">Code SWIFT</TableHead>
               <TableHead className="w-[100px] text-center">Statut</TableHead>
               <TableHead className="w-[70px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {banks.map((bank) => (
-              <TableRow 
+              <TableRow
                 key={bank.id}
-                className="hover:bg-gray-50/50 transition-colors"
+                className="hover:bg-gray-50/50 dark:hover:bg-muted/50 transition-colors cursor-pointer"
+                onClick={() => onViewDetails?.(bank)}
               >
                 {/* Code */}
-                <TableCell className="font-mono font-medium text-gray-900">
+                <TableCell className="font-mono font-medium text-foreground">
                   {bank.code}
                 </TableCell>
-                
+
                 {/* Nom */}
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-gray-400" />
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
                     <span className="font-medium">{bank.name}</span>
                   </div>
                 </TableCell>
-                
-                {/* Code BIC */}
-                <TableCell className="font-mono text-sm text-gray-600">
-                  {bank.bicCode || '-'}
+
+                {/* Code SWIFT/BIC */}
+                <TableCell className="font-mono text-sm text-muted-foreground">
+                  {bank.swiftCode || '-'}
                 </TableCell>
                 
                 {/* Statut */}
                 <TableCell className="text-center">
                   {bank.isActive ? (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       Actif
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200">
+                    <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700">
                       <XCircle className="h-3 w-3 mr-1" />
                       Inactif
                     </Badge>
@@ -174,7 +178,7 @@ export function BankList({
                 </TableCell>
                 
                 {/* Actions */}
-                <TableCell className="text-right">
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -211,10 +215,10 @@ export function BankList({
       {/* En-tête de la page */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
             Gestion des Banques
           </h1>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-1 text-sm text-muted-foreground">
             Gérez les établissements bancaires de votre organisation.
           </p>
         </div>
@@ -238,19 +242,19 @@ export function BankList({
       {/* Statistiques rapides */}
       {!isLoading && banks.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-          <div className="bg-white border rounded-lg p-4">
-            <p className="text-sm text-gray-500">Total</p>
-            <p className="text-2xl font-bold text-gray-900">{banks.length}</p>
+          <div className="bg-card border rounded-lg p-4">
+            <p className="text-sm text-muted-foreground">Total</p>
+            <p className="text-2xl font-bold text-foreground">{banks.length}</p>
           </div>
-          <div className="bg-white border rounded-lg p-4">
-            <p className="text-sm text-gray-500">Actives</p>
-            <p className="text-2xl font-bold text-green-600">
+          <div className="bg-card border rounded-lg p-4">
+            <p className="text-sm text-muted-foreground">Actives</p>
+            <p className="text-2xl font-bold text-green-600 dark:text-green-400">
               {banks.filter(b => b.isActive).length}
             </p>
           </div>
-          <div className="bg-white border rounded-lg p-4 hidden sm:block">
-            <p className="text-sm text-gray-500">Inactives</p>
-            <p className="text-2xl font-bold text-gray-400">
+          <div className="bg-card border rounded-lg p-4 hidden sm:block">
+            <p className="text-sm text-muted-foreground">Inactives</p>
+            <p className="text-2xl font-bold text-muted-foreground">
               {banks.filter(b => !b.isActive).length}
             </p>
           </div>

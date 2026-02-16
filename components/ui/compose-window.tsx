@@ -121,7 +121,7 @@ export function ComposeWindow() {
                 ref={windowRef}
                 style={positionStyle}
                 className={cn(
-                    "fixed z-50 flex flex-col bg-white rounded-lg shadow-2xl border transition-shadow duration-300",
+                    "fixed z-50 flex flex-col bg-background rounded-lg shadow-2xl border transition-shadow duration-300",
                     isMaximized
                         ? "w-screen h-screen rounded-none"
                         : "w-[500px]",

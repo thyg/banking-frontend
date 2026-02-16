@@ -12,17 +12,32 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
 // Types et API
-import { Bank, CreateBankData } from '@/types/banking';
-import { 
-  getBanks, 
-  createBank, 
-  updateBank, 
-  deleteBank 
+import { Bank, BankAccount, CreateBankData } from '@/types/banking';
+import {
+  getBanks,
+  createBank,
+  updateBank,
+  deleteBank,
+  getBankAccountsByBankId
 } from '@/lib/api/banking';
 
 // Composants
 import { BankList } from '@/components/banking/settings/bank-list';
 import { BankForm } from '@/components/banking/settings/bank-form';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Icônes
+import {
+  Building2,
+  CreditCard,
+  Globe,
+  MapPin,
+  CheckCircle2,
+  XCircle,
+  Loader2
+} from 'lucide-react';
 
 // shadcn AlertDialog (utilisé directement pour éviter les conflits)
 import {
@@ -38,6 +53,155 @@ import {
 
 // Hooks - Import du store Zustand existant
 import { useCompose } from '@/hooks/use-compose-store';
+
+// =============================================================================
+// COMPOSANT DE DÉTAILS DE BANQUE
+// =============================================================================
+
+interface BankDetailsViewProps {
+  bank: Bank;
+  accounts: BankAccount[];
+  isLoadingAccounts: boolean;
+  onEdit: () => void;
+}
+
+function BankDetailsView({ bank, accounts, isLoadingAccounts, onEdit }: BankDetailsViewProps) {
+  return (
+    <div className="space-y-6">
+      {/* En-tête avec statut */}
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+            <Building2 className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold">{bank.name}</h2>
+            <p className="text-sm text-muted-foreground font-mono">{bank.code}</p>
+          </div>
+        </div>
+        {bank.isActive ? (
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
+            <CheckCircle2 className="h-3 w-3 mr-1" />
+            Actif
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700">
+            <XCircle className="h-3 w-3 mr-1" />
+            Inactif
+          </Badge>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* Informations de la banque */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {bank.swiftCode && (
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+            <Globe className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-xs text-muted-foreground">Code SWIFT/BIC</p>
+              <p className="font-mono font-medium">{bank.swiftCode}</p>
+            </div>
+          </div>
+        )}
+        {bank.bankCode && (
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+            <CreditCard className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-xs text-muted-foreground">Code Banque</p>
+              <p className="font-mono font-medium">{bank.bankCode}</p>
+            </div>
+          </div>
+        )}
+        {bank.country && (
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+            <Globe className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-xs text-muted-foreground">Pays</p>
+              <p className="font-medium">{bank.country}</p>
+            </div>
+          </div>
+        )}
+        {bank.address && (
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+            <MapPin className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-xs text-muted-foreground">Adresse</p>
+              <p className="font-medium">{bank.address}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <Separator />
+
+      {/* Comptes associés */}
+      <div>
+        <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+          Comptes bancaires associés
+        </h3>
+
+        {isLoadingAccounts ? (
+          <div className="space-y-2">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </div>
+        ) : accounts.length === 0 ? (
+          <div className="text-center py-6 bg-muted/30 rounded-lg">
+            <CreditCard className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">
+              Aucun compte associé à cette banque
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {accounts.map((account) => (
+              <div
+                key={account.id}
+                className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="font-medium text-sm">{account.name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">
+                      {account.iban || account.accountNumber || '-'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-sm">
+                    {new Intl.NumberFormat('fr-FR', {
+                      style: 'currency',
+                      currency: account.currency || 'XOF'
+                    }).format(account.currentBalance)}
+                  </p>
+                  {account.isActive ? (
+                    <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
+                      Actif
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-xs bg-gray-50 text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                      Inactif
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Dates de création/modification */}
+      <Separator />
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>Créé le {new Date(bank.createdAt).toLocaleDateString('fr-FR')}</span>
+        <span>Modifié le {new Date(bank.updatedAt).toLocaleDateString('fr-FR')}</span>
+      </div>
+    </div>
+  );
+}
 
 // =============================================================================
 // COMPOSANT PAGE
@@ -155,6 +319,50 @@ export default function BanksPage() {
   // ---------------------------------------------------------------------------
 
   /**
+   * Affiche les détails d'une banque dans une modale.
+   */
+  const handleViewDetails = async (bank: Bank) => {
+    // État local pour les comptes - géré via une ref pour éviter les re-renders
+    let bankAccounts: BankAccount[] = [];
+    let loadingAccounts = true;
+
+    // Ouvrir la modale immédiatement avec un état de chargement
+    const updateModalContent = (accounts: BankAccount[], loading: boolean) => {
+      onOpen({
+        title: `Détails - ${bank.name}`,
+        content: (
+          <div className="p-6">
+            <BankDetailsView
+              bank={bank}
+              accounts={accounts}
+              isLoadingAccounts={loading}
+              onEdit={() => {
+                onClose();
+                handleEdit(bank);
+              }}
+            />
+          </div>
+        )
+      });
+    };
+
+    // Afficher d'abord avec chargement
+    updateModalContent([], true);
+
+    // Charger les comptes associés
+    try {
+      bankAccounts = await getBankAccountsByBankId(bank.id);
+      loadingAccounts = false;
+      // Mettre à jour avec les données
+      updateModalContent(bankAccounts, false);
+    } catch (error) {
+      console.error("[BanksPage] Erreur lors du chargement des comptes:", error);
+      // Afficher sans comptes en cas d'erreur
+      updateModalContent([], false);
+    }
+  };
+
+  /**
    * Ouvre le formulaire de création d'une nouvelle banque.
    */
   const handleAddNew = () => {
@@ -205,13 +413,14 @@ export default function BanksPage() {
   return (
     <>
       {/* Composant de liste principal */}
-      <BankList 
+      <BankList
         banks={banks}
         isLoading={isLoading}
         onAddNew={handleAddNew}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onRefresh={fetchBanks}
+        onViewDetails={handleViewDetails}
       />
 
       {/* Dialog de confirmation de suppression - Utilise AlertDialog directement */}
