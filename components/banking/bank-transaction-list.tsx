@@ -61,6 +61,7 @@ import {
   Printer,
   BookOpen,
   ArrowRightLeft,
+  Eye,
 } from 'lucide-react';
 
 // =============================================================================
@@ -148,6 +149,8 @@ interface BankTransactionListProps {
   onPost?: (transaction: BankTransaction) => void;
   onTransfer?: (transaction: BankTransaction) => void;
   onRefresh: () => void;
+  /** Callback pour afficher les détails d'une transaction */
+  onViewDetails?: (transaction: BankTransaction) => void;
   /** Afficher la colonne compte (utile si vue globale) */
   showAccountColumn?: boolean;
   /** Afficher le solde courant */
@@ -172,6 +175,7 @@ export function BankTransactionList({
   onPost,
   onTransfer,
   onRefresh,
+  onViewDetails,
   showAccountColumn = false,
   showRunningBalance = false,
 }: BankTransactionListProps) {
@@ -277,7 +281,8 @@ export function BankTransactionList({
             {transactions.map(txn => (
               <TableRow
                 key={txn.id}
-                className={txn.status === 'CANCELLED' ? 'opacity-50' : ''}
+                className={`${txn.status === 'CANCELLED' ? 'opacity-50' : ''} ${onViewDetails ? 'cursor-pointer hover:bg-muted/50' : ''}`}
+                onClick={() => onViewDetails?.(txn)}
               >
                 <TableCell className="font-medium">
                   {formatDate(txn.transactionDate)}
@@ -336,15 +341,36 @@ export function BankTransactionList({
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <MoreHorizontal className="h-4 w-4" />
                         <span className="sr-only">Actions</span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      {/* Voir les détails */}
+                      {onViewDetails && (
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewDetails(txn);
+                          }}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Voir les détails
+                        </DropdownMenuItem>
+                      )}
+
                       {/* Modifier - seulement pour brouillons */}
                       <DropdownMenuItem
-                        onClick={() => onEdit(txn)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(txn);
+                        }}
                         disabled={txn.status === 'VALIDATED' || txn.status === 'CANCELLED'}
                       >
                         <Pencil className="mr-2 h-4 w-4" />
@@ -353,7 +379,7 @@ export function BankTransactionList({
 
                       {/* Valider - seulement pour brouillons */}
                       {txn.status === 'DRAFT' && onValidate && (
-                        <DropdownMenuItem onClick={() => onValidate(txn)}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onValidate(txn); }}>
                           <CheckCircle className="mr-2 h-4 w-4" />
                           Valider
                         </DropdownMenuItem>
@@ -361,7 +387,7 @@ export function BankTransactionList({
 
                       {/* Annuler - seulement pour transactions validées non rapprochées */}
                       {txn.status === 'VALIDATED' && onCancel && !txn.isReconciled && (
-                        <DropdownMenuItem onClick={() => onCancel(txn)}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onCancel(txn); }}>
                           <XCircle className="mr-2 h-4 w-4" />
                           Annuler
                         </DropdownMenuItem>
@@ -371,7 +397,7 @@ export function BankTransactionList({
 
                       {/* Imprimer */}
                       {onPrint && (
-                        <DropdownMenuItem onClick={() => onPrint(txn)}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPrint(txn); }}>
                           <Printer className="mr-2 h-4 w-4" />
                           Imprimer
                         </DropdownMenuItem>
@@ -379,7 +405,7 @@ export function BankTransactionList({
 
                       {/* Comptabiliser - seulement pour transactions validées */}
                       {txn.status === 'VALIDATED' && onPost && (
-                        <DropdownMenuItem onClick={() => onPost(txn)}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onPost(txn); }}>
                           <BookOpen className="mr-2 h-4 w-4" />
                           Comptabiliser
                         </DropdownMenuItem>
@@ -387,7 +413,7 @@ export function BankTransactionList({
 
                       {/* Transférer */}
                       {onTransfer && txn.status !== 'CANCELLED' && (
-                        <DropdownMenuItem onClick={() => onTransfer(txn)}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onTransfer(txn); }}>
                           <ArrowRightLeft className="mr-2 h-4 w-4" />
                           Transférer
                         </DropdownMenuItem>

@@ -745,16 +745,7 @@ export async function getStatementReconciliationStats(statementId: string): Prom
 /**
  * Récupère les statistiques de rapprochement pour un compte bancaire.
  */
-export async function getReconciliationStats(bankAccountId: string): Promise<{
-  totalStatementLines: number;
-  reconciledLines: number;
-  pendingLines: number;
-  reconciledPercentage: number;
-  totalTransactions: number;
-  reconciledTransactions: number;
-  unreconciledTransactions: number;
-  discrepancy: number;
-}> {
+export async function getReconciliationStats(bankAccountId: string): Promise<ReconciliationStats> {
   console.log('[API:Reconciliation] getReconciliationStats:', bankAccountId);
   
   try {
@@ -780,13 +771,19 @@ export async function getReconciliationStats(bankAccountId: string): Promise<{
     const validatedTransactions = transactions.filter(t => t.status === 'VALIDATED');
     const reconciledTxns = validatedTransactions.filter(t => t.isReconciled);
     
+    const percentage = totalLines > 0
+      ? Math.round((reconciledLines / totalLines) * 100)
+      : 0;
+
     return {
-      totalStatementLines: totalLines,
+      // Propriétés de base de ReconciliationStats
+      totalLines,
       reconciledLines,
       pendingLines: totalLines - reconciledLines,
-      reconciledPercentage: totalLines > 0 
-        ? Math.round((reconciledLines / totalLines) * 100) 
-        : 0,
+      percentage,
+      // Propriétés étendues pour la vue compte bancaire
+      totalStatementLines: totalLines,
+      reconciledPercentage: percentage,
       totalTransactions: validatedTransactions.length,
       reconciledTransactions: reconciledTxns.length,
       unreconciledTransactions: validatedTransactions.length - reconciledTxns.length,
@@ -795,9 +792,11 @@ export async function getReconciliationStats(bankAccountId: string): Promise<{
   } catch (error) {
     console.error('[API:Reconciliation] Erreur getReconciliationStats:', error);
     return {
-      totalStatementLines: 0,
+      totalLines: 0,
       reconciledLines: 0,
       pendingLines: 0,
+      percentage: 0,
+      totalStatementLines: 0,
       reconciledPercentage: 0,
       totalTransactions: 0,
       reconciledTransactions: 0,

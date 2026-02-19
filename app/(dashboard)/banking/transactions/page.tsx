@@ -29,9 +29,13 @@ import {
   cancelBankTransaction,
 } from '@/lib/api/bank-transaction';
 
+// Utilitaires PDF
+import { generateTransactionPDF } from '@/lib/utils/pdf-generator';
+
 // Composants
 import { BankTransactionList } from '@/components/banking/bank-transaction-list';
 import { BankTransactionForm } from '@/components/banking/bank-transaction-form';
+import { BankTransactionDetailDialog } from '@/components/banking/bank-transaction-detail-dialog';
 
 // UI
 import {
@@ -72,6 +76,9 @@ export default function BankTransactionsPage() {
   const [transactionToDelete, setTransactionToDelete] = useState<BankTransaction | null>(null);
   const [transactionToValidate, setTransactionToValidate] = useState<BankTransaction | null>(null);
   const [transactionToCancel, setTransactionToCancel] = useState<BankTransaction | null>(null);
+
+  // Modale de détails
+  const [selectedTransaction, setSelectedTransaction] = useState<BankTransaction | null>(null);
   
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -293,54 +300,19 @@ export default function BankTransactionsPage() {
   };
 
   /**
-   * Imprime une transaction.
+   * Génère et affiche un PDF professionnel de la transaction.
+   * Le PDF s'ouvre dans un nouvel onglet pour aperçu avant impression/téléchargement.
    */
   const handlePrint = (transaction: BankTransaction) => {
-    // Ouvrir une fenêtre d'impression avec les détails de la transaction
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      const formatCurrency = (amount: number, currency: string = 'XAF') => {
-        return new Intl.NumberFormat('fr-FR', {
-          style: 'currency',
-          currency,
-          minimumFractionDigits: currency === 'XAF' || currency === 'XOF' ? 0 : 2,
-        }).format(amount);
-      };
+    // Informations de l'organisation (peuvent être récupérées depuis un contexte/store)
+    const organization = {
+      name: 'KSM Pro',
+      // address: 'Douala, Cameroun',
+      // phone: '+237 233 XX XX XX',
+      // registrationNumber: 'RC/DLA/XXXX',
+    };
 
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Transaction - ${transaction.reference || transaction.id}</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 40px; }
-              h1 { color: #1a56db; border-bottom: 2px solid #1a56db; padding-bottom: 10px; }
-              .info { margin: 20px 0; }
-              .info label { font-weight: bold; display: inline-block; width: 150px; }
-              .amount { font-size: 24px; font-weight: bold; margin: 20px 0; }
-              .credit { color: #059669; }
-              .debit { color: #dc2626; }
-              @media print { button { display: none; } }
-            </style>
-          </head>
-          <body>
-            <h1>Détail de la Transaction</h1>
-            <div class="info"><label>Référence:</label> ${transaction.reference || 'N/A'}</div>
-            <div class="info"><label>Date:</label> ${new Date(transaction.transactionDate).toLocaleDateString('fr-FR')}</div>
-            <div class="info"><label>Compte:</label> ${transaction.bankAccountName || 'N/A'}</div>
-            <div class="info"><label>Type:</label> ${transaction.transactionTypeCode || 'N/A'}</div>
-            <div class="info"><label>Libellé:</label> ${transaction.description || 'N/A'}</div>
-            <div class="info"><label>Tiers:</label> ${transaction.partnerName || 'N/A'}</div>
-            <div class="amount ${transaction.direction === 'CREDIT' ? 'credit' : 'debit'}">
-              ${transaction.direction === 'CREDIT' ? '+' : '-'} ${formatCurrency(transaction.amount, transaction.currency)}
-            </div>
-            <div class="info"><label>Statut:</label> ${transaction.status}</div>
-            <br><br>
-            <button onclick="window.print()">Imprimer</button>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-    }
+    generateTransactionPDF(transaction, organization);
   };
 
   /**
@@ -388,7 +360,18 @@ export default function BankTransactionsPage() {
         onPost={handlePost}
         onTransfer={handleTransfer}
         onRefresh={fetchTransactions}
+        onViewDetails={setSelectedTransaction}
         showAccountColumn={true}
+      />
+
+      {/* Modale Détails Transaction */}
+      <BankTransactionDetailDialog
+        transaction={selectedTransaction}
+        open={!!selectedTransaction}
+        onOpenChange={(open) => !open && setSelectedTransaction(null)}
+        onPrint={handlePrint}
+        onPost={handlePost}
+        onCancel={setTransactionToCancel}
       />
 
       {/* Modale Formulaire */}

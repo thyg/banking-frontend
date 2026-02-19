@@ -255,32 +255,32 @@ export default function ReconciliationPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Lignes de relevé"
-            value={stats.totalStatementLines}
+            value={stats.totalStatementLines ?? stats.totalLines}
             subtitle={`${stats.pendingLines} en attente`}
             icon={FileText}
             color="blue"
           />
           <StatCard
             title="Taux de rapprochement"
-            value={`${stats.reconciledPercentage}%`}
-            subtitle={`${stats.reconciledLines} / ${stats.totalStatementLines}`}
+            value={`${stats.reconciledPercentage ?? stats.percentage}%`}
+            subtitle={`${stats.reconciledLines} / ${stats.totalStatementLines ?? stats.totalLines}`}
             icon={FileCheck}
-            color={stats.reconciledPercentage >= 80 ? 'green' : 'amber'}
+            color={(stats.reconciledPercentage ?? stats.percentage) >= 80 ? 'green' : 'amber'}
           />
           <StatCard
             title="Transactions non rapprochées"
-            value={stats.unreconciledTransactions}
-            subtitle={`sur ${stats.totalTransactions} transactions`}
+            value={stats.unreconciledTransactions ?? 0}
+            subtitle={`sur ${stats.totalTransactions ?? 0} transactions`}
             icon={Clock}
-            color={stats.unreconciledTransactions > 0 ? 'amber' : 'green'}
+            color={(stats.unreconciledTransactions ?? 0) > 0 ? 'amber' : 'green'}
           />
           <StatCard
             title="Écart"
-            value={formatCurrency(Math.abs(stats.discrepancy))}
-            subtitle={stats.discrepancy === 0 ? 'Aucun écart' : 
-              stats.discrepancy > 0 ? 'Relevé > Transactions' : 'Transactions > Relevé'}
-            icon={stats.discrepancy >= 0 ? TrendingUp : TrendingDown}
-            color={stats.discrepancy === 0 ? 'green' : 'red'}
+            value={formatCurrency(Math.abs(stats.discrepancy ?? 0))}
+            subtitle={(stats.discrepancy ?? 0) === 0 ? 'Aucun écart' :
+              (stats.discrepancy ?? 0) > 0 ? 'Relevé > Transactions' : 'Transactions > Relevé'}
+            icon={(stats.discrepancy ?? 0) >= 0 ? TrendingUp : TrendingDown}
+            color={(stats.discrepancy ?? 0) === 0 ? 'green' : 'red'}
           />
         </div>
       )}
@@ -346,7 +346,7 @@ export default function ReconciliationPage() {
                   >
                     <TableCell>
                       <div>
-                        <p className="font-medium">{statement.name}</p>
+                        <p className="font-medium">{statement.name || statement.reference || `Relevé du ${formatDate(statement.statementDate)}`}</p>
                         <p className="text-sm text-gray-500">
                           {statement.bankAccountName}
                         </p>
@@ -356,10 +356,10 @@ export default function ReconciliationPage() {
                       {formatDate(statement.periodStart)} - {formatDate(statement.periodEnd)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(statement.startBalance)}
+                      {formatCurrency(statement.openingBalance)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(statement.endBalance)}
+                      {formatCurrency(statement.closingBalance)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

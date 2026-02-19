@@ -61,3 +61,10 @@ export { BankAccountFilters } from './bank-account-filters';
 export { AccountTransactionsList } from './account-transactions-list';
 export { AccountStatementsList } from './account-statements-list';
 export { AccountChecksList } from './account-checks-list';
+
+// =============================================================================
+// REMISES DE CHÈQUES (Incrément 5 - Remises en lot)
+// =============================================================================
+
+export { CheckDepositForm } from './check-deposit-form';
+export { CheckDepositDetailDialog } from './check-deposit-detail-dialog';

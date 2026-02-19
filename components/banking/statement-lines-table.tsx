@@ -48,6 +48,15 @@ interface StatementLinesTableProps {
   selectedLineId: string | null;
   /** Callback appelé lors de la sélection d'une ligne */
   onSelectLine: (lineId: string) => void;
+  /** Callback pour rafraîchir les données (optionnel) */
+  onRefresh?: () => void | Promise<void>;
+  /** Statistiques externes (optionnel - sinon calculées automatiquement) */
+  stats?: {
+    total: number;
+    reconciled: number;
+    pending: number;
+    percentage: number;
+  };
   /** Code devise pour le formatage (défaut: EUR) */
   currencyCode?: string;
   /** Titre personnalisé pour la carte */

@@ -153,7 +153,7 @@ export default function AccountTypesPage() {
       content: (
         <div className="p-6">
           <AccountTypeForm
-            initialData={null}
+            initialData={undefined}
             onSave={(data) => handleSaveType(data)}
             onCancel={onClose}
           />

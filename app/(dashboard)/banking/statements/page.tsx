@@ -185,7 +185,7 @@ export default function StatementsPage() {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       if (
-        !statement.name.toLowerCase().includes(query) &&
+        !(statement.name || '').toLowerCase().includes(query) &&
         !statement.bankAccountName?.toLowerCase().includes(query)
       ) {
         return false;
@@ -230,8 +230,8 @@ export default function StatementsPage() {
   const stats = {
     total: statements.length,
     reconciled: statements.filter(s => s.status === 'RECONCILED').length,
-    partial: statements.filter(s => s.status === 'PARTIAL').length,
-    draft: statements.filter(s => s.status === 'DRAFT').length,
+    partial: statements.filter(s => s.status === 'IN_PROGRESS').length,
+    draft: statements.filter(s => s.status === 'IMPORTED').length,
   };
 
   return (
@@ -424,9 +424,9 @@ export default function StatementsPage() {
                           <FileText className="h-4 w-4 text-blue-600" />
                         </div>
                         <div>
-                          <p className="font-medium">{statement.name}</p>
+                          <p className="font-medium">{statement.name || statement.reference || `Relevé du ${formatDate(statement.statementDate)}`}</p>
                           <p className="text-xs text-gray-400">
-                            Importe le {formatDate(statement.importedAt)}
+                            Importé le {formatDate(statement.createdAt)}
                           </p>
                         </div>
                       </div>
@@ -443,10 +443,10 @@ export default function StatementsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(statement.startBalance)}
+                      {formatCurrency(statement.openingBalance)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(statement.endBalance)}
+                      {formatCurrency(statement.closingBalance)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

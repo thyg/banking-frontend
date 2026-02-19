@@ -270,7 +270,7 @@ export default function BankAccountDetailPage() {
     }
   };
 
-  const handleUploadSuccess = (newStatement: BankStatement) => {
+  const handleUploadSuccess = (newStatement: { id: string }) => {
     setIsUploadOpen(false);
     toast({
       title: "Relevé importé",

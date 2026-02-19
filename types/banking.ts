@@ -183,6 +183,16 @@ export interface BankTransaction {
   label?: string;          // Libellé de la transaction pour affichage
   currency?: string;       // Devise (héritée du compte)
   runningBalance?: number; // Solde après transaction (calculé)
+  // Liens vers d'autres entités (pour la vue de détails)
+  checkId?: string;        // ID du chèque lié (si applicable)
+  checkNumber?: string;    // Numéro du chèque lié
+  checkDepositId?: string; // ID de la remise de chèques liée
+  checkDepositReference?: string; // Référence de la remise liée
+  // Informations d'audit
+  validatedAt?: string;
+  validatedBy?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
 }
 
 export interface Checkbook {
@@ -231,6 +241,8 @@ export interface Check {
   imageUrl?: string;
   issuerBank?: string;
   bankTransactionId?: string;
+  /** ID de la remise de chèques en lot (si applicable) */
+  checkDepositId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -353,6 +365,7 @@ export interface ReconciliationSuggestion {
 }
 
 export interface ReconciliationStats {
+  // Statistiques de lignes de relevé
   totalLines: number;
   reconciledLines: number;
   pendingLines: number;
@@ -360,6 +373,14 @@ export interface ReconciliationStats {
   totalAmount?: number;
   reconciledAmount?: number;
   pendingAmount?: number;
+
+  // Statistiques étendues pour vue compte bancaire (utilisées par getReconciliationStats)
+  totalStatementLines?: number;      // Alias de totalLines pour la page de réconciliation
+  reconciledPercentage?: number;     // Alias de percentage
+  totalTransactions?: number;        // Nombre total de transactions validées
+  reconciledTransactions?: number;   // Transactions rapprochées
+  unreconciledTransactions?: number; // Transactions en attente de rapprochement
+  discrepancy?: number;              // Écart entre relevé et transactions
 }
 
 export interface ReconciliationSearchOptions {
@@ -889,3 +910,75 @@ export interface UpdateAccountSubTypeRequest {
 
 export type CreateAccountSubTypeData = CreateAccountSubTypeRequest;
 export type UpdateAccountSubTypeData = UpdateAccountSubTypeRequest;
+
+// =============================================================================
+// CHECK DEPOSITS (REMISES DE CHÈQUES EN LOT)
+// =============================================================================
+
+/**
+ * Statut d'une remise de chèques en lot.
+ * - PENDING: Remise créée, en attente de dépôt en banque
+ * - DEPOSITED: Remise déposée en banque, en attente d'encaissement
+ * - CASHED: Remise encaissée, fonds reçus sur le compte
+ * - RECONCILED: Remise rapprochée avec une ligne de relevé bancaire
+ */
+export type CheckDepositStatus = 'PENDING' | 'DEPOSITED' | 'CASHED' | 'RECONCILED';
+
+/**
+ * Représente une remise de chèques en lot.
+ * Permet de regrouper plusieurs chèques reçus pour faciliter le rapprochement bancaire.
+ */
+export interface CheckDeposit {
+  id: string;
+  /** Référence unique de la remise (ex: REM-202602-0001) */
+  reference: string;
+  /** Date de la remise en banque */
+  depositDate: string;
+  /** Date d'encaissement (quand les fonds sont reçus) */
+  cashedDate?: string;
+  /** Compte bancaire de destination */
+  bankAccountId: string;
+  bankAccountName?: string;
+  currency?: string;
+  /** Montant total de la remise (somme des chèques) */
+  totalAmount: number;
+  /** Nombre de chèques dans la remise */
+  checkCount: number;
+  /** Statut de la remise */
+  status: CheckDepositStatus;
+  /** ID de la transaction bancaire créée lors de l'encaissement */
+  bankTransactionId?: string;
+  /** Référence de la transaction bancaire (si encaissée) */
+  bankTransactionReference?: string;
+  /** Liste des chèques inclus dans la remise (optionnel, pour détails) */
+  checks?: Check[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * DTO pour créer une nouvelle remise de chèques.
+ */
+export interface CreateCheckDepositRequest {
+  /** Liste des IDs des chèques à inclure dans la remise */
+  checkIds: string[];
+  /** ID du compte bancaire de destination */
+  bankAccountId: string;
+  /** Date de la remise */
+  depositDate: string;
+}
+
+/**
+ * Alias pour CreateCheckDepositRequest
+ */
+export type CreateCheckDepositData = CreateCheckDepositRequest;
+
+/**
+ * Filtres pour la recherche de remises de chèques.
+ */
+export interface CheckDepositFilters {
+  bankAccountId?: string;
+  status?: CheckDepositStatus;
+  startDate?: string;
+  endDate?: string;
+}

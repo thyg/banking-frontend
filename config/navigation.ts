@@ -34,6 +34,7 @@ import {
   BookOpen,
   Tag,
   CreditCard,
+  FileStack,
 } from 'lucide-react';
 
 // =============================================================================
@@ -112,6 +113,7 @@ export const modules: Record<ModuleKey, ModuleConfig> = {
       // Chèques
       { title: 'Chéquiers', href: '/banking/checkbooks', icon: BookOpen },
       { title: 'Chèques', href: '/banking/checks', icon: FileText },
+      { title: 'Remises de Chèques', href: '/banking/check-deposits', icon: FileStack },
       // Opérations
       { title: 'Transactions', href: '/banking/transactions', icon: ArrowLeftRight },
       // Rapprochement
