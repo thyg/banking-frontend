@@ -192,11 +192,12 @@ export function AccountTypeForm({ initialData, onSave, onCancel }: AccountTypeFo
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+        {/* Boutons responsives : colonne sur mobile, ligne sur desktop */}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-4">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting} className="w-full sm:w-auto">
             Annuler
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
             {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             {isSubmitting ? 'Enregistrement...' : (initialData ? 'Mettre à jour' : 'Créer')}
           </Button>

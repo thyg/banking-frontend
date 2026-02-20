@@ -259,7 +259,7 @@ export function CheckDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="w-[95vw] max-w-[500px] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Type badge */}
@@ -282,27 +282,27 @@ export function CheckDetailDialog({
               <span className="ml-1">{currentStatus.label}</span>
             </Badge>
           </div>
-          <DialogTitle className="text-xl mt-2 font-mono">
+          <DialogTitle className="text-lg sm:text-xl mt-2 font-mono">
             {check.checkNumber}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Détails du chèque {isReceived ? 'reçu de' : 'émis à'} {check.partnerName}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Montant */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4">
-            <div className="flex items-center justify-between">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
               <span className="text-sm text-muted-foreground">Montant</span>
               <span className={cn(
-                "text-2xl font-bold",
+                "text-xl sm:text-2xl font-bold",
                 isReceived ? "text-green-600" : "text-red-600"
               )}>
                 {isReceived ? '+' : '-'}{formatCurrency(check.amount, check.currency)}
               </span>
             </div>
-            <p className="text-sm text-muted-foreground italic mt-1">
+            <p className="text-xs sm:text-sm text-muted-foreground italic mt-1">
               {numberToWords(check.amount)} francs CFA
             </p>
           </div>
@@ -310,14 +310,14 @@ export function CheckDetailDialog({
           <Separator />
 
           {/* Informations principales */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* Tiers */}
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <User className="h-3 w-3" />
                 {isReceived ? 'Émetteur' : 'Bénéficiaire'}
               </p>
-              <p className="font-medium">{check.partnerName}</p>
+              <p className="font-medium text-sm sm:text-base">{check.partnerName}</p>
             </div>
 
             {/* Compte bancaire */}
@@ -326,7 +326,7 @@ export function CheckDetailDialog({
                 <CreditCard className="h-3 w-3" />
                 Compte
               </p>
-              <p className="font-medium">{check.bankAccountName || 'N/A'}</p>
+              <p className="font-medium text-sm sm:text-base">{check.bankAccountName || 'N/A'}</p>
             </div>
           </div>
 
@@ -345,11 +345,11 @@ export function CheckDetailDialog({
 
           {/* Dates */}
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold flex items-center gap-2">
+            <h4 className="text-xs sm:text-sm font-semibold flex items-center gap-2">
               <Calendar className="h-4 w-4" />
               Dates
             </h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Date d'émission</p>
                 <p>{formatDate(check.issueDate)}</p>
@@ -380,7 +380,7 @@ export function CheckDetailDialog({
           <Separator />
 
           {/* Historique */}
-          <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">Créé le</p>
               <p>{formatDateTime(check.createdAt)}</p>

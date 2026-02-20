@@ -218,26 +218,26 @@ function TypeRow({ type, isExpanded, onToggleExpand, onEdit, onAddSubType, onDel
               onClick={handleCellClick}
             >
                 <TableCell className="font-mono font-medium text-blue-600 dark:text-blue-400">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-6 w-6 sm:h-8 sm:w-8"
                           onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
                           disabled={!hasSubTypes}
                         >
-                            {hasSubTypes ? (isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />) : <div className="w-4" />}
+                            {hasSubTypes ? (isExpanded ? <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" /> : <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />) : <div className="w-3 sm:w-4" />}
                         </Button>
-                        <span>{type.code}</span>
+                        <span className="text-xs sm:text-sm">{type.code}</span>
                     </div>
                 </TableCell>
                 <TableCell>
-                    <div className="font-medium">{type.libelle}</div>
-                    <div className="text-sm text-muted-foreground truncate max-w-xs">{type.description}</div>
+                    <div className="font-medium text-sm sm:text-base">{type.libelle}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground truncate max-w-[120px] sm:max-w-xs">{type.description}</div>
                 </TableCell>
-                <TableCell><PermissionsList peutEmettre={type.peutEmettreChecques} peutRecevoir={type.peutRecevoirChecques} peutEspeces={type.peutTransactionsEspeces} /></TableCell>
-                <TableCell className="text-center"><DecouvertBadge autorise={type.decouvertAutorise} montant={type.decouvertParDefaut} /></TableCell>
-                <TableCell className="text-center"><Badge variant={type.isActive ? 'default' : 'secondary'}>{type.isActive ? "Actif" : "Inactif"}</Badge></TableCell>
+                <TableCell className="hidden md:table-cell"><PermissionsList peutEmettre={type.peutEmettreChecques} peutRecevoir={type.peutRecevoirChecques} peutEspeces={type.peutTransactionsEspeces} /></TableCell>
+                <TableCell className="hidden lg:table-cell text-center"><DecouvertBadge autorise={type.decouvertAutorise} montant={type.decouvertParDefaut} /></TableCell>
+                <TableCell className="text-center"><Badge variant={type.isActive ? 'default' : 'secondary'} className="text-xs">{type.isActive ? "Actif" : "Inactif"}</Badge></TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
@@ -251,20 +251,20 @@ function TypeRow({ type, isExpanded, onToggleExpand, onEdit, onAddSubType, onDel
                 </TableCell>
             </TableRow>
 
-            {/* Lignes des sous-types (si déplié) */}
+            {/* Lignes des sous-types (si déplié) - responsives */}
             {isExpanded && hasSubTypes && type.subTypes.map((subType: AccountSubType) => (
                 <TableRow key={subType.id} className="bg-muted/30 hover:bg-muted/50">
-                    <TableCell className="pl-16 text-muted-foreground">{subType.code}</TableCell>
+                    <TableCell className="pl-8 sm:pl-16 text-muted-foreground text-xs sm:text-sm">{subType.code}</TableCell>
                     <TableCell>
-                        <div className="font-medium text-sm">{subType.libelle}</div>
-                        <div className="text-xs text-muted-foreground truncate max-w-xs">{subType.description}</div>
+                        <div className="font-medium text-xs sm:text-sm">{subType.libelle}</div>
+                        <div className="text-xs text-muted-foreground truncate max-w-[100px] sm:max-w-xs">{subType.description}</div>
                     </TableCell>
-                    <TableCell><PermissionsList peutEmettre={subType.peutEmettreChecques} peutRecevoir={subType.peutRecevoirChecques} peutEspeces={subType.peutTransactionsEspeces} /></TableCell>
-                    <TableCell className="text-center"><DecouvertBadge autorise={subType.decouvertAutorise} montant={subType.decouvertParDefaut} /></TableCell>
-                    <TableCell className="text-center"><Badge variant={subType.isActive ? 'default' : 'secondary'}>{subType.isActive ? "Actif" : "Inactif"}</Badge></TableCell>
+                    <TableCell className="hidden md:table-cell"><PermissionsList peutEmettre={subType.peutEmettreChecques} peutRecevoir={subType.peutRecevoirChecques} peutEspeces={subType.peutTransactionsEspeces} /></TableCell>
+                    <TableCell className="hidden lg:table-cell text-center"><DecouvertBadge autorise={subType.decouvertAutorise} montant={subType.decouvertParDefaut} /></TableCell>
+                    <TableCell className="text-center"><Badge variant={subType.isActive ? 'default' : 'secondary'} className="text-xs">{subType.isActive ? "Actif" : "Inactif"}</Badge></TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 sm:h-8 sm:w-8"><MoreHorizontal className="h-3 w-3 sm:h-4 sm:w-4" /></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => onEditSubType(type, subType)}><Pencil className="h-4 w-4 mr-2" />Modifier</DropdownMenuItem>
                                 <DropdownMenuSeparator />
@@ -281,14 +281,14 @@ function TypeRow({ type, isExpanded, onToggleExpand, onEdit, onAddSubType, onDel
 
   return (
    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <CardTitle className="flex items-center gap-2"><FolderTree className="h-5 w-5" />Types de Comptes</CardTitle>
-          <CardDescription>Configurez les types et sous-types de comptes avec leurs permissions</CardDescription>
+          <CardDescription className="hidden sm:block">Configurez les types et sous-types de comptes avec leurs permissions</CardDescription>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <Button variant="outline" size="icon" onClick={onRefresh} disabled={isLoading}><RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} /></Button>
-          <Button onClick={onAddNew}><Plus className="h-4 w-4 mr-2" />Nouveau Type</Button>
+          <Button onClick={onAddNew} className="flex-1 sm:flex-none"><Plus className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Nouveau Type</span><span className="sm:hidden">Nouveau</span></Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -306,13 +306,13 @@ function TypeRow({ type, isExpanded, onToggleExpand, onEdit, onAddSubType, onDel
           <div className="border rounded-lg overflow-hidden">
             <Table>
                 <TableHeader>
-                    {/* CORRECTION : Utilisation d'un vrai TableHeader pour l'alignement */}
+                    {/* Responsive : cacher Permissions et Découvert sur mobile */}
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
-                        <TableHead className="w-[150px]">Code</TableHead>
+                        <TableHead className="w-[100px] sm:w-[150px]">Code</TableHead>
                         <TableHead>Libellé</TableHead>
-                        <TableHead>Permissions</TableHead>
-                        <TableHead className="w-[150px] text-center">Découvert</TableHead>
-                        <TableHead className="w-[120px] text-center">Statut</TableHead>
+                        <TableHead className="hidden md:table-cell">Permissions</TableHead>
+                        <TableHead className="hidden lg:table-cell w-[150px] text-center">Découvert</TableHead>
+                        <TableHead className="w-[80px] sm:w-[120px] text-center">Statut</TableHead>
                         <TableHead className="w-[50px]"> </TableHead>
                     </TableRow>
                 </TableHeader>

@@ -282,10 +282,10 @@ export function CheckDepositForm({ onSuccess, onCancel }: CheckDepositFormProps)
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12"></TableHead>
+                    <TableHead className="w-10 sm:w-12"></TableHead>
                     <TableHead>N° Chèque</TableHead>
-                    <TableHead>Émetteur</TableHead>
-                    <TableHead>Date réception</TableHead>
+                    <TableHead className="hidden sm:table-cell">Émetteur</TableHead>
+                    <TableHead className="hidden md:table-cell">Date réception</TableHead>
                     <TableHead className="text-right">Montant</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -296,7 +296,7 @@ export function CheckDepositForm({ onSuccess, onCancel }: CheckDepositFormProps)
                       className="cursor-pointer"
                       onClick={() => toggleCheckSelection(check.id)}
                     >
-                      <TableCell>
+                      <TableCell className="p-2 sm:p-4">
                         <Checkbox
                           checked={selectedCheckIds.has(check.id)}
                           onClick={(e) => {
@@ -305,14 +305,20 @@ export function CheckDepositForm({ onSuccess, onCancel }: CheckDepositFormProps)
                           }}
                         />
                       </TableCell>
-                      <TableCell className="font-medium">{check.checkNumber}</TableCell>
-                      <TableCell>{check.partnerName}</TableCell>
-                      <TableCell>
+                      <TableCell className="font-medium">
+                        <div>{check.checkNumber}</div>
+                        {/* Afficher l'émetteur sous le numéro sur mobile */}
+                        <div className="sm:hidden text-xs text-muted-foreground truncate max-w-[120px]">
+                          {check.partnerName}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">{check.partnerName}</TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {check.receiptDate
                           ? format(new Date(check.receiptDate), 'dd/MM/yyyy')
                           : '-'}
                       </TableCell>
-                      <TableCell className="text-right font-medium">
+                      <TableCell className="text-right font-medium text-sm sm:text-base">
                         {formatCurrency(check.amount, check.currency)}
                       </TableCell>
                     </TableRow>
@@ -324,18 +330,18 @@ export function CheckDepositForm({ onSuccess, onCancel }: CheckDepositFormProps)
         </div>
       )}
 
-      {/* Résumé */}
+      {/* Résumé - responsive */}
       {summary.count > 0 && (
         <div className="bg-muted/50 rounded-lg p-4 space-y-2">
           <h4 className="font-medium">Résumé de la remise</h4>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm">
+            <div className="flex justify-between sm:block">
               <span className="text-muted-foreground">Nombre de chèques:</span>
-              <span className="ml-2 font-medium">{summary.count}</span>
+              <span className="sm:ml-2 font-medium">{summary.count}</span>
             </div>
-            <div>
+            <div className="flex justify-between sm:block">
               <span className="text-muted-foreground">Montant total:</span>
-              <span className="ml-2 font-bold text-lg">
+              <span className="sm:ml-2 font-bold text-lg">
                 {formatCurrency(summary.totalAmount, summary.currency)}
               </span>
             </div>
@@ -350,12 +356,12 @@ export function CheckDepositForm({ onSuccess, onCancel }: CheckDepositFormProps)
         </div>
       )}
 
-      {/* Boutons d'action */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+      {/* Boutons d'action - responsives */}
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting} className="w-full sm:w-auto">
           Annuler
         </Button>
-        <Button type="submit" disabled={isSubmitting || summary.count === 0}>
+        <Button type="submit" disabled={isSubmitting || summary.count === 0} className="w-full sm:w-auto">
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -364,7 +370,8 @@ export function CheckDepositForm({ onSuccess, onCancel }: CheckDepositFormProps)
           ) : (
             <>
               <CheckIcon className="mr-2 h-4 w-4" />
-              Créer la remise ({summary.count} chèques)
+              <span className="hidden sm:inline">Créer la remise ({summary.count} chèques)</span>
+              <span className="sm:hidden">Créer ({summary.count})</span>
             </>
           )}
         </Button>

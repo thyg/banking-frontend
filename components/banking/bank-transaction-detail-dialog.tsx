@@ -207,16 +207,18 @@ export function BankTransactionDetailDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-[700px] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5" />
-            Transaction {transaction?.reference || ''}
+          <DialogTitle className="flex flex-col sm:flex-row sm:items-center gap-2 text-lg sm:text-xl">
+            <div className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span className="truncate">Transaction {transaction?.reference || ''}</span>
+            </div>
             {transaction && (
               <StatusBadge status={transaction.status} />
             )}
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             Informations détaillées de la transaction bancaire.
           </DialogDescription>
         </DialogHeader>
@@ -238,26 +240,26 @@ export function BankTransactionDetailDialog({
             {/* =================================================================== */}
             {/* SECTION MONTANT (élément le plus visible) */}
             {/* =================================================================== */}
-            <div className={`p-6 rounded-lg text-center ${
+            <div className={`p-4 sm:p-6 rounded-lg text-center ${
               transaction.direction === 'CREDIT'
                 ? 'bg-green-50 border border-green-200'
                 : 'bg-red-50 border border-red-200'
             }`}>
               <div className="flex items-center justify-center gap-2 mb-2">
                 {transaction.direction === 'CREDIT' ? (
-                  <ArrowDownLeft className="h-6 w-6 text-green-600" />
+                  <ArrowDownLeft className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
                 ) : (
-                  <ArrowUpRight className="h-6 w-6 text-red-600" />
+                  <ArrowUpRight className="h-5 w-5 sm:h-6 sm:w-6 text-red-600" />
                 )}
                 <DirectionBadge direction={transaction.direction} />
               </div>
-              <p className={`text-4xl font-bold ${
+              <p className={`text-2xl sm:text-4xl font-bold ${
                 transaction.direction === 'CREDIT' ? 'text-green-600' : 'text-red-600'
               }`}>
                 {transaction.direction === 'CREDIT' ? '+' : '-'}{' '}
                 {formatCurrency(transaction.amount, transaction.currency)}
               </p>
-              <p className="text-sm text-muted-foreground mt-2 italic">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-2 italic">
                 "{amountToWords(transaction.amount, getCurrencyName(transaction.currency))}"
               </p>
             </div>
@@ -268,10 +270,10 @@ export function BankTransactionDetailDialog({
             {/* DÉTAILS DE L'OPÉRATION */}
             {/* =================================================================== */}
             <div>
-              <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide mb-3">
+              <h4 className="font-semibold text-xs sm:text-sm text-muted-foreground uppercase tracking-wide mb-3">
                 Détails de l'opération
               </h4>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <InfoSection
                   icon={Building}
                   label="Compte bancaire"

@@ -559,14 +559,14 @@ export default function ChecksPage() {
         onViewDetails={handleViewDetails}
       />
 
-      {/* Modale Formulaire */}
+      {/* Modale Formulaire - responsive */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">
               {editingCheck ? 'Modifier le chèque' : 'Nouveau chèque'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               {editingCheck
                 ? 'Modifiez les informations du chèque.'
                 : 'Enregistrez un nouveau chèque émis ou reçu.'}

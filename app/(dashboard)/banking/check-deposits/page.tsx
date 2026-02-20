@@ -439,17 +439,19 @@ export default function CheckDepositsPage() {
 
   return (
     <>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold flex items-center">
-            <FileStack className="mr-4 h-8 w-8" />
+      <div className="space-y-4 p-4 sm:p-6">
+        {/* En-tête responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold flex items-center">
+            <FileStack className="mr-2 sm:mr-4 h-6 w-6 sm:h-8 sm:w-8" />
             Remises de Cheques
           </h1>
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Nouvelle Remise
+                <span className="hidden sm:inline">Nouvelle Remise</span>
+                <span className="sm:hidden">Nouvelle</span>
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
@@ -467,53 +469,53 @@ export default function CheckDepositsPage() {
           </Dialog>
         </div>
 
-        {/* Statistiques */}
-        <div className="grid gap-4 md:grid-cols-5">
+        {/* Statistiques - responsive grid */}
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total remises</CardTitle>
-              <FileStack className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Total</CardTitle>
+              <FileStack className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalDeposits}</div>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+              <div className="text-xl sm:text-2xl font-bold">{totalDeposits}</div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">En attente</CardTitle>
-              <Clock className="h-4 w-4 text-slate-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">En attente</CardTitle>
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-slate-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{pendingCount}</div>
-              <p className="text-xs text-muted-foreground">A deposer</p>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+              <div className="text-xl sm:text-2xl font-bold">{pendingCount}</div>
+              <p className="text-xs text-muted-foreground hidden sm:block">A deposer</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Deposees</CardTitle>
-              <Building className="h-4 w-4 text-amber-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Deposees</CardTitle>
+              <Building className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{depositedCount}</div>
-              <p className="text-xs text-muted-foreground">A encaisser</p>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+              <div className="text-xl sm:text-2xl font-bold">{depositedCount}</div>
+              <p className="text-xs text-muted-foreground hidden sm:block">A encaisser</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Encaissees</CardTitle>
-              <BanknoteIcon className="h-4 w-4 text-green-500" />
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Encaissees</CardTitle>
+              <BanknoteIcon className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{cashedCount}</div>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+              <div className="text-xl sm:text-2xl font-bold">{cashedCount}</div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Montant en cours</CardTitle>
+          <Card className="col-span-2 sm:col-span-1">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
+              <CardTitle className="text-xs sm:text-sm font-medium">Montant en cours</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(pendingAmount)}</div>
-              <p className="text-xs text-muted-foreground">Non encore encaisse</p>
+            <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+              <div className="text-xl sm:text-2xl font-bold truncate">{formatCurrency(pendingAmount)}</div>
+              <p className="text-xs text-muted-foreground hidden sm:block">Non encore encaisse</p>
             </CardContent>
           </Card>
         </div>
@@ -540,57 +542,72 @@ export default function CheckDepositsPage() {
                 Cliquez sur "Nouvelle Remise" pour creer votre premiere remise.
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Reference</TableHead>
-                    <TableHead>Date depot</TableHead>
-                    <TableHead>Compte</TableHead>
-                    <TableHead className="text-center">Cheques</TableHead>
-                    <TableHead className="text-right">Montant</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {deposits.map((deposit) => (
-                    <TableRow key={deposit.id} className="cursor-pointer hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        {deposit.reference}
-                      </TableCell>
-                      <TableCell>
-                        {deposit.depositDate
-                          ? format(new Date(deposit.depositDate), 'dd MMM yyyy', { locale: fr })
-                          : '-'}
-                      </TableCell>
-                      <TableCell>
-                        {deposit.bankAccountName || 'Compte inconnu'}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="secondary">{deposit.checkCount}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(deposit.totalAmount, deposit.currency)}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={deposit.status} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {getDepositActions(deposit)}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Reference</TableHead>
+                      <TableHead className="hidden sm:table-cell">Date depot</TableHead>
+                      <TableHead className="hidden md:table-cell">Compte</TableHead>
+                      <TableHead className="hidden sm:table-cell text-center">Cheques</TableHead>
+                      <TableHead className="text-right">Montant</TableHead>
+                      <TableHead className="hidden sm:table-cell">Statut</TableHead>
+                      <TableHead className="text-right w-[50px] sm:w-auto">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {deposits.map((deposit) => (
+                      <TableRow key={deposit.id} className="cursor-pointer hover:bg-muted/50">
+                        <TableCell className="font-medium text-xs sm:text-sm">
+                          <div>{deposit.reference}</div>
+                          {/* Afficher la date et le statut sous la référence sur mobile */}
+                          <div className="sm:hidden text-xs text-muted-foreground">
+                            {deposit.depositDate
+                              ? format(new Date(deposit.depositDate), 'dd/MM/yy', { locale: fr })
+                              : '-'}
+                          </div>
+                          <div className="sm:hidden mt-1">
+                            <StatusBadge status={deposit.status} />
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell text-sm">
+                          {deposit.depositDate
+                            ? format(new Date(deposit.depositDate), 'dd MMM yyyy', { locale: fr })
+                            : '-'}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell text-sm truncate max-w-[150px]">
+                          {deposit.bankAccountName || 'Compte inconnu'}
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell text-center">
+                          <Badge variant="secondary">{deposit.checkCount}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-xs sm:text-sm">
+                          {formatCurrency(deposit.totalAmount, deposit.currency)}
+                          {/* Afficher le nombre de chèques sur mobile */}
+                          <div className="sm:hidden text-xs text-muted-foreground">
+                            {deposit.checkCount} chq
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <StatusBadge status={deposit.status} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 sm:h-8 sm:w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {getDepositActions(deposit)}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>

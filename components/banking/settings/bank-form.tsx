@@ -375,19 +375,21 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
           )}
         />
 
-        {/* Pied de page avec boutons d'action */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button 
-            type="button" 
-            variant="outline" 
+        {/* Pied de page avec boutons d'action - responsives */}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
+            className="w-full sm:w-auto"
           >
             Annuler
           </Button>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={isSubmitting}
+            className="w-full sm:w-auto"
           >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isEditMode ? 'Enregistrer les modifications' : 'Créer la banque'}

@@ -466,12 +466,12 @@ export function CheckList({
         <TableHeader>
           <TableRow>
             <TableHead>N° Chèque</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Tiers</TableHead>
+            <TableHead className="hidden sm:table-cell">Type</TableHead>
+            <TableHead className="hidden md:table-cell">Date</TableHead>
+            <TableHead className="hidden lg:table-cell">Tiers</TableHead>
             <TableHead className="text-right">Montant</TableHead>
-            <TableHead>Statut</TableHead>
-            <TableHead className="w-[70px]">Actions</TableHead>
+            <TableHead className="hidden sm:table-cell">Statut</TableHead>
+            <TableHead className="w-[50px] sm:w-[70px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -481,15 +481,23 @@ export function CheckList({
               className={`${check.status === 'CANCELLED' ? 'opacity-50' : ''} cursor-pointer hover:bg-muted/50 transition-colors`}
               onClick={() => onViewDetails?.(check)}
             >
-              <TableCell className="font-mono font-medium">
-                {check.checkNumber}
+              <TableCell className="font-mono font-medium text-xs sm:text-sm">
+                <div>{check.checkNumber}</div>
+                {/* Afficher le tiers sous le numéro sur mobile */}
+                <div className="lg:hidden text-xs text-muted-foreground truncate max-w-[100px] sm:max-w-[150px]">
+                  {check.partnerName}
+                </div>
+                {/* Afficher le statut sous le numéro sur très petit écran */}
+                <div className="sm:hidden mt-1">
+                  <StatusBadge status={check.status} />
+                </div>
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">
                 <TypeBadge checkType={check.checkType} />
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden md:table-cell">
                 <div className="flex flex-col">
-                  <span>{formatDate(check.issueDate)}</span>
+                  <span className="text-sm">{formatDate(check.issueDate)}</span>
                   {check.dueDate && (
                     <span className="text-xs text-gray-500">
                       Éch: {formatDate(check.dueDate)}
@@ -497,7 +505,7 @@ export function CheckList({
                   )}
                 </div>
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden lg:table-cell">
                 <div className="flex flex-col">
                   <span className="font-medium">{check.partnerName}</span>
                   {check.description && (
@@ -507,19 +515,19 @@ export function CheckList({
                   )}
                 </div>
               </TableCell>
-              <TableCell className={`text-right font-medium ${
+              <TableCell className={`text-right font-medium text-xs sm:text-sm ${
                 check.checkType === 'RECEIVED' ? 'text-green-600' : 'text-red-600'
               }`}>
                 {check.checkType === 'RECEIVED' ? '+' : '-'}
                 {formatCurrency(check.amount, check.currency)}
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">
                 <StatusBadge status={check.status} />
               </TableCell>
               <TableCell onClick={(e) => e.stopPropagation()}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8">
                       <MoreHorizontal className="h-4 w-4" />
                       <span className="sr-only">Actions</span>
                     </Button>

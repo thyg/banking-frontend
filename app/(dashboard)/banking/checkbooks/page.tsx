@@ -127,23 +127,25 @@ export default function CheckbooksPage() {
 
   return (
     <>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold flex items-center">
-            <BookOpen className="mr-4 h-8 w-8" />
+      <div className="space-y-4 p-4 sm:p-6">
+        {/* Header responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold flex items-center">
+            <BookOpen className="mr-2 sm:mr-4 h-6 w-6 sm:h-8 sm:w-8" />
             Gestion des Chéquiers
           </h1>
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="w-full sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
-                Nouveau Chéquier
+                <span className="hidden sm:inline">Nouveau Chéquier</span>
+                <span className="sm:hidden">Nouveau</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="w-[95vw] max-w-[500px] p-4 sm:p-6">
               <DialogHeader>
-                <DialogTitle>Créer un chéquier</DialogTitle>
-                <DialogDescription>
+                <DialogTitle className="text-lg sm:text-xl">Créer un chéquier</DialogTitle>
+                <DialogDescription className="text-sm">
                   Ajoutez un nouveau chéquier pour un compte bancaire.
                 </DialogDescription>
               </DialogHeader>

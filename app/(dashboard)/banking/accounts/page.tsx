@@ -231,21 +231,21 @@ export default function BankAccountsPage() {
         onUpload={handleUpload}
       />
 
-      {/* Modal de formulaire avec scroll */}
+      {/* Modal de formulaire avec scroll - responsive */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] flex flex-col p-4 sm:p-6">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">
               {editingAccount ? `Modifier "${editingAccount.name}"` : 'Nouveau Compte Bancaire'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               {editingAccount
                 ? 'Modifiez les informations du compte bancaire.'
                 : 'Remplissez les informations pour créer un nouveau compte bancaire.'
               }
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4 overflow-y-auto flex-1 pr-2">
+          <div className="mt-4 overflow-y-auto flex-1 pr-1 sm:pr-2">
             <BankAccountForm
               initialData={editingAccount}
               onSave={handleSave}
@@ -255,12 +255,12 @@ export default function BankAccountsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal d'upload de relevé */}
+      {/* Modal d'upload de relevé - responsive */}
       <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="w-[95vw] max-w-[600px] p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Importer un Relevé Bancaire</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Importer un Relevé Bancaire</DialogTitle>
+            <DialogDescription className="text-sm">
               Sélectionnez un fichier de relevé bancaire à importer.
             </DialogDescription>
           </DialogHeader>

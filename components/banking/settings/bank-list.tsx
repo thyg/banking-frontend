@@ -130,11 +130,11 @@ export function BankList({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="w-[100px]">Code</TableHead>
+              <TableHead className="w-[80px] sm:w-[100px]">Code</TableHead>
               <TableHead>Nom</TableHead>
-              <TableHead className="w-[150px]">Code SWIFT</TableHead>
-              <TableHead className="w-[100px] text-center">Statut</TableHead>
-              <TableHead className="w-[70px] text-right">Actions</TableHead>
+              <TableHead className="hidden md:table-cell w-[150px]">Code SWIFT</TableHead>
+              <TableHead className="w-[80px] sm:w-[100px] text-center">Statut</TableHead>
+              <TableHead className="w-[50px] sm:w-[70px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -145,43 +145,43 @@ export function BankList({
                 onClick={() => onViewDetails?.(bank)}
               >
                 {/* Code */}
-                <TableCell className="font-mono font-medium text-foreground">
+                <TableCell className="font-mono font-medium text-foreground text-xs sm:text-sm">
                   {bank.code}
                 </TableCell>
 
                 {/* Nom */}
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{bank.name}</span>
+                    <Building2 className="h-4 w-4 text-muted-foreground hidden sm:block" />
+                    <span className="font-medium text-sm sm:text-base truncate max-w-[120px] sm:max-w-none">{bank.name}</span>
                   </div>
                 </TableCell>
 
-                {/* Code SWIFT/BIC */}
-                <TableCell className="font-mono text-sm text-muted-foreground">
+                {/* Code SWIFT/BIC - caché sur mobile */}
+                <TableCell className="hidden md:table-cell font-mono text-sm text-muted-foreground">
                   {bank.swiftCode || '-'}
                 </TableCell>
-                
+
                 {/* Statut */}
                 <TableCell className="text-center">
                   {bank.isActive ? (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800">
-                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800 text-xs">
+                      <CheckCircle2 className="h-3 w-3 mr-1 hidden sm:inline" />
                       Actif
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700">
-                      <XCircle className="h-3 w-3 mr-1" />
+                    <Badge variant="outline" className="bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700 text-xs">
+                      <XCircle className="h-3 w-3 mr-1 hidden sm:inline" />
                       Inactif
                     </Badge>
                   )}
                 </TableCell>
-                
+
                 {/* Actions */}
                 <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Button variant="ghost" size="icon" className="h-7 w-7 sm:h-8 sm:w-8">
                         <MoreHorizontal className="h-4 w-4" />
                         <span className="sr-only">Actions</span>
                       </Button>
@@ -192,7 +192,7 @@ export function BankList({
                         Modifier
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => onDelete(bank)}
                         className="text-red-600 focus:text-red-600"
                       >
@@ -212,29 +212,30 @@ export function BankList({
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      {/* En-tête de la page */}
-      <div className="flex items-center justify-between mb-6">
+      {/* En-tête de la page - responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             Gestion des Banques
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground hidden sm:block">
             Gérez les établissements bancaires de votre organisation.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="icon" 
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            size="icon"
             onClick={onRefresh}
             disabled={isLoading}
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             <span className="sr-only">Rafraîchir</span>
           </Button>
-          <Button onClick={onAddNew}>
+          <Button onClick={onAddNew} className="flex-1 sm:flex-none">
             <Plus className="mr-2 h-4 w-4" />
-            Nouvelle Banque
+            <span className="hidden sm:inline">Nouvelle Banque</span>
+            <span className="sm:hidden">Nouvelle</span>
           </Button>
         </div>
       </div>

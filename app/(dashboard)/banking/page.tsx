@@ -256,16 +256,16 @@ export default function BankingDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6">
+      {/* Header - responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Module Banque</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Module Banque</h1>
+          <p className="text-muted-foreground text-sm sm:text-base hidden sm:block">
             Gérez vos comptes, transactions et rapprochements bancaires
           </p>
         </div>
-        <Button onClick={fetchDashboardData} variant="outline" size="sm">
+        <Button onClick={fetchDashboardData} variant="outline" size="sm" className="w-full sm:w-auto">
           <RefreshCw className="mr-2 h-4 w-4" />
           Actualiser
         </Button>
@@ -280,8 +280,8 @@ export default function BankingDashboardPage() {
         </div>
       )}
 
-      {/* KPIs */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {/* KPIs - responsive grid */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Solde Total"
           value={formatCurrency(totalBalance)}
@@ -307,35 +307,35 @@ export default function BankingDashboardPage() {
         />
       </div>
 
-      {/* Actions Rapides */}
+      {/* Actions Rapides - responsive */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">Accès Rapide</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Accès Rapide</h2>
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {quickActions.map((action) => (
             <QuickActionCard key={action.href} action={action} />
           ))}
         </div>
       </div>
 
-      {/* Liste des Comptes */}
+      {/* Liste des Comptes - responsive */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Comptes Bancaires</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl font-semibold">Comptes Bancaires</h2>
           <Link href="/banking/accounts">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="w-full sm:w-auto">
               Voir tout
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
         </div>
-        
+
         {accounts.length === 0 ? (
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-10">
-              <CreditCard className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">Aucun compte bancaire configuré</p>
+            <CardContent className="flex flex-col items-center justify-center py-8 sm:py-10 px-4">
+              <CreditCard className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4 text-center text-sm sm:text-base">Aucun compte bancaire configuré</p>
               <Link href="/banking/accounts">
-                <Button>
+                <Button className="w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Créer un compte
                 </Button>
@@ -343,7 +343,7 @@ export default function BankingDashboardPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {accounts.slice(0, 6).map((account) => (
               <AccountCard key={account.id} account={account} />
             ))}
@@ -351,12 +351,12 @@ export default function BankingDashboardPage() {
         )}
       </div>
 
-      {/* Section Transactions Bancaires */}
+      {/* Section Transactions Bancaires - responsive */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Transactions Bancaires</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl font-semibold">Transactions Bancaires</h2>
           <Link href="/banking/transactions">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="w-full sm:w-auto">
               Voir tout
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -365,11 +365,11 @@ export default function BankingDashboardPage() {
 
         {recentTransactions.length === 0 ? (
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-10">
-              <ArrowLeftRight className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">Aucune transaction bancaire</p>
+            <CardContent className="flex flex-col items-center justify-center py-8 sm:py-10 px-4">
+              <ArrowLeftRight className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4 text-center text-sm sm:text-base">Aucune transaction bancaire</p>
               <Link href="/banking/transactions">
-                <Button>
+                <Button className="w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Nouvelle transaction
                 </Button>
@@ -377,7 +377,7 @@ export default function BankingDashboardPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {recentTransactions.slice(0, 6).map((transaction) => (
               <TransactionCard key={transaction.id} transaction={transaction} />
             ))}
@@ -385,12 +385,12 @@ export default function BankingDashboardPage() {
         )}
       </div>
 
-      {/* Section Chèques */}
+      {/* Section Chèques - responsive */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Chèques</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl font-semibold">Chèques</h2>
           <Link href="/banking/checks">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="w-full sm:w-auto">
               Voir tout
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -399,11 +399,11 @@ export default function BankingDashboardPage() {
 
         {allChecks.length === 0 ? (
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-10">
-              <CheckSquare className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">Aucun chèque enregistré</p>
+            <CardContent className="flex flex-col items-center justify-center py-8 sm:py-10 px-4">
+              <CheckSquare className="h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-4 text-center text-sm sm:text-base">Aucun chèque enregistré</p>
               <Link href="/banking/checks">
-                <Button>
+                <Button className="w-full sm:w-auto">
                   <Plus className="mr-2 h-4 w-4" />
                   Nouveau chèque
                 </Button>
@@ -411,7 +411,7 @@ export default function BankingDashboardPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {allChecks.slice(0, 6).map((check) => (
               <CheckCard key={check.id} check={check} />
             ))}
@@ -419,19 +419,19 @@ export default function BankingDashboardPage() {
         )}
       </div>
 
-      {/* Relevés à Rapprocher */}
+      {/* Relevés à Rapprocher - responsive */}
       {unreconciledStatements.length > 0 && (
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">Relevés à Rapprocher</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3 sm:mb-4">
+            <h2 className="text-lg sm:text-xl font-semibold">Relevés à Rapprocher</h2>
             <Link href="/banking/reconciliation">
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="w-full sm:w-auto">
                 Voir tout
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {unreconciledStatements.slice(0, 3).map((statement) => (
               <StatementCard key={statement.id} statement={statement} />
             ))}

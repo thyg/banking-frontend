@@ -670,7 +670,7 @@ export function BankAccountForm({
                   <span className="font-medium text-sm">Génération IBAN automatique</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="branchCode"
@@ -999,19 +999,21 @@ export function BankAccountForm({
         </div>
         {/* Fin zone scrollable */}
 
-        {/* Boutons d'action */}
-        <div className="flex justify-end gap-3 pt-4 border-t mt-4 flex-shrink-0 bg-background">
+        {/* Boutons d'action - responsives */}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t mt-4 flex-shrink-0 bg-background">
           <Button
             type="button"
             variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
+            className="w-full sm:w-auto"
           >
             Annuler
           </Button>
           <Button
             type="submit"
             disabled={isSubmitting || banks.length === 0}
+            className="w-full sm:w-auto"
           >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isEditMode ? 'Enregistrer' : 'Créer le compte'}

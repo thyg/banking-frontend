@@ -90,23 +90,23 @@ export function CheckbookDetailDialog({ checkbook, open, onOpenChange, currency 
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Badge variant={type === 'REEL' ? 'default' : 'secondary'}>{type}</Badge>
             <Badge variant={getStatusBadgeVariant(status)}>{status}</Badge>
             {isSystem && <Badge variant="outline" className="border-purple-300 text-purple-700"><Shield className="h-3 w-3 mr-1" />SYSTÈME</Badge>}
           </div>
-          <DialogTitle className="text-xl mt-2 flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-gray-500" />
-            <span>{isSystem ? 'Chéquier Système' : `Chéquier ${prefix}`}</span>
+          <DialogTitle className="text-lg sm:text-xl mt-2 flex items-center gap-2">
+            <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-gray-500" />
+            <span className="truncate">{isSystem ? 'Chéquier Système' : `Chéquier ${prefix}`}</span>
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm">
             {isSystem ? 'Gestion des chèques reçus.' : `Associé au compte ${bankAccountName || 'inconnu'}.`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4 max-h-[60vh] overflow-y-auto pr-2">
+        <div className="space-y-4 sm:space-y-6 py-4">
           
           {/* Section Informations Générales */}
           <div className="space-y-3">
@@ -119,19 +119,19 @@ export function CheckbookDetailDialog({ checkbook, open, onOpenChange, currency 
           <div className="space-y-4">
             <h4 className="font-semibold text-gray-800 flex items-center gap-2"><Hash className="h-4 w-4" />Utilisation du carnet</h4>
             {isSystem ? (
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                     <div><p className="text-gray-500">Chèques disponibles</p><p className="font-medium flex items-center gap-1 text-purple-600"><InfinityIcon className="h-4 w-4" />Illimité</p></div>
                 </div>
             ) : (
                 <>
                     <div className="space-y-2">
-                        <div className="flex justify-between items-center text-sm">
-                            <span className="font-medium">{usedChecksFromNumbers} / {totalChecks} chèques utilisés</span>
+                        <div className="flex justify-between items-center text-xs sm:text-sm">
+                            <span className="font-medium">{usedChecksFromNumbers} / {totalChecks} utilisés</span>
                             <span className="font-bold">{progress.toFixed(0)}%</span>
                         </div>
                         <Progress value={progress} className="h-2" />
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
                         <div><p className="text-gray-500">Plage de numéros</p><p className="font-mono">{startNumber} - {endNumber}</p></div>
                         <div><p className="text-gray-500">Prochain N°</p><p className="font-mono font-bold">{currentNumber}</p></div>
                     </div>
@@ -144,12 +144,12 @@ export function CheckbookDetailDialog({ checkbook, open, onOpenChange, currency 
           <div className="space-y-4">
             <h4 className="font-semibold text-gray-800 flex items-center gap-2"><TrendingUp className="h-4 w-4" />Statistiques financières</h4>
             {isLoadingStats ? (
-              <div className="grid grid-cols-2 gap-4"><Skeleton className="h-16" /><Skeleton className="h-16" /></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"><Skeleton className="h-16" /><Skeleton className="h-16" /></div>
             ) : stats ? (
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="p-3 bg-gray-50 rounded-lg"><p className="text-gray-500">Chèques enregistrés</p><p className="font-bold text-lg">{stats.usedChecksCount}</p></div>
-                <div className="p-3 bg-gray-50 rounded-lg"><p className="text-gray-500">Montant engagé</p><p className="font-bold text-base">{formatCurrency(stats.totalAmountIssued, currency)}</p></div>
-                <div className="p-3 bg-gray-50 rounded-lg"><p className="text-gray-500">Montant déjà payé</p><p className="font-bold text-base">{formatCurrency(stats.totalAmountCashed, currency)}</p></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
+                <div className="p-3 bg-gray-50 rounded-lg"><p className="text-gray-500">Chèques enregistrés</p><p className="font-bold text-base sm:text-lg">{stats.usedChecksCount}</p></div>
+                <div className="p-3 bg-gray-50 rounded-lg"><p className="text-gray-500">Montant engagé</p><p className="font-bold text-sm sm:text-base">{formatCurrency(stats.totalAmountIssued, currency)}</p></div>
+                <div className="p-3 bg-gray-50 rounded-lg"><p className="text-gray-500">Montant déjà payé</p><p className="font-bold text-sm sm:text-base">{formatCurrency(stats.totalAmountCashed, currency)}</p></div>
               </div>
             ) : (
               <p className="text-sm text-red-500 p-3 bg-red-50 rounded-lg">Impossible de charger les statistiques.</p>
@@ -159,20 +159,21 @@ export function CheckbookDetailDialog({ checkbook, open, onOpenChange, currency 
           
           {/* Section Historique */}
           <div className="space-y-3">
-            <h4 className="font-semibold text-gray-800 flex items-center gap-2"><Calendar className="h-4 w-4" />Historique</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <h4 className="font-semibold text-gray-800 flex items-center gap-2 text-sm sm:text-base"><Calendar className="h-4 w-4" />Historique</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
               <div><p className="text-gray-500">Créé le</p><p className="font-medium">{formatDate(createdAt)}</p></div>
               <div><p className="text-gray-500">Modifié le</p><p className="font-medium">{formatDate(updatedAt)}</p></div>
             </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Fermer</Button>
-          <Link href={`/banking/checks?checkbookId=${checkbook.id}`} passHref>
-            <Button onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">Fermer</Button>
+          <Link href={`/banking/checks?checkbookId=${checkbook.id}`} passHref className="w-full sm:w-auto">
+            <Button onClick={() => onOpenChange(false)} className="w-full">
               <ExternalLink className="mr-2 h-4 w-4" />
-              Voir les chèques
+              <span className="hidden sm:inline">Voir les chèques</span>
+              <span className="sm:hidden">Chèques</span>
             </Button>
           </Link>
         </DialogFooter>

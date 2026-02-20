@@ -374,14 +374,14 @@ export default function BankTransactionsPage() {
         onCancel={setTransactionToCancel}
       />
 
-      {/* Modale Formulaire */}
+      {/* Modale Formulaire - responsive */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">
               {editingTransaction ? 'Modifier la transaction' : 'Nouvelle transaction'}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               {editingTransaction
                 ? 'Modifiez les informations de la transaction bancaire.'
                 : 'Saisissez les détails de la nouvelle opération bancaire.'}

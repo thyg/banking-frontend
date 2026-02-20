@@ -260,21 +260,21 @@ export function BankTransactionList({
       );
     }
 
-    // État avec données
+    // État avec données - responsive
     return (
       <TooltipProvider>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date</TableHead>
-              {showAccountColumn && <TableHead>Compte</TableHead>}
+              <TableHead className="hidden sm:table-cell">Date</TableHead>
+              {showAccountColumn && <TableHead className="hidden lg:table-cell">Compte</TableHead>}
               <TableHead>Libellé</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Sens</TableHead>
+              <TableHead className="hidden md:table-cell">Type</TableHead>
+              <TableHead className="hidden lg:table-cell">Sens</TableHead>
               <TableHead className="text-right">Montant</TableHead>
-              {showRunningBalance && <TableHead className="text-right">Solde</TableHead>}
-              <TableHead>Statut</TableHead>
-              <TableHead className="w-[70px]">Actions</TableHead>
+              {showRunningBalance && <TableHead className="hidden md:table-cell text-right">Solde</TableHead>}
+              <TableHead className="hidden sm:table-cell">Statut</TableHead>
+              <TableHead className="w-[50px] sm:w-[70px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -284,46 +284,54 @@ export function BankTransactionList({
                 className={`${txn.status === 'CANCELLED' ? 'opacity-50' : ''} ${onViewDetails ? 'cursor-pointer hover:bg-muted/50' : ''}`}
                 onClick={() => onViewDetails?.(txn)}
               >
-                <TableCell className="font-medium">
+                <TableCell className="hidden sm:table-cell font-medium text-sm">
                   {formatDate(txn.transactionDate)}
                 </TableCell>
                 {showAccountColumn && (
-                  <TableCell className="text-gray-600">
+                  <TableCell className="hidden lg:table-cell text-gray-600 text-sm">
                     {txn.bankAccountName}
                   </TableCell>
                 )}
                 <TableCell>
                   <div className="flex flex-col">
-                    <span className="font-medium">{txn.label}</span>
+                    <span className="font-medium text-sm">{txn.label}</span>
+                    {/* Afficher la date sous le libellé sur mobile */}
+                    <span className="sm:hidden text-xs text-muted-foreground">
+                      {formatDate(txn.transactionDate)}
+                    </span>
                     {txn.partnerName && (
-                      <span className="text-sm text-gray-500">{txn.partnerName}</span>
+                      <span className="text-xs sm:text-sm text-gray-500 truncate max-w-[120px] sm:max-w-none">{txn.partnerName}</span>
                     )}
                     {txn.reference && (
-                      <span className="text-xs text-gray-400">Réf: {txn.reference}</span>
+                      <span className="text-xs text-gray-400 hidden sm:block">Réf: {txn.reference}</span>
                     )}
+                    {/* Afficher le statut sous le libellé sur mobile */}
+                    <div className="sm:hidden mt-1">
+                      <StatusBadge status={txn.status} />
+                    </div>
                   </div>
                 </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{txn.transactionTypeCode}</Badge>
+                <TableCell className="hidden md:table-cell">
+                  <Badge variant="outline" className="text-xs">{txn.transactionTypeCode}</Badge>
                 </TableCell>
-                <TableCell>
+                <TableCell className="hidden lg:table-cell">
                   <DirectionBadge direction={txn.direction} />
                 </TableCell>
-                <TableCell className={`text-right font-medium ${
+                <TableCell className={`text-right font-medium text-xs sm:text-sm ${
                   txn.direction === 'CREDIT' ? 'text-green-600' : 'text-red-600'
                 }`}>
                   {txn.direction === 'CREDIT' ? '+' : '-'}
                   {formatCurrency(txn.amount, txn.currency)}
                 </TableCell>
                 {showRunningBalance && (
-                  <TableCell className="text-right font-medium">
-                    {txn.runningBalance !== undefined 
+                  <TableCell className="hidden md:table-cell text-right font-medium text-sm">
+                    {txn.runningBalance !== undefined
                       ? formatCurrency(txn.runningBalance, txn.currency)
                       : '—'
                     }
                   </TableCell>
                 )}
-                <TableCell>
+                <TableCell className="hidden sm:table-cell">
                   <div className="flex items-center gap-2">
                     <StatusBadge status={txn.status} />
                     {txn.isReconciled && (
@@ -344,7 +352,7 @@ export function BankTransactionList({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-7 w-7 sm:h-8 sm:w-8"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <MoreHorizontal className="h-4 w-4" />
