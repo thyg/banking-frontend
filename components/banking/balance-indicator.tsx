@@ -89,18 +89,19 @@ export function BalanceIndicator({
     <div className={cn("space-y-3", className)}>
       <Card>
         <CardContent className="pt-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {/* Solde actuel */}
-            <div className="space-y-1">
+            <div className="space-y-1 min-w-0">
               <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Wallet className="h-3 w-3" />
-                Solde actuel
+                <Wallet className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">Solde actuel</span>
               </div>
               <p
                 className={cn(
-                  "text-lg font-bold tabular-nums",
+                  "text-sm sm:text-base md:text-lg font-bold tabular-nums truncate",
                   currentBalance < 0 && "text-destructive"
                 )}
+                title={formatAmount(currentBalance)}
               >
                 {formatAmount(currentBalance)}
               </p>
@@ -108,41 +109,42 @@ export function BalanceIndicator({
 
             {/* Decouvert autorise */}
             {overdraftAuthorized && (
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <PiggyBank className="h-3 w-3" />
-                  Decouvert autorise
+                  <PiggyBank className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">Découvert</span>
                 </div>
-                <p className="text-lg font-semibold text-blue-600 tabular-nums">
+                <p className="text-sm sm:text-base md:text-lg font-semibold text-blue-600 tabular-nums truncate" title={formatAmount(overdraftLimit)}>
                   + {formatAmount(overdraftLimit)}
                 </p>
               </div>
             )}
 
             {/* Disponible total */}
-            <div className="space-y-1">
-              <div className="text-xs text-muted-foreground">
-                Disponible total
+            <div className="space-y-1 min-w-0">
+              <div className="text-xs text-muted-foreground truncate">
+                Disponible
               </div>
-              <p className="text-lg font-bold text-green-600 tabular-nums">
+              <p className="text-sm sm:text-base md:text-lg font-bold text-green-600 tabular-nums truncate" title={formatAmount(availableBalance)}>
                 {formatAmount(availableBalance)}
               </p>
             </div>
 
             {/* Decouvert utilise */}
             {overdraftAuthorized && (
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <TrendingDown className="h-3 w-3" />
-                  Decouvert utilise
+                  <TrendingDown className="h-3 w-3 flex-shrink-0" />
+                  <span className="truncate">Utilisé</span>
                 </div>
                 <p
                   className={cn(
-                    "text-lg font-semibold tabular-nums",
+                    "text-sm sm:text-base md:text-lg font-semibold tabular-nums truncate",
                     overdraftUsed > 0
                       ? "text-orange-500"
                       : "text-muted-foreground"
                   )}
+                  title={formatAmount(overdraftUsed)}
                 >
                   {formatAmount(overdraftUsed)}
                 </p>
@@ -152,48 +154,51 @@ export function BalanceIndicator({
         </CardContent>
       </Card>
 
-      {/* Projection si montant en cours */}
+      {/* Projection si montant en cours - responsive */}
       {pendingAmount > 0 && (
         <Card className="border-dashed border-muted-foreground/30">
           <CardContent className="pt-3 pb-3">
-            <p className="text-sm font-medium mb-2 text-muted-foreground">
-              Apres operation de {formatAmount(pendingAmount)} :
+            <p className="text-xs sm:text-sm font-medium mb-2 text-muted-foreground truncate">
+              Après opération de {formatAmount(pendingAmount)} :
             </p>
-            <div className="grid grid-cols-3 gap-4 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground">Nouveau solde</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 text-sm">
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Nouveau solde</p>
                 <p
                   className={cn(
-                    "font-semibold tabular-nums",
+                    "text-xs sm:text-sm font-semibold tabular-nums truncate",
                     projectedBalance < 0 && "text-destructive"
                   )}
+                  title={formatAmount(projectedBalance)}
                 >
                   {formatAmount(projectedBalance)}
                 </p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Reste disponible</p>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground truncate">Reste dispo.</p>
                 <p
                   className={cn(
-                    "font-semibold tabular-nums",
+                    "text-xs sm:text-sm font-semibold tabular-nums truncate",
                     projectedAvailable < 0
                       ? "text-destructive"
                       : "text-green-600"
                   )}
+                  title={formatAmount(Math.max(0, projectedAvailable))}
                 >
                   {formatAmount(Math.max(0, projectedAvailable))}
                 </p>
               </div>
               {overdraftAuthorized && (
-                <div>
-                  <p className="text-xs text-muted-foreground">
-                    Decouvert utilise
+                <div className="min-w-0 col-span-2 sm:col-span-1">
+                  <p className="text-xs text-muted-foreground truncate">
+                    Découvert utilisé
                   </p>
                   <p
                     className={cn(
-                      "font-semibold tabular-nums",
+                      "text-xs sm:text-sm font-semibold tabular-nums truncate",
                       projectedOverdraftUsed > 0 && "text-orange-500"
                     )}
+                    title={formatAmount(projectedOverdraftUsed)}
                   >
                     {formatAmount(projectedOverdraftUsed)}
                   </p>

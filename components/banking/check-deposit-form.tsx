@@ -198,6 +198,17 @@ export function CheckDepositForm({ onSuccess, onCancel }: CheckDepositFormProps)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* En-tête - responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-4 border-b">
+        <div className="p-2 bg-amber-100 rounded-lg w-fit">
+          <CheckIcon className="h-5 w-5 text-amber-600" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-gray-900 text-base sm:text-lg">Nouvelle remise de chèques</h3>
+          <p className="text-xs sm:text-sm text-gray-500">Regroupez plusieurs chèques pour un dépôt en banque.</p>
+        </div>
+      </div>
+
       {/* Sélection du compte bancaire */}
       <div className="space-y-2">
         <Label htmlFor="bankAccount">Compte bancaire de destination *</Label>

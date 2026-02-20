@@ -70,15 +70,16 @@ export function BankCategoryForm({ initialData, onSave, onCancel }: BankCategory
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <div className="flex items-center gap-3 pb-4 border-b">
-          <div className="p-2 bg-purple-100 rounded-lg">
+        {/* En-tête - responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-4 border-b">
+          <div className="p-2 bg-purple-100 rounded-lg w-fit">
             <Tag className="h-5 w-5 text-purple-600" />
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-gray-900 text-base sm:text-lg">
               {isEditMode ? 'Modifier la catégorie' : 'Nouvelle catégorie'}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-500">
               {isEditMode
                 ? "Modifiez les informations de la catégorie."
                 : "Ajoutez une nouvelle catégorie d'institution financière."
@@ -130,16 +131,18 @@ export function BankCategoryForm({ initialData, onSave, onCancel }: BankCategory
           )}
         />
 
-        <div className="flex justify-end gap-3 pt-4 border-t">
+        {/* Boutons d'action - responsive */}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t">
           <Button
             type="button"
             variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
+            className="w-full sm:w-auto"
           >
             Annuler
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isEditMode ? 'Enregistrer' : 'Créer la catégorie'}
           </Button>

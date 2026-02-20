@@ -159,18 +159,18 @@ export function TransactionTypeForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {/* En-tête du formulaire */}
-        <div className="flex items-center gap-3 pb-4 border-b">
-          <div className="p-2 bg-purple-100 rounded-lg">
+        {/* En-tête du formulaire - responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-4 border-b">
+          <div className="p-2 bg-purple-100 rounded-lg w-fit">
             <ArrowUpDown className="h-5 w-5 text-purple-600" />
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">
-              {isEditMode ? 'Modifier le type de transaction' : 'Nouveau type de transaction'}
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-gray-900 text-base sm:text-lg">
+              {isEditMode ? 'Modifier le type' : 'Nouveau type de transaction'}
             </h3>
-            <p className="text-sm text-gray-500">
-              {isEditMode 
-                ? 'Modifiez les informations du type de transaction.'
+            <p className="text-xs sm:text-sm text-gray-500">
+              {isEditMode
+                ? 'Modifiez les informations du type.'
                 : 'Créez un nouveau type pour catégoriser vos opérations.'
               }
             </p>
@@ -280,16 +280,16 @@ export function TransactionTypeForm({
           />
         </div>
 
-        {/* Switch Actif */}
+        {/* Switch Actif - responsive */}
         <FormField
           control={form.control}
           name="isActive"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Type actif</FormLabel>
-                <FormDescription>
-                  Un type inactif n'apparaîtra plus dans les listes de sélection lors de la saisie.
+            <FormItem className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 rounded-lg border p-3 sm:p-4">
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <FormLabel className="text-sm sm:text-base">Type actif</FormLabel>
+                <FormDescription className="text-xs sm:text-sm">
+                  Un type inactif n'apparaîtra plus dans les listes de sélection.
                 </FormDescription>
               </div>
               <FormControl>
@@ -302,22 +302,24 @@ export function TransactionTypeForm({
           )}
         />
 
-        {/* Pied de page avec boutons d'action */}
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button 
-            type="button" 
-            variant="outline" 
+        {/* Pied de page avec boutons d'action - responsive */}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
+            className="w-full sm:w-auto"
           >
             Annuler
           </Button>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={isSubmitting}
+            className="w-full sm:w-auto"
           >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEditMode ? 'Enregistrer les modifications' : 'Créer le type'}
+            {isEditMode ? 'Enregistrer' : 'Créer le type'}
           </Button>
         </div>
       </form>

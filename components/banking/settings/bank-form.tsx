@@ -185,17 +185,17 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {/* En-tête du formulaire */}
-        <div className="flex items-center gap-3 pb-4 border-b">
-          <div className="p-2 bg-blue-100 rounded-lg">
+        {/* En-tête du formulaire - responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-4 border-b">
+          <div className="p-2 bg-blue-100 rounded-lg w-fit">
             <Building2 className="h-5 w-5 text-blue-600" />
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-gray-900 text-base sm:text-lg">
               {isEditMode ? 'Modifier la banque' : 'Nouvelle banque'}
             </h3>
-            <p className="text-sm text-gray-500">
-              {isEditMode 
+            <p className="text-xs sm:text-sm text-gray-500">
+              {isEditMode
                 ? 'Modifiez les informations de l\'établissement bancaire.'
                 : 'Ajoutez un nouvel établissement bancaire à votre liste.'
               }
@@ -203,52 +203,55 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
           </div>
         </div>
 
-        {/* Champ Code */}
-        <FormField
-          control={form.control}
-          name="code"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Code *</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="Ex: BNP, SG, CA..." 
-                  {...field} 
-                  className="uppercase"
-                  disabled={isEditMode} // Le code ne peut pas être modifié en édition
-                />
-              </FormControl>
-              <FormDescription>
-                Code unique pour identifier la banque (2-10 caractères).
-                {isEditMode && " Ce champ ne peut pas être modifié."}
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Grille responsive pour Code et Nom */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          {/* Champ Code */}
+          <FormField
+            control={form.control}
+            name="code"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Code *</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Ex: BNP, SG, CA..."
+                    {...field}
+                    className="uppercase"
+                    disabled={isEditMode}
+                  />
+                </FormControl>
+                <FormDescription className="text-xs">
+                  Code unique (2-10 car.).
+                  {isEditMode && " Non modifiable."}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        {/* Champ Nom */}
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nom de la banque *</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="Ex: BNP Paribas, Société Générale..." 
-                  {...field} 
-                />
-              </FormControl>
-              <FormDescription>
-                Nom complet de l'établissement bancaire.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          {/* Champ Nom */}
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nom de la banque *</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Ex: BNP Paribas, Société Générale..."
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription className="text-xs">
+                  Nom complet de l'établissement bancaire.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-        {/* Champ Catégorie */}
+        {/* Champ Catégorie - pleine largeur */}
         <FormField
           control={form.control}
           name="bankCategoryId"
@@ -261,7 +264,7 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
                 disabled={isLoadingCategories}
               >
                 <FormControl>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue
                       placeholder={
                         isLoadingCategories
@@ -279,59 +282,62 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
                   ))}
                 </SelectContent>
               </Select>
-              <FormDescription>
-                Détermine le type d'institution (Banque, Mobile Money, Microfinance...).
+              <FormDescription className="text-xs">
+                Type d'institution (Banque, Mobile Money, Microfinance...).
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {/* Champ Code BIC/SWIFT */}
-        <FormField
-          control={form.control}
-          name="swiftCode"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Code BIC/SWIFT</FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="Ex: BNPAFRPP, SOGEFRPP..." 
-                  {...field} 
-                  className="uppercase"
-                />
-              </FormControl>
-              <FormDescription>
-                Code d'identification bancaire international (optionnel).
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {/* Grille responsive pour Code BIC et Code Banque */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          {/* Champ Code BIC/SWIFT */}
+          <FormField
+            control={form.control}
+            name="swiftCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Code BIC/SWIFT</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Ex: BNPAFRPP..."
+                    {...field}
+                    className="uppercase"
+                  />
+                </FormControl>
+                <FormDescription className="text-xs">
+                  Code d'identification bancaire international.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-        {/* Champ Code Banque National */}
-        <FormField
-          control={form.control}
-          name="bankCode"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Code Banque National</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Ex: 10005"
-                  maxLength={5}
-                  {...field}
-                />
-              </FormControl>
-              <FormDescription>
-                Code à 5 chiffres utilisé pour la génération d'IBAN (ex: 10005 pour Afriland).
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+          {/* Champ Code Banque National */}
+          <FormField
+            control={form.control}
+            name="bankCode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Code Banque National</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Ex: 10005"
+                    maxLength={5}
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription className="text-xs">
+                  Code à 5 chiffres pour la génération d'IBAN.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
 
-        {/* Champ Adresse */}
+        {/* Champ Adresse - pleine largeur */}
         <FormField
           control={form.control}
           name="address"
@@ -342,10 +348,11 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
                 <Textarea
                   placeholder="Adresse du siège ou de l'agence principale..."
                   rows={3}
+                  className="resize-none sm:resize-y"
                   {...field}
                 />
               </FormControl>
-              <FormDescription>
+              <FormDescription className="text-xs">
                 Adresse postale de la banque (optionnel).
               </FormDescription>
               <FormMessage />
@@ -353,15 +360,15 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
           )}
         />
 
-        {/* Switch Actif */}
+        {/* Switch Actif - responsive */}
         <FormField
           control={form.control}
           name="isActive"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Banque active</FormLabel>
-                <FormDescription>
+            <FormItem className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 rounded-lg border p-3 sm:p-4">
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <FormLabel className="text-sm sm:text-base">Banque active</FormLabel>
+                <FormDescription className="text-xs sm:text-sm">
                   Une banque inactive n'apparaîtra plus dans les listes de sélection.
                 </FormDescription>
               </div>

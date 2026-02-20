@@ -150,6 +150,21 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        {/* En-tête - responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-4 border-b">
+          <div className="p-2 bg-indigo-100 rounded-lg w-fit">
+            <Calculator className="h-5 w-5 text-indigo-600" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-gray-900 text-base sm:text-lg">
+              {isEditMode ? 'Détails du chéquier' : 'Nouveau chéquier'}
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-500">
+              {isEditMode ? 'Informations du chéquier.' : 'Créez un nouveau carnet de chèques.'}
+            </p>
+          </div>
+        </div>
+
         <FormField
           control={form.control}
           name="bankAccountId"
@@ -181,32 +196,32 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
           )}
         />
 
-        {/* Informations du compte sélectionné */}
+        {/* Informations du compte sélectionné - responsive */}
         {selectedAccount && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-            <h4 className="font-medium text-blue-800 flex items-center gap-2">
-              <Info className="h-4 w-4" />
-              Informations du compte sélectionné
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 space-y-3">
+            <h4 className="font-medium text-blue-800 flex items-center gap-2 text-sm sm:text-base">
+              <Info className="h-4 w-4 flex-shrink-0" />
+              Infos du compte
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              <div>
-                <span className="text-blue-600">IBAN :</span>
-                <span className="font-mono ml-2 text-blue-900">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm">
+              <div className="truncate">
+                <span className="text-blue-600">IBAN : </span>
+                <span className="font-mono text-blue-900">
                   {selectedAccount.generatedIban || selectedAccount.iban || selectedAccount.accountNumber || 'Non renseigné'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-blue-600" />
-                <span className="text-blue-600">Solde actuel :</span>
+                <Wallet className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                <span className="text-blue-600">Solde :</span>
                 <span className="font-bold text-blue-900">
                   {formatCurrency(selectedAccount.currentBalance || 0, selectedAccount.currency)}
                 </span>
               </div>
               {selectedAccount.overdraftAuthorized && (
                 <div className="flex items-center gap-2 sm:col-span-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-600" />
-                  <span className="text-amber-700">
-                    Découvert autorisé : {formatCurrency(selectedAccount.overdraftLimit || 0, selectedAccount.currency)}
+                  <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                  <span className="text-amber-700 text-xs sm:text-sm">
+                    Découvert : {formatCurrency(selectedAccount.overdraftLimit || 0, selectedAccount.currency)}
                   </span>
                 </div>
               )}
@@ -239,7 +254,7 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
           )}
         />
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="startNumber"
@@ -258,7 +273,7 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
                     ref={field.ref}
                   />
                 </FormControl>
-                <FormDescription>Premier numéro de chèque du carnet.</FormDescription>
+                <FormDescription className="text-xs">Premier numéro du carnet.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -283,46 +298,47 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
                     ref={field.ref}
                   />
                 </FormControl>
-                <FormDescription>Nombre total de chèques dans le carnet.</FormDescription>
+                <FormDescription className="text-xs">Total de chèques dans le carnet.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
 
-        {/* Aperçu calculé automatiquement */}
+        {/* Aperçu calculé automatiquement - responsive */}
         {calculatedFirstCheck && calculatedLastCheck && watchNumberOfPages > 0 && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 space-y-3">
-            <h4 className="font-medium text-emerald-800 flex items-center gap-2">
-              <Calculator className="h-4 w-4" />
-              Aperçu calculé automatiquement
+          <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 sm:p-4 space-y-3">
+            <h4 className="font-medium text-emerald-800 flex items-center gap-2 text-sm sm:text-base">
+              <Calculator className="h-4 w-4 flex-shrink-0" />
+              Aperçu calculé
             </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 text-xs sm:text-sm">
               <div>
                 <span className="text-emerald-600 block">Racine :</span>
-                <span className="font-mono font-bold text-emerald-900">{watchPrefix}</span>
+                <span className="font-mono font-bold text-emerald-900 truncate">{watchPrefix}</span>
               </div>
               <div>
-                <span className="text-emerald-600 block">Premier chèque :</span>
-                <span className="font-mono font-bold text-emerald-900">{calculatedFirstCheck}</span>
+                <span className="text-emerald-600 block">Premier :</span>
+                <span className="font-mono font-bold text-emerald-900 truncate">{calculatedFirstCheck}</span>
               </div>
               <div>
-                <span className="text-emerald-600 block">Dernier chèque :</span>
-                <span className="font-mono font-bold text-emerald-900">{calculatedLastCheck}</span>
+                <span className="text-emerald-600 block">Dernier :</span>
+                <span className="font-mono font-bold text-emerald-900 truncate">{calculatedLastCheck}</span>
               </div>
               <div>
-                <span className="text-emerald-600 block">Total feuilles :</span>
+                <span className="text-emerald-600 block">Total :</span>
                 <span className="font-bold text-emerald-900">{watchNumberOfPages}</span>
               </div>
             </div>
           </div>
         )}
 
-        <div className="flex justify-end gap-3 pt-4">
-          <Button type="button" variant="outline" onClick={onCancel}>
+        {/* Boutons d'action - responsive */}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t">
+          <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
             Annuler
           </Button>
-          <Button type="submit" disabled={isSubmitting || isEditMode}>
+          <Button type="submit" disabled={isSubmitting || isEditMode} className="w-full sm:w-auto">
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Enregistrer
           </Button>

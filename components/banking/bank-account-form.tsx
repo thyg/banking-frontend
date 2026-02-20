@@ -437,16 +437,16 @@ export function BankAccountForm({
         {/* Zone scrollable */}
         <div className="flex-1 overflow-y-auto space-y-6 pr-1">
 
-          {/* En-tête */}
-          <div className="flex items-center gap-3 pb-4 border-b">
-            <div className="p-2 bg-green-100 rounded-lg">
+          {/* En-tête - responsive */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-4 border-b">
+            <div className="p-2 bg-green-100 rounded-lg w-fit">
               <CreditCard className="h-5 w-5 text-green-600" />
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-gray-900 text-base sm:text-lg">
                 {isEditMode ? 'Modifier le compte bancaire' : 'Nouveau compte bancaire'}
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-xs sm:text-sm text-gray-500">
                 {isEditMode
                   ? 'Modifiez les informations du compte.'
                   : 'Configurez un nouveau compte pour votre organisation.'
@@ -831,76 +831,80 @@ export function BankAccountForm({
                 Configuration financière
               </h4>
 
-              {/* Devise */}
-              <FormField
-                control={form.control}
-                name="currency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Devise *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Sélectionnez..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {CURRENCY_OPTIONS.map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">
-                                {option.symbol}
-                              </span>
-                              <span>{option.label}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Grille responsive Devise + Solde initial */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                {/* Devise */}
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Devise *</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Sélectionnez..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {CURRENCY_OPTIONS.map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">
+                                  {option.symbol}
+                                </span>
+                                <span className="hidden sm:inline">{option.label}</span>
+                                <span className="sm:hidden">{option.value}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              {/* Solde initial */}
-              <FormField
-                control={form.control}
-                name="initialBalance"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Solde initial</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          className="pr-16"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                          {watchCurrency || 'XAF'}
-                        </span>
-                      </div>
-                    </FormControl>
-                    <FormDescription>
-                      Solde du compte à la date d'ouverture.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                {/* Solde initial */}
+                <FormField
+                  control={form.control}
+                  name="initialBalance"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Solde initial</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                            className="pr-16"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
+                            {watchCurrency || 'XAF'}
+                          </span>
+                        </div>
+                      </FormControl>
+                      <FormDescription className="text-xs">
+                        Solde à la date d'ouverture.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               {/* Montant en lettres */}
               {watchInitialBalance > 0 && (
                 <FormItem>
-                  <FormLabel>Montant en lettres</FormLabel>
+                  <FormLabel className="text-xs sm:text-sm">Montant en lettres</FormLabel>
                   <FormControl>
                     <Input
                       readOnly
                       value={initialBalanceInWords}
-                      className="bg-muted italic text-muted-foreground text-sm"
+                      className="bg-muted italic text-muted-foreground text-xs sm:text-sm"
                     />
                   </FormControl>
                 </FormItem>
@@ -919,20 +923,20 @@ export function BankAccountForm({
                 Gestion du découvert
               </h4>
 
-              <div className="p-4 border-2 border-amber-200 rounded-lg bg-amber-50/50 space-y-4">
+              <div className="p-3 sm:p-4 border-2 border-amber-200 rounded-lg bg-amber-50/50 space-y-4">
                 <FormField
                   control={form.control}
                   name="overdraftAllowed"
                   render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border-2 border-gray-300 p-4 shadow-sm bg-white">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base font-medium">Autoriser le découvert</FormLabel>
-                        <FormDescription>
+                    <FormItem className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 rounded-lg border-2 border-gray-300 p-3 sm:p-4 shadow-sm bg-white">
+                      <div className="space-y-0.5 min-w-0 flex-1">
+                        <FormLabel className="text-sm sm:text-base font-medium">Autoriser le découvert</FormLabel>
+                        <FormDescription className="text-xs sm:text-sm">
                           Permet au solde de devenir négatif jusqu'à une limite définie.
                         </FormDescription>
                       </div>
                       <FormControl>
-                        <div className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors cursor-pointer ${field.value ? 'bg-green-500' : 'bg-gray-300'}`}
+                        <div className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors cursor-pointer flex-shrink-0 ${field.value ? 'bg-green-500' : 'bg-gray-300'}`}
                           onClick={() => field.onChange(!field.value)}
                         >
                           <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${field.value ? 'translate-x-8' : 'translate-x-1'}`} />
@@ -952,7 +956,7 @@ export function BankAccountForm({
                       name="overdraftLimit"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Limite de découvert *</FormLabel>
+                          <FormLabel className="text-sm">Limite de découvert *</FormLabel>
                           <FormControl>
                             <div className="relative">
                               <Input
@@ -964,12 +968,12 @@ export function BankAccountForm({
                                 onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                                 className="pr-16 border-2"
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs sm:text-sm font-medium">
                                 {watchCurrency || 'XAF'}
                               </span>
                             </div>
                           </FormControl>
-                          <FormDescription>
+                          <FormDescription className="text-xs">
                             Montant maximum autorisé en négatif.
                           </FormDescription>
                           <FormMessage />
@@ -980,12 +984,12 @@ export function BankAccountForm({
                     {/* Montant du découvert en lettres */}
                     {(form.watch('overdraftLimit') || 0) > 0 && (
                       <FormItem>
-                        <FormLabel>Limite en lettres</FormLabel>
+                        <FormLabel className="text-xs sm:text-sm">Limite en lettres</FormLabel>
                         <FormControl>
                           <Input
                             readOnly
                             value={amountToWords(form.watch('overdraftLimit') || 0, watchCurrency === 'EUR' ? 'euro' : 'franc CFA')}
-                            className="bg-amber-100/50 italic text-amber-800 text-sm border-amber-200"
+                            className="bg-amber-100/50 italic text-amber-800 text-xs sm:text-sm border-amber-200"
                           />
                         </FormControl>
                       </FormItem>

@@ -470,28 +470,28 @@ export function BankTransactionList({
         </div>
       </div>
 
-      {/* Statistiques */}
+      {/* Statistiques - responsive avec gestion grands nombres */}
       <div className="stats-grid">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-500">
               Total transactions
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{transactions.length}</div>
+            <div className="text-xl sm:text-2xl font-bold tabular-nums">{transactions.length}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-              <ArrowDownLeft className="h-4 w-4 text-green-500" />
-              Total crédits
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1 sm:gap-2">
+              <ArrowDownLeft className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
+              <span className="truncate">Total crédits</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+          <CardContent className="min-w-0">
+            <div className="text-lg sm:text-xl md:text-2xl font-bold text-green-600 tabular-nums truncate" title={`+${formatCurrency(totalCredits)}`}>
               +{formatCurrency(totalCredits)}
             </div>
           </CardContent>
@@ -499,13 +499,13 @@ export function BankTransactionList({
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-              <ArrowUpRight className="h-4 w-4 text-red-500" />
-              Total débits
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1 sm:gap-2">
+              <ArrowUpRight className="h-3 w-3 sm:h-4 sm:w-4 text-red-500 flex-shrink-0" />
+              <span className="truncate">Total débits</span>
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+          <CardContent className="min-w-0">
+            <div className="text-lg sm:text-xl md:text-2xl font-bold text-red-600 tabular-nums truncate" title={`-${formatCurrency(totalDebits)}`}>
               -{formatCurrency(totalDebits)}
             </div>
           </CardContent>
@@ -513,13 +513,13 @@ export function BankTransactionList({
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-500" />
-              Brouillons
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-500 flex items-center gap-1 sm:gap-2">
+              <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500 flex-shrink-0" />
+              <span className="truncate">Brouillons</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{draftCount}</div>
+            <div className="text-xl sm:text-2xl font-bold text-amber-600 tabular-nums">{draftCount}</div>
           </CardContent>
         </Card>
       </div>

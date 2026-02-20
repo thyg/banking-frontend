@@ -127,9 +127,9 @@ export function BankAccountCard({ account, onEdit, onDelete, onUpload }: BankAcc
             );
           })()}
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm text-gray-500">Solde actuel</p>
-          <p className="text-3xl font-bold text-gray-900">
+          <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 tabular-nums truncate" title={formatCurrency(account.currentBalance, account.currency)}>
             {formatCurrency(account.currentBalance, account.currency)}
           </p>
         </div>

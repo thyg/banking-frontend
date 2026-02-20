@@ -296,16 +296,16 @@ export function BankTransactionForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {/* En-tête */}
-        <div className="flex items-center gap-3 pb-4 border-b">
-          <div className="p-2 bg-blue-100 rounded-lg">
+        {/* En-tête - responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-4 border-b">
+          <div className="p-2 bg-blue-100 rounded-lg w-fit">
             <Receipt className="h-5 w-5 text-blue-600" />
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-gray-900 text-base sm:text-lg">
               {isEditMode ? 'Modifier la transaction' : 'Nouvelle transaction'}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs sm:text-sm text-gray-500">
               {isEditMode
                 ? 'Modifiez les détails de la transaction bancaire.'
                 : 'Saisissez une nouvelle opération bancaire.'}
@@ -320,18 +320,18 @@ export function BankTransactionForm({
           </div>
         )}
         
-        {/* Références et Date Système */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Références et Date Système - responsive */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <FormItem>
             <FormLabel>Nos Réf.</FormLabel>
             <FormControl>
               <Input
                 readOnly
-                value={initialData?.reference || 'Sera générée automatiquement'}
-                className="font-bold text-gray-700 bg-gray-100"
+                value={initialData?.reference || 'Auto-générée'}
+                className="font-bold text-gray-700 bg-gray-100 text-xs sm:text-sm"
               />
             </FormControl>
-            <FormDescription>Référence interne (auto-générée)</FormDescription>
+            <FormDescription className="text-xs">Réf. interne</FormDescription>
           </FormItem>
 
           <FormField
@@ -342,62 +342,98 @@ export function BankTransactionForm({
                 <FormLabel>Vos Réf.</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="N° document source..."
+                    placeholder="N° document..."
                     {...field}
                     disabled={isValidated}
                   />
                 </FormControl>
-                <FormDescription>Référence externe (optionnel)</FormDescription>
+                <FormDescription className="text-xs">Réf. externe (optionnel)</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Date système */}
+          <FormItem>
+            <FormLabel>Date système</FormLabel>
+            <FormControl>
+              <Input
+                readOnly
+                value={initialData?.systemDate ? new Date(initialData.systemDate).toLocaleDateString() : new Date().toLocaleDateString()}
+                className="bg-gray-100 text-xs sm:text-sm"
+              />
+            </FormControl>
+            <FormDescription className="text-xs">Enregistrement</FormDescription>
+          </FormItem>
+        </div>
+
+        {/* Grille Type de transaction + Compte bancaire - responsive */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          {/* Type de transaction */}
+          <FormField
+            control={form.control}
+            name="transactionTypeId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Type de transaction *</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  disabled={isValidated}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sélectionnez un type..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {filteredTypes.map(type => (
+                      <SelectItem key={type.id} value={type.id}>
+                        {type.label} ({type.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Compte bancaire */}
+          <FormField
+            control={form.control}
+            name="bankAccountId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Compte bancaire *</FormLabel>
+                <Select
+                  onValueChange={(value) => {
+                    field.onChange(value);
+                    handleAccountChange(value);
+                  }}
+                  value={field.value}
+                  disabled={isEditMode}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sélectionnez un compte..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {accounts.map(account => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name} ({account.currency})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
 
-        {/* Date système */}
-        <FormItem>
-          <FormLabel>Date système</FormLabel>
-          <FormControl>
-            <Input
-              readOnly
-              value={initialData?.systemDate ? new Date(initialData.systemDate).toLocaleString() : new Date().toLocaleString()}
-              className="bg-gray-100"
-            />
-          </FormControl>
-          <FormDescription>Date d'enregistrement dans le système</FormDescription>
-        </FormItem>
-
-        {/* Type de transaction */}
-        <FormField
-          control={form.control}
-          name="transactionTypeId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Type de transaction *</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={isValidated}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez un type..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {filteredTypes.map(type => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.label} ({type.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Sens de l'opération */}
+        {/* Sens de l'opération - responsive */}
         <FormField
           control={form.control}
           name="direction"
@@ -408,27 +444,27 @@ export function BankTransactionForm({
                 <RadioGroup
                   onValueChange={field.onChange}
                   value={field.value}
-                  className="flex gap-4"
+                  className="flex flex-col sm:flex-row gap-3 sm:gap-4"
                   disabled={isValidated}
                 >
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 p-2 sm:p-0 border sm:border-0 rounded-lg sm:rounded-none">
                     <RadioGroupItem value="DEBIT" id="debit" />
-                    <label 
-                      htmlFor="debit" 
-                      className="flex items-center gap-2 cursor-pointer text-sm font-medium"
+                    <label
+                      htmlFor="debit"
+                      className="flex items-center gap-2 cursor-pointer text-sm font-medium flex-1"
                     >
                       <ArrowUpRight className="h-4 w-4 text-red-500" />
-                      Débit (sortie)
+                      <span>Débit <span className="text-gray-500 text-xs">(sortie)</span></span>
                     </label>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 p-2 sm:p-0 border sm:border-0 rounded-lg sm:rounded-none">
                     <RadioGroupItem value="CREDIT" id="credit" />
-                    <label 
-                      htmlFor="credit" 
-                      className="flex items-center gap-2 cursor-pointer text-sm font-medium"
+                    <label
+                      htmlFor="credit"
+                      className="flex items-center gap-2 cursor-pointer text-sm font-medium flex-1"
                     >
                       <ArrowDownLeft className="h-4 w-4 text-green-500" />
-                      Crédit (entrée)
+                      <span>Crédit <span className="text-gray-500 text-xs">(entrée)</span></span>
                     </label>
                   </div>
                 </RadioGroup>
@@ -438,122 +474,94 @@ export function BankTransactionForm({
           )}
         />
 
-        {/* Moyen de paiement */}
-        <FormField
-          control={form.control}
-          name="paymentMethod"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4" />
-                Moyen de paiement
-              </FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-                disabled={isValidated}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="BANK_TRANSFER">Virement bancaire</SelectItem>
-                  <SelectItem value="CHECK">Chèque</SelectItem>
-                  <SelectItem value="CASH">Espèces</SelectItem>
-                  <SelectItem value="MOBILE_MONEY">Mobile Money (OM, MoMo)</SelectItem>
-                  <SelectItem value="OTHER">Autre</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormDescription>Mode de règlement utilisé (optionnel)</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Compte bancaire */}
-        <FormField
-          control={form.control}
-          name="bankAccountId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Compte bancaire *</FormLabel>
-              <Select
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  handleAccountChange(value);
-                }}
-                value={field.value}
-                disabled={isEditMode}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez un compte..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {accounts.map(account => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.name} ({account.currency})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        {/* Lier à un chèque (optionnel, uniquement en création) */}
-        {!isEditMode && (
+        {/* Grille Moyen de paiement + Lier à un chèque - responsive */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          {/* Moyen de paiement */}
           <FormField
             control={form.control}
-            name="checkId"
+            name="paymentMethod"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Lier à un chèque (optionnel)</FormLabel>
+                <FormLabel className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  Moyen de paiement
+                </FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   value={field.value}
-                  disabled={!watchBankAccountId || isLoadingChecks}
+                  disabled={isValidated}
                 >
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={
-                        isLoadingChecks
-                          ? "Chargement des chèques..."
-                          : !watchBankAccountId
-                            ? "Sélectionnez un compte d'abord"
-                            : "Aucun chèque sélectionné"
-                      } />
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Sélectionnez..." />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {availableChecks.length > 0 ? (
-                      availableChecks.map(check => (
-                        <SelectItem key={check.id} value={check.id}>
-                          {`N°${check.checkNumber} | ${check.partnerName} | ${check.amount.toLocaleString('fr-FR')} ${check.currency || 'FCFA'} | ${check.status}`}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem value="__none__" disabled>
-                        {watchBankAccountId ? "Aucun chèque disponible" : "Sélectionnez un compte"}
-                      </SelectItem>
-                    )}
+                    <SelectItem value="BANK_TRANSFER">Virement bancaire</SelectItem>
+                    <SelectItem value="CHECK">Chèque</SelectItem>
+                    <SelectItem value="CASH">Espèces</SelectItem>
+                    <SelectItem value="MOBILE_MONEY">Mobile Money (OM, MoMo)</SelectItem>
+                    <SelectItem value="OTHER">Autre</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormDescription>
-                  Lier un chèque valide automatiquement la transaction et passe le chèque en "Encaissé".
-                </FormDescription>
+                <FormDescription className="text-xs">Mode de règlement (optionnel)</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
-        )}
 
-        {/* Montant */}
-        <FormField
+          {/* Lier à un chèque (optionnel, uniquement en création) */}
+          {!isEditMode && (
+            <FormField
+              control={form.control}
+              name="checkId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Lier à un chèque</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={!watchBankAccountId || isLoadingChecks}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={
+                          isLoadingChecks
+                            ? "Chargement..."
+                            : !watchBankAccountId
+                              ? "Sélectionnez un compte d'abord"
+                              : "Aucun chèque sélectionné"
+                        } />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {availableChecks.length > 0 ? (
+                        availableChecks.map(check => (
+                          <SelectItem key={check.id} value={check.id}>
+                            <span className="truncate">N°{check.checkNumber} | {check.partnerName} | {check.amount.toLocaleString('fr-FR')}</span>
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="__none__" disabled>
+                          {watchBankAccountId ? "Aucun chèque disponible" : "Sélectionnez un compte"}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription className="text-xs">
+                    Lie et valide automatiquement la transaction.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+        </div>
+
+        {/* Grille Montant + Montant en lettres - responsive */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          {/* Montant */}
+          <FormField
             control={form.control}
             name="amount"
             render={({ field }) => (
@@ -571,7 +579,7 @@ export function BankTransactionForm({
                       disabled={isValidated}
                       className="pr-16"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs sm:text-sm">
                       {selectedAccount?.currency || 'EUR'}
                     </span>
                   </div>
@@ -581,16 +589,17 @@ export function BankTransactionForm({
             )}
           />
 
-        {/* Montant en lettres */}
-        <FormItem>
-          <FormLabel>Montant en lettres</FormLabel>
-          <FormControl>
-            <Input readOnly value={amountInWordsText} className="bg-gray-100 italic" />
-          </FormControl>
-        </FormItem>
+          {/* Montant en lettres */}
+          <FormItem>
+            <FormLabel className="text-xs sm:text-sm">Montant en lettres</FormLabel>
+            <FormControl>
+              <Input readOnly value={amountInWordsText} className="bg-gray-100 italic text-xs sm:text-sm" />
+            </FormControl>
+          </FormItem>
+        </div>
 
-        {/* Dates */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Grille Dates + Bénéficiaire - responsive */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <FormField
             control={form.control}
             name="transactionDate"
@@ -614,33 +623,33 @@ export function BankTransactionForm({
                 <FormControl>
                   <Input type="date" {...field} disabled={isValidated} />
                 </FormControl>
-                <FormDescription>Date effective (optionnel)</FormDescription>
+                <FormDescription className="text-xs">Optionnel</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Bénéficiaire/Émetteur */}
+          <FormField
+            control={form.control}
+            name="partnerName"
+            render={({ field }) => (
+              <FormItem className="sm:col-span-2 md:col-span-1">
+                <FormLabel>
+                  {form.watch('direction') === 'DEBIT' ? 'Bénéficiaire' : 'Émetteur'}
+                </FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Nom du tiers"
+                    {...field}
+                    disabled={isValidated}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
-
-        {/* Bénéficiaire/Émetteur */}
-        <FormField
-          control={form.control}
-          name="partnerName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>
-                {form.watch('direction') === 'DEBIT' ? 'Bénéficiaire' : 'Émetteur'}
-              </FormLabel>
-              <FormControl>
-                <Input 
-                  placeholder="Nom du tiers" 
-                  {...field}
-                  disabled={isValidated}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
 
         {/* Description */}
         <FormField
@@ -653,6 +662,7 @@ export function BankTransactionForm({
                 <Textarea
                   placeholder="Description de l'opération..."
                   rows={3}
+                  className="resize-none sm:resize-y"
                   {...field}
                   disabled={isValidated}
                 />

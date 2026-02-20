@@ -292,11 +292,11 @@ const handleSubmit = async (data: CheckFormData) => {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <div className="flex items-center gap-3 pb-4 border-b">
-          <div className="p-2 bg-purple-100 rounded-lg"><FileText className="h-5 w-5 text-purple-600" /></div>
-          <div>
-            <h3 className="font-semibold text-gray-900">{isEditMode ? 'Modifier le chèque' : 'Nouveau chèque'}</h3>
-            <p className="text-sm text-gray-500">{isEditMode ? 'Modifiez les informations.' : 'Enregistrez un chèque émis ou reçu.'}</p>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-4 border-b">
+          <div className="p-2 bg-purple-100 rounded-lg w-fit"><FileText className="h-5 w-5 text-purple-600" /></div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-semibold text-gray-900 text-base sm:text-lg">{isEditMode ? 'Modifier le chèque' : 'Nouveau chèque'}</h3>
+            <p className="text-xs sm:text-sm text-gray-500">{isEditMode ? 'Modifiez les informations.' : 'Enregistrez un chèque émis ou reçu.'}</p>
           </div>
         </div>
 
@@ -323,7 +323,7 @@ const handleSubmit = async (data: CheckFormData) => {
           </FormItem>
         )} />
 
-        <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg border text-sm"><Clock className="h-4 w-4 text-gray-500" /><span className="text-gray-600">Date système :</span><span className="font-medium">{systemDate}</span></div>
+        <div className="flex items-center gap-2 p-2 sm:p-3 bg-gray-50 rounded-lg border text-xs sm:text-sm"><Clock className="h-4 w-4 text-gray-500 flex-shrink-0" /><span className="text-gray-600">Date système :</span><span className="font-medium truncate">{systemDate}</span></div>
 
         <FormField control={form.control} name="bankAccountId" render={({ field }) => (
           <FormItem>
@@ -431,10 +431,12 @@ const handleSubmit = async (data: CheckFormData) => {
           )}
         </div>
 
-        <FormField control={form.control} name="amount" render={({ field }) => (
-          <FormItem><FormLabel>Montant *</FormLabel><FormControl><div className="flex h-10 items-center rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:outline-none"><Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={isProcessed} className="h-full flex-1 border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none" /><span className="text-gray-500 text-sm">{selectedAccount?.currency || 'EUR'}</span></div></FormControl><FormMessage /></FormItem>
-        )} />
-        <FormItem><FormLabel>Montant en lettres</FormLabel><FormControl><Input readOnly value={amountInWordsText} className="bg-gray-100 italic" /></FormControl></FormItem>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+          <FormField control={form.control} name="amount" render={({ field }) => (
+            <FormItem><FormLabel>Montant *</FormLabel><FormControl><div className="flex h-10 items-center rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:outline-none"><Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={isProcessed} className="h-full flex-1 border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none" /><span className="text-gray-500 text-xs sm:text-sm">{selectedAccount?.currency || 'EUR'}</span></div></FormControl><FormMessage /></FormItem>
+          )} />
+          <FormItem><FormLabel className="text-xs sm:text-sm">Montant en lettres</FormLabel><FormControl><Input readOnly value={amountInWordsText} className="bg-gray-100 italic text-xs sm:text-sm" /></FormControl></FormItem>
+        </div>
         
         <FormField control={form.control} name="description" render={({ field }) => (
           <FormItem><FormLabel>Objet / Motif</FormLabel><FormControl><Input placeholder="Ex: Règlement facture FA-2024-001" {...field} disabled={isProcessed} /></FormControl><FormMessage /></FormItem>

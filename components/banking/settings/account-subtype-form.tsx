@@ -196,7 +196,7 @@ export function AccountSubTypeForm({ parentType, initialData, onSave, onCancel }
 
       {/* Basic info */}
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="code">Code *</Label>
             <Input
@@ -331,14 +331,14 @@ export function AccountSubTypeForm({ parentType, initialData, onSave, onCancel }
         />
       </div>
 
-      {/* Actions */}
-      <div className="flex justify-end gap-3 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+      {/* Actions - responsive */}
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting} className="w-full sm:w-auto">
           Annuler
         </Button>
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
           {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          {initialData ? 'Mettre a jour' : 'Creer le sous-type'}
+          {initialData ? 'Mettre à jour' : 'Créer le sous-type'}
         </Button>
       </div>
     </form>
