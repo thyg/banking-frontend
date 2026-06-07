@@ -77,7 +77,7 @@ export function FiscalYearDetailModal({ year, allOrders, isOpen, onClose }: Fisc
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-3xl">
+            <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] p-4 sm:p-6">
                 <DialogHeader>
                     <DialogTitle>Bilan de l'Exercice : {year.name}</DialogTitle>
                     <DialogDescription>

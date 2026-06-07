@@ -142,18 +142,20 @@ export default function CheckbooksPage() {
                 <span className="sm:hidden">Nouveau</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="w-[95vw] max-w-[500px] p-4 sm:p-6">
-              <DialogHeader>
+            <DialogContent className="flex flex-col w-[95vw] max-w-[500px] max-h-[90vh] p-0 sm:p-0">
+              <DialogHeader className="flex-shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
                 <DialogTitle className="text-lg sm:text-xl">Créer un chéquier</DialogTitle>
                 <DialogDescription className="text-sm">
                   Ajoutez un nouveau chéquier pour un compte bancaire.
                 </DialogDescription>
               </DialogHeader>
-              <CheckbookForm
-                initialData={null}
-                onSave={handleSave}
-                onCancel={() => setIsFormOpen(false)}
-              />
+              <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
+                <CheckbookForm
+                  initialData={null}
+                  onSave={handleSave}
+                  onCancel={() => setIsFormOpen(false)}
+                />
+              </div>
             </DialogContent>
           </Dialog>
         </div>

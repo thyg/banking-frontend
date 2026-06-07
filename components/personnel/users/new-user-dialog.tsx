@@ -1,87 +1,97 @@
 "use client";
 
 import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { User, Profile } from '@/types/personnel';
 
-interface NewUserDialogProps {
-    isOpen: boolean;
-    onClose: () => void;
-    profiles: Profile[];
-    onSubmit: (data: Omit<User, 'id' | 'creationDate'>) => void;
+const schema = z.object({
+  username: z.string().min(3, "Minimum 3 caractères"),
+  email: z.string().email("Email invalide"),
+  password: z.string().min(6, "Minimum 6 caractères"),
+  confirmPassword: z.string(),
+}).refine(d => d.password === d.confirmPassword, {
+  message: "Les mots de passe ne correspondent pas",
+  path: ["confirmPassword"],
+});
+
+type FormData = z.infer<typeof schema>;
+
+export interface NewUserPayload {
+  username: string;
+  email: string;
+  password: string;
 }
 
-type NewUserFormData = Omit<User, 'id' | 'creationDate'> & { confirmPassword?: string };
+interface NewUserDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (data: NewUserPayload) => Promise<void>;
+}
 
-export function NewUserDialog({ isOpen, onClose, profiles, onSubmit }: NewUserDialogProps) {
-    const form = useForm<NewUserFormData>({
-        defaultValues: {
-            code: '',
-            name: '',
-            title: '',
-            password: '',
-            confirmPassword: '',
-            profileId: '',
-        }
-    });
+export function NewUserDialog({ isOpen, onClose, onSubmit }: NewUserDialogProps) {
+  const form = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { username: '', email: '', password: '', confirmPassword: '' },
+  });
 
-    const handleFormSubmit = (data: NewUserFormData) => {
-        if (data.password !== data.confirmPassword) {
-            form.setError("confirmPassword", {
-                type: "manual",
-                message: "Les mots de passe ne correspondent pas.",
-            });
-            return;
-        }
-        const { confirmPassword, ...userData } = data;
-        onSubmit(userData);
-    };
+  const handleFormSubmit = async (data: FormData) => {
+    await onSubmit({ username: data.username, email: data.email, password: data.password });
+    form.reset();
+    onClose();
+  };
 
-    return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Créer un nouvel utilisateur</DialogTitle>
-                    <DialogDescription>
-                        Remplissez les informations ci-dessous et assignez un profil.
-                    </DialogDescription>
-                </DialogHeader>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
-                        <FormField control={form.control} name="name" render={({ field }) => (
-                            <FormItem><FormLabel>Nom et prénom</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name="code" render={({ field }) => (
-                            <FormItem><FormLabel>Code (identifiant)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name="title" render={({ field }) => (
-                            <FormItem><FormLabel>Titre / Fonction</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                         <FormField control={form.control} name="profileId" render={({ field }) => (
-                            <FormItem><FormLabel>Profil</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Choisir un profil..."/></SelectTrigger></FormControl><SelectContent>
-                                    {profiles.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                                </SelectContent></Select>
-                                <FormMessage />
-                            </FormItem>
-                        )} />
-                        <FormField control={form.control} name="password" render={({ field }) => (
-                            <FormItem><FormLabel>Mot de passe</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name="confirmPassword" render={({ field }) => (
-                            <FormItem><FormLabel>Confirmer le mot de passe</FormLabel><FormControl><Input type="password" {...field} /></FormControl><FormMessage /></FormItem>
-                        )} />
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
-                            <Button type="submit">Créer l'utilisateur</Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
-            </DialogContent>
-        </Dialog>
-    );
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="w-[95vw] max-w-[425px] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogHeader>
+          <DialogTitle>Créer un nouvel utilisateur</DialogTitle>
+          <DialogDescription>
+            L'utilisateur pourra se connecter avec son email et mot de passe.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4 py-2">
+            <FormField control={form.control} name="username" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nom d'utilisateur *</FormLabel>
+                <FormControl><Input placeholder="ex: jdupont" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="email" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email *</FormLabel>
+                <FormControl><Input type="email" placeholder="ex: jean.dupont@demo.com" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="password" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Mot de passe *</FormLabel>
+                <FormControl><Input type="password" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="confirmPassword" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirmer le mot de passe *</FormLabel>
+                <FormControl><Input type="password" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Annuler</Button>
+              <Button type="submit" disabled={form.formState.isSubmitting}>
+                {form.formState.isSubmitting ? "Création…" : "Créer l'utilisateur"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
 }

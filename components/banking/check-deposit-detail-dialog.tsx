@@ -116,7 +116,7 @@ export function CheckDepositDetailDialog({
         {isLoading ? (
           <div className="space-y-4">
             <Skeleton className="h-8 w-48" />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Skeleton className="h-16" />
               <Skeleton className="h-16" />
               <Skeleton className="h-16" />
@@ -140,7 +140,7 @@ export function CheckDepositDetailDialog({
             <Separator />
 
             {/* Informations principales */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg">
                 <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>

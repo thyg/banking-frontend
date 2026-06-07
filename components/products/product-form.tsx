@@ -36,7 +36,7 @@ export function ProductForm({ initialData, onSave }: ProductFormProps) {
                     <FormField control={form.control} name="name" render={({ field }) => (
                         <FormItem><FormLabel>Libellé de l'article *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                         <FormField control={form.control} name="code" render={({ field }) => (
                             <FormItem><FormLabel>Code Vente *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />

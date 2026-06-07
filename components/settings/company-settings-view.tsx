@@ -101,14 +101,14 @@ export function CompanySettingsView({ initialOptions }: CompanySettingsViewProps
                             
                             <TabsContent value="term" className="mt-4 space-y-4">
                                 <h4 className="font-semibold">Format du n° facture : Facture à terme avec TVA</h4>
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                      <FormInput control={form.control} name="termInvoicing.vatInvoiceLength" label="Longueur auto." type="number" />
                                      <FormInput control={form.control} name="termInvoicing.vatInvoicePrefix" label="Préfixe" />
                                      <FormInput control={form.control} name="termInvoicing.vatInvoiceSuffix" label="Suffixe" />
                                 </div>
                                 <Separator />
                                 <h4 className="font-semibold">Signatures</h4>
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                      <FormInput control={form.control} name="termInvoicing.leftSignature" label="Signataire gauche" />
                                      <FormInput control={form.control} name="termInvoicing.middleSignature" label="Signataire du milieu" />
                                      <FormInput control={form.control} name="termInvoicing.rightSignature" label="Signataire droite" />
@@ -117,14 +117,14 @@ export function CompanySettingsView({ initialOptions }: CompanySettingsViewProps
 
                             <TabsContent value="cash" className="mt-4 space-y-4">
                                 <h4 className="font-semibold">Format du n° facture : Facture au comptant avec TVA</h4>
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                      <FormInput control={form.control} name="cashInvoicing.vatInvoiceLength" label="Longueur auto." type="number" />
                                      <FormInput control={form.control} name="cashInvoicing.vatInvoicePrefix" label="Préfixe" />
                                      <FormInput control={form.control} name="cashInvoicing.vatInvoiceSuffix" label="Suffixe" />
                                 </div>
                                  <Separator />
                                 <h4 className="font-semibold">Format du n° facture : Facture au comptant sans TVA</h4>
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                      <FormInput control={form.control} name="cashInvoicing.noVatInvoiceLength" label="Longueur auto." type="number" />
                                      <FormInput control={form.control} name="cashInvoicing.noVatInvoicePrefix" label="Préfixe" />
                                      <FormInput control={form.control} name="cashInvoicing.noVatInvoiceSuffix" label="Suffixe" />

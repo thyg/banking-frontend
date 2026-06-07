@@ -166,7 +166,7 @@ const ViewOrderModal = ({ isOpen, onClose, entry }: { isOpen: boolean, onClose: 
         { accessorKey: "total", header: "Total", cell: ({ row }) => row.original.total.toLocaleString() },
     ];
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}><DialogContent className="max-w-3xl">
+        <Dialog open={isOpen} onOpenChange={onClose}><DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] p-4 sm:p-6">
             <DialogHeader><DialogTitle>Détail: {entry.blNumber}</DialogTitle><DialogDescription>Client: {entry.clientName}</DialogDescription></DialogHeader>
             <div className="max-h-[60vh] overflow-y-auto"><DataTable columns={itemColumns} data={entry.items} /></div>
             <DialogFooter><Button variant="outline" onClick={onClose}>Fermer</Button></DialogFooter>
@@ -177,7 +177,7 @@ const ViewOrderModal = ({ isOpen, onClose, entry }: { isOpen: boolean, onClose: 
 const EditOrderModal = ({ isOpen, onClose, entry, onSave }: { isOpen: boolean, onClose: () => void, entry: OrderJournalEntry, onSave: Function }) => {
     const form = useForm<OrderJournalEntry>({ defaultValues: entry });
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}><DialogContent>
+        <Dialog open={isOpen} onOpenChange={onClose}><DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
             <DialogHeader><DialogTitle>Modifier: {entry.blNumber}</DialogTitle></DialogHeader>
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(data => onSave(entry.id, data))} className="space-y-4">

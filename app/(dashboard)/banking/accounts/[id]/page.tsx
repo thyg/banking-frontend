@@ -746,14 +746,14 @@ export default function BankAccountDetailPage() {
 
       {/* Modal d'édition */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
+        <DialogContent className="flex flex-col w-[95vw] max-w-[600px] max-h-[90vh] p-0">
+          <DialogHeader className="flex-shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
             <DialogTitle>Modifier le compte</DialogTitle>
             <DialogDescription>
               Modifiez les informations du compte bancaire.
             </DialogDescription>
           </DialogHeader>
-          <div className="mt-4">
+          <div className="flex-1 overflow-y-auto px-4 pb-4 sm:px-6 sm:pb-6">
             <BankAccountForm
               initialData={account}
               onSave={handleUpdate}
@@ -765,7 +765,7 @@ export default function BankAccountDetailPage() {
 
       {/* Modal d'upload */}
       <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Importer un Relevé Bancaire</DialogTitle>
           </DialogHeader>

@@ -35,6 +35,7 @@ import {
   Tag,
   CreditCard,
   FileStack,
+  Network,
 } from 'lucide-react';
 
 // =============================================================================
@@ -153,11 +154,13 @@ export const modules: Record<ModuleKey, ModuleConfig> = {
     sidebarLinks: [
       { title: 'Entreprise', href: '/settings/company', icon: Briefcase },
       { title: 'Utilisateurs', href: '/settings/users', icon: Users },
-      { title: 'Notifications', href: '/settings/notifications', icon: Bell },
-      { title: 'Sécurité', href: '/settings/security', icon: Shield },
-      { title: 'Sauvegarde', href: '/settings/backup', icon: Database },
+      { title: 'Rôles & Permissions', href: '/settings/roles', icon: Shield },
+      { title: 'Organisations', href: '/organizations', icon: Building2 },
+      { title: 'Exercices fiscaux', href: '/settings/fiscal-years', icon: Calendar },
+      { title: 'Audit système', href: '/settings/audits', icon: Database },
     ],
   },
+
 };
 
 // =============================================================================

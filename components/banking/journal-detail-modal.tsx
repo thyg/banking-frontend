@@ -96,7 +96,7 @@ export function JournalDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
+      <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] p-4 sm:p-6">
         <DialogHeader className="space-y-3">
           {/* Badges Module & Action */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -222,11 +222,11 @@ export function JournalDetailModal({
                             
                             {/* Valeur avant */}
                             <td className="px-3 py-2">
-                              {diff.old !== null ? (
+                              {diff.before !== null ? (
                                 <div className="flex items-start gap-1">
                                   <Minus className="h-3 w-3 text-red-500 flex-shrink-0 mt-1" />
                                   <pre className="text-xs whitespace-pre-wrap break-all bg-red-50 dark:bg-red-950/30 px-2 py-1 rounded text-red-700 dark:text-red-400 max-h-24 overflow-auto">
-                                    {formatValue(diff.old)}
+                                    {formatValue(diff.before)}
                                   </pre>
                                 </div>
                               ) : (
@@ -238,11 +238,11 @@ export function JournalDetailModal({
                             
                             {/* Valeur après */}
                             <td className="px-3 py-2">
-                              {diff.new !== null ? (
+                              {diff.after !== null ? (
                                 <div className="flex items-start gap-1">
                                   <Plus className="h-3 w-3 text-green-500 flex-shrink-0 mt-1" />
                                   <pre className="text-xs whitespace-pre-wrap break-all bg-green-50 dark:bg-green-950/30 px-2 py-1 rounded text-green-700 dark:text-green-400 max-h-24 overflow-auto">
-                                    {formatValue(diff.new)}
+                                    {formatValue(diff.after)}
                                   </pre>
                                 </div>
                               ) : (

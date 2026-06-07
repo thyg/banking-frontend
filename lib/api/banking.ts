@@ -1,45 +1,12 @@
-// lib/api/banking.ts - API complète pour le module Banking
+// lib/api/banking.ts — API trésorerie connectée au backend iwm-treasury-core
+// Tous les chemins sont relatifs à /api/treasury (géré par treasury-client.ts)
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Une erreur est survenue' }));
-    // Extraire le message d'erreur le plus pertinent
-    const errorMessage = error.message || error.error || error.detail || `Erreur HTTP: ${response.status}`;
-    console.error('[API] Erreur:', { status: response.status, error });
-    throw new Error(errorMessage);
-  }
-  return response.json();
-}
-
-function buildUrl(path: string, params?: Record<string, string | number | boolean>): string {
-  const url = new URL(`${API_BASE_URL}${path}`);
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        url.searchParams.append(key, String(value));
-      }
-    });
-  }
-  return url.toString();
-}
-
-const headers = {
-  'Content-Type': 'application/json',
-};
-
-// ============================================================================
-// BANKS API
-// ============================================================================
+import { tGet, tPost, tPut, qs } from "@/lib/api/treasury-client";
 
 import type {
   Bank, CreateBankRequest, UpdateBankRequest,
-  BankCategory, BankCategoryRequest, AccountConnectorType, AccountConnectorField, AccountConnectorResponse,
+  BankCategory, BankCategoryRequest,
+  AccountConnectorType, AccountConnectorResponse,
   TransactionType, CreateTransactionTypeRequest,
   AccountType, CreateAccountTypeRequest, UpdateAccountTypeRequest,
   AccountSubType, CreateAccountSubTypeRequest, UpdateAccountSubTypeRequest,
@@ -49,567 +16,319 @@ import type {
   BankStatement, CreateBankStatementRequest,
   StatementLine, CreateStatementLineRequest,
   ReconciliationMatch, ReconciliationSummary,
-  ReconcileManualRequest, AutoReconcileRequest,
-  BankingStats
-} from '@/types/banking';
+  ReconcileManualRequest,
+  BankingStats,
+} from "@/types/banking";
 
-export async function getBanks(activeOnly = false): Promise<Bank[]> {
-  const response = await fetch(buildUrl('/banks', { activeOnly }));
-  return handleResponse<Bank[]>(response);
+// ─── BANKS ───────────────────────────────────────────────────────────────────
+// Backend: GET/POST /api/treasury/banks
+//          GET      /api/treasury/banks/{id}
+//          POST     /api/treasury/banks/{id}/deactivate
+
+export async function getBanks(activeOnly = true): Promise<Bank[]> {
+  return tGet<Bank[]>(`/banks${qs({ activeOnly })}`);
 }
-
-export async function getBankById(id: string): Promise<Bank> {
-  const response = await fetch(`${API_BASE_URL}/banks/${id}`);
-  return handleResponse<Bank>(response);
+export async function getBankById(id: string): Promise<Bank | null> {
+  return tGet<Bank>(`/banks/${id}`);
 }
-
 export async function createBank(data: CreateBankRequest): Promise<Bank> {
-  const response = await fetch(`${API_BASE_URL}/banks`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<Bank>(response);
+  return tPost<Bank>("/banks", data);
 }
-
-export async function updateBank(id: string, data: UpdateBankRequest): Promise<Bank> {
-  const response = await fetch(`${API_BASE_URL}/banks/${id}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<Bank>(response);
+export async function updateBank(_id: string, _d: UpdateBankRequest): Promise<Bank> {
+  throw new Error("La modification d'une banque n'est pas disponible. Utilisez désactiver.");
 }
-
 export async function deleteBank(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/banks/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Échec de la suppression');
+  await tPost(`/banks/${id}/deactivate`, {});
 }
 
-// ============================================================================
-// CONFIGURATION API (Bank Categories & Connectors)
-// ============================================================================
+// ─── BANK CATEGORIES ─────────────────────────────────────────────────────────
+// Backend: GET/POST /api/treasury/bank-categories
+//          POST     /api/treasury/bank-categories/{id}/deactivate
 
 export async function getBankCategories(): Promise<BankCategory[]> {
-  const response = await fetch(`${API_BASE_URL}/bank-categories`);
-  return handleResponse<BankCategory[]>(response);
+  return tGet<BankCategory[]>("/bank-categories");
 }
-
+export async function getBankCategoryById(id: string): Promise<BankCategory> {
+  return tGet<BankCategory>(`/bank-categories/${id}`);
+}
 export async function createBankCategory(data: BankCategoryRequest): Promise<BankCategory> {
-  const response = await fetch(`${API_BASE_URL}/bank-categories`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<BankCategory>(response);
+  return tPost<BankCategory>("/bank-categories", data);
 }
-
-export async function updateBankCategory(id: string, data: BankCategoryRequest): Promise<BankCategory> {
-  const response = await fetch(`${API_BASE_URL}/bank-categories/${id}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<BankCategory>(response);
+export async function updateBankCategory(_id: string, _d: BankCategoryRequest): Promise<BankCategory> {
+  throw new Error("La modification d'une catégorie n'est pas disponible. Utilisez désactiver.");
 }
-
 export async function deleteBankCategory(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/bank-categories/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Impossible de supprimer la catégorie.');
+  await tPost(`/bank-categories/${id}/deactivate`, {});
 }
 
-export async function getConnectorTypesByCategory(categoryId: string): Promise<AccountConnectorType[]> {
-  const response = await fetch(buildUrl('/configuration/account-connector-types', { bankCategoryId: categoryId }));
-  return handleResponse<AccountConnectorType[]>(response);
+// ─── CONNECTOR TYPES (stub) ───────────────────────────────────────────────────
+
+export async function getConnectorTypesByCategory(_catId: string): Promise<AccountConnectorType[]> {
+  return [];
+}
+export async function getConnectorTypeWithFields(_id: string): Promise<AccountConnectorResponse> {
+  throw new Error("Les connecteurs ne sont pas disponibles dans cette version.");
 }
 
-export async function getConnectorTypeWithFields(connectorTypeId: string): Promise<AccountConnectorResponse> {
-  const response = await fetch(`${API_BASE_URL}/configuration/account-connector-types/${connectorTypeId}`);
-  return handleResponse<AccountConnectorResponse>(response);
+// ─── TRANSACTION TYPES ───────────────────────────────────────────────────────
+// Backend: GET/POST /api/treasury/transaction-types
+//          PUT      /api/treasury/transaction-types/{id}
+//          POST     /api/treasury/transaction-types/{id}/deactivate
+
+export async function getTransactionTypes(_activeOnly = false): Promise<TransactionType[]> {
+  return tGet<TransactionType[]>("/transaction-types");
 }
-
-// ============================================================================
-// TRANSACTION TYPES API
-// ============================================================================
-
-export async function getTransactionTypes(activeOnly = false): Promise<TransactionType[]> {
-  const response = await fetch(buildUrl('/transaction-types', { activeOnly }));
-  return handleResponse<TransactionType[]>(response);
-}
-
 export async function getTransactionTypeById(id: string): Promise<TransactionType> {
-  const response = await fetch(`${API_BASE_URL}/transaction-types/${id}`);
-  return handleResponse<TransactionType>(response);
+  return tGet<TransactionType>(`/transaction-types/${id}`);
 }
-
 export async function createTransactionType(data: CreateTransactionTypeRequest): Promise<TransactionType> {
-  const response = await fetch(`${API_BASE_URL}/transaction-types`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<TransactionType>(response);
+  return tPost<TransactionType>("/transaction-types", data);
 }
-
 export async function updateTransactionType(id: string, data: Partial<CreateTransactionTypeRequest>): Promise<TransactionType> {
-  const response = await fetch(`${API_BASE_URL}/transaction-types/${id}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<TransactionType>(response);
+  return tPut<TransactionType>(`/transaction-types/${id}`, data);
 }
-
 export async function deleteTransactionType(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/transaction-types/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Échec de la suppression');
+  await tPost(`/transaction-types/${id}/deactivate`, {});
 }
 
-// ============================================================================
-// ACCOUNT TYPES API
-// ============================================================================
+// ─── ACCOUNT TYPES ───────────────────────────────────────────────────────────
+// Backend: GET/POST /api/treasury/account-types
+//          GET      /api/treasury/account-types/{id}
+//          POST     /api/treasury/account-types/sub-types
+//          GET      /api/treasury/account-types/{id}/sub-types
+//          POST     /api/treasury/account-types/{id}/deactivate
 
-export async function getAccountTypes(activeOnly = false): Promise<AccountType[]> {
-  const response = await fetch(buildUrl('/account-types', { activeOnly }));
-  return handleResponse<AccountType[]>(response);
+export async function getAccountTypes(_activeOnly = false): Promise<AccountType[]> {
+  return tGet<AccountType[]>("/account-types");
 }
-
-export async function getAccountTypeById(id: string, includeSubTypes = false): Promise<AccountType> {
-  const response = await fetch(buildUrl(`/account-types/${id}`, { includeSubTypes }));
-  return handleResponse<AccountType>(response);
+export async function getAccountTypeById(id: string): Promise<AccountType> {
+  return tGet<AccountType>(`/account-types/${id}`);
 }
-
-export async function getAccountTypeByCode(code: string): Promise<AccountType> {
-  const response = await fetch(`${API_BASE_URL}/account-types/code/${code}`);
-  return handleResponse<AccountType>(response);
-}
-
-export async function getCheckEmitterTypes(): Promise<AccountType[]> {
-  const response = await fetch(`${API_BASE_URL}/account-types/check-emitters`);
-  return handleResponse<AccountType[]>(response);
-}
-
-export async function getCheckReceiverTypes(): Promise<AccountType[]> {
-  const response = await fetch(`${API_BASE_URL}/account-types/check-receivers`);
-  return handleResponse<AccountType[]>(response);
-}
-
-export async function getCashEnabledTypes(): Promise<AccountType[]> {
-  const response = await fetch(`${API_BASE_URL}/account-types/cash-enabled`);
-  return handleResponse<AccountType[]>(response);
-}
-
-export async function getOverdraftEnabledTypes(): Promise<AccountType[]> {
-  const response = await fetch(`${API_BASE_URL}/account-types/overdraft-enabled`);
-  return handleResponse<AccountType[]>(response);
-}
+export async function getAccountTypeByCode(_code: string): Promise<AccountType | null> { return null; }
+export async function getCheckEmitterTypes(): Promise<AccountType[]> { return getAccountTypes(); }
+export async function getCheckReceiverTypes(): Promise<AccountType[]> { return getAccountTypes(); }
+export async function getCashEnabledTypes(): Promise<AccountType[]> { return getAccountTypes(); }
+export async function getOverdraftEnabledTypes(): Promise<AccountType[]> { return getAccountTypes(); }
 
 export async function createAccountType(data: CreateAccountTypeRequest): Promise<AccountType> {
-  const response = await fetch(`${API_BASE_URL}/account-types`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<AccountType>(response);
+  return tPost<AccountType>("/account-types", data);
 }
-
-export async function updateAccountType(id: string, data: UpdateAccountTypeRequest): Promise<AccountType> {
-  const response = await fetch(`${API_BASE_URL}/account-types/${id}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<AccountType>(response);
+export async function updateAccountType(_id: string, _d: UpdateAccountTypeRequest): Promise<AccountType> {
+  throw new Error("La modification d'un type de compte n'est pas disponible.");
 }
-
 export async function deleteAccountType(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/account-types/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Échec de la suppression');
+  await tPost(`/account-types/${id}/deactivate`, {});
 }
 
-export async function getAccountSubTypes(accountTypeId: string, activeOnly = false): Promise<AccountSubType[]> {
-  const response = await fetch(buildUrl(`/account-types/${accountTypeId}/sub-types`, { activeOnly }));
-  return handleResponse<AccountSubType[]>(response);
+export async function getAccountSubTypes(accountTypeId: string): Promise<AccountSubType[]> {
+  return tGet<AccountSubType[]>(`/account-types/${accountTypeId}/sub-types`);
+}
+export async function getAccountSubTypeById(_atId: string, _stId: string): Promise<AccountSubType | null> { return null; }
+export async function createAccountSubType(_accountTypeId: string, data: CreateAccountSubTypeRequest): Promise<AccountSubType> {
+  return tPost<AccountSubType>("/account-types/sub-types", data);
+}
+export async function updateAccountSubType(_atId: string, _stId: string, _d: UpdateAccountSubTypeRequest): Promise<AccountSubType> {
+  throw new Error("La modification d'un sous-type n'est pas disponible.");
+}
+export async function deleteAccountSubType(_atId: string, _stId: string): Promise<void> {
+  throw new Error("La suppression d'un sous-type n'est pas disponible.");
 }
 
-export async function getAccountSubTypeById(accountTypeId: string, subTypeId: string): Promise<AccountSubType> {
-  const response = await fetch(`${API_BASE_URL}/account-types/${accountTypeId}/sub-types/${subTypeId}`);
-  return handleResponse<AccountSubType>(response);
+// ─── BANK ACCOUNTS ───────────────────────────────────────────────────────────
+// Backend: GET/POST /api/treasury/bank-accounts
+//          GET      /api/treasury/bank-accounts/{id}
+//          GET      /api/treasury/bank-accounts/{id}/balance
+
+export async function getBankAccounts(_activeOnly = false): Promise<BankAccount[]> {
+  return tGet<BankAccount[]>("/bank-accounts");
 }
-
-export async function createAccountSubType(accountTypeId: string, data: CreateAccountSubTypeRequest): Promise<AccountSubType> {
-  const response = await fetch(`${API_BASE_URL}/account-types/${accountTypeId}/sub-types`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ ...data, accountTypeId }),
-  });
-  return handleResponse<AccountSubType>(response);
-}
-
-export async function updateAccountSubType(accountTypeId: string, subTypeId: string, data: UpdateAccountSubTypeRequest): Promise<AccountSubType> {
-  const response = await fetch(`${API_BASE_URL}/account-types/${accountTypeId}/sub-types/${subTypeId}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<AccountSubType>(response);
-}
-
-export async function deleteAccountSubType(accountTypeId: string, subTypeId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/account-types/${accountTypeId}/sub-types/${subTypeId}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Échec de la suppression du sous-type');
-}
-
-// ============================================================================
-// BANK ACCOUNTS API
-// ============================================================================
-
-export async function getBankAccounts(activeOnly = false): Promise<BankAccount[]> {
-  const response = await fetch(buildUrl('/bank-accounts', { activeOnly }));
-  return handleResponse<BankAccount[]>(response);
-}
-
 export async function getBankAccountById(id: string): Promise<BankAccount> {
-  const response = await fetch(`${API_BASE_URL}/bank-accounts/${id}`);
-  return handleResponse<BankAccount>(response);
+  return tGet<BankAccount>(`/bank-accounts/${id}`);
 }
-
-export async function getBankAccountsByBankId(bankId: string): Promise<BankAccount[]> {
-  const response = await fetch(`${API_BASE_URL}/bank-accounts/bank/${bankId}`);
-  return handleResponse<BankAccount[]>(response);
+export async function getBankAccountBalance(id: string): Promise<number> {
+  const res = await tGet<{ balance: number }>(`/bank-accounts/${id}/balance`);
+  return res?.balance ?? 0;
 }
-
+export async function getBankAccountsByBankId(_bankId: string): Promise<BankAccount[]> { return []; }
 export async function createBankAccount(data: CreateBankAccountRequest): Promise<BankAccount> {
-  const response = await fetch(`${API_BASE_URL}/bank-accounts`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<BankAccount>(response);
+  return tPost<BankAccount>("/bank-accounts", data);
+}
+export async function updateBankAccount(_id: string, _d: UpdateBankAccountRequest): Promise<BankAccount> {
+  throw new Error("La modification d'un compte bancaire n'est pas disponible dans cette version.");
+}
+export async function deleteBankAccount(_id: string): Promise<void> {
+  throw new Error("La suppression d'un compte bancaire n'est pas disponible dans cette version.");
 }
 
-export async function updateBankAccount(id: string, data: UpdateBankAccountRequest): Promise<BankAccount> {
-  const response = await fetch(`${API_BASE_URL}/bank-accounts/${id}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<BankAccount>(response);
-}
+// ─── BANK TRANSACTIONS ───────────────────────────────────────────────────────
+// Backend: POST     /api/treasury/transactions
+//          POST     /api/treasury/transactions/{id}/validate
+//          POST     /api/treasury/transactions/{id}/cancel
+//          GET      /api/treasury/bank-accounts/{id}/transactions
 
-export async function deleteBankAccount(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/bank-accounts/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Échec de la suppression');
-}
-
-// ============================================================================
-// BANK TRANSACTIONS API
-// ============================================================================
-
-export async function getBankTransactions(): Promise<BankTransaction[]> {
-  const response = await fetch(`${API_BASE_URL}/bank-transactions`);
-  return handleResponse<BankTransaction[]>(response);
-}
-
-export async function getBankTransactionById(id: string): Promise<BankTransaction> {
-  const response = await fetch(`${API_BASE_URL}/bank-transactions/${id}`);
-  return handleResponse<BankTransaction>(response);
-}
-
+export async function getBankTransactions(): Promise<BankTransaction[]> { return []; }
+export async function getBankTransactionById(_id: string): Promise<BankTransaction | null> { return null; }
 export async function getBankTransactionsByAccountId(accountId: string): Promise<BankTransaction[]> {
-  const response = await fetch(`${API_BASE_URL}/bank-transactions/account/${accountId}`);
-  return handleResponse<BankTransaction[]>(response);
+  return tGet<BankTransaction[]>(`/bank-accounts/${accountId}/transactions`);
 }
-
-export async function getBankTransactionsByStatus(status: string): Promise<BankTransaction[]> {
-  const response = await fetch(`${API_BASE_URL}/bank-transactions/status/${status}`);
-  return handleResponse<BankTransaction[]>(response);
-}
-
+export async function getBankTransactionsByStatus(_status: string): Promise<BankTransaction[]> { return []; }
 export async function createBankTransaction(data: CreateBankTransactionRequest): Promise<BankTransaction> {
-  const response = await fetch(`${API_BASE_URL}/bank-transactions`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<BankTransaction>(response);
+  return tPost<BankTransaction>("/transactions", data);
 }
-
-export async function updateBankTransaction(id: string, data: Partial<CreateBankTransactionRequest>): Promise<BankTransaction> {
-  const response = await fetch(`${API_BASE_URL}/bank-transactions/${id}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<BankTransaction>(response);
+export async function updateBankTransaction(_id: string, _d: unknown): Promise<BankTransaction> {
+  throw new Error("La modification d'une transaction n'est pas disponible.");
 }
-
 export async function validateBankTransaction(id: string): Promise<BankTransaction> {
-  const response = await fetch(`${API_BASE_URL}/bank-transactions/${id}/validate`, { method: 'POST' });
-  return handleResponse<BankTransaction>(response);
+  return tPost<BankTransaction>(`/transactions/${id}/validate`);
+}
+export async function cancelBankTransaction(id: string, reason = "Annulation manuelle"): Promise<BankTransaction> {
+  return tPost<BankTransaction>(`/transactions/${id}/cancel`, { reason });
+}
+export async function deleteBankTransaction(_id: string): Promise<void> {
+  throw new Error("La suppression d'une transaction n'est pas disponible.");
 }
 
-export async function cancelBankTransaction(id: string): Promise<BankTransaction> {
-  const response = await fetch(`${API_BASE_URL}/bank-transactions/${id}/cancel`, { method: 'POST' });
-  return handleResponse<BankTransaction>(response);
-}
-
-export async function deleteBankTransaction(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/bank-transactions/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Échec de la suppression');
-}
-
-// ============================================================================
-// CHECKS API
-// ============================================================================
+// ─── CHECKS ──────────────────────────────────────────────────────────────────
+// Backend: POST /api/treasury/checks  GET /api/treasury/checks?bankAccountId=
+//          GET  /api/treasury/checks/{id}
+//          POST /api/treasury/checks/{id}/issue|deposit|cash|reject|cancel
 
 export async function getChecks(): Promise<Check[]> {
-  const response = await fetch(`${API_BASE_URL}/checks`);
-  return handleResponse<Check[]>(response);
+  return tGet<Check[]>("/checks");
 }
-
 export async function getCheckById(id: string): Promise<Check> {
-  const response = await fetch(`${API_BASE_URL}/checks/${id}`);
-  return handleResponse<Check>(response);
+  return tGet<Check>(`/checks/${id}`);
 }
-
-export async function getChecksByType(checkType: string): Promise<Check[]> {
-  const response = await fetch(`${API_BASE_URL}/checks/type/${checkType}`);
-  return handleResponse<Check[]>(response);
-}
-
-export async function getChecksByStatus(status: string): Promise<Check[]> {
-  const response = await fetch(`${API_BASE_URL}/checks/status/${status}`);
-  return handleResponse<Check[]>(response);
-}
-
+export async function getChecksByType(_type: string): Promise<Check[]> { return getChecks(); }
+export async function getChecksByStatus(_status: string): Promise<Check[]> { return getChecks(); }
 export async function getChecksByAccountId(accountId: string): Promise<Check[]> {
-  const response = await fetch(`${API_BASE_URL}/checks/account/${accountId}`);
-  return handleResponse<Check[]>(response);
+  return tGet<Check[]>(`/checks${qs({ bankAccountId: accountId })}`);
 }
-
-export async function getPendingChecksDueBefore(date: string): Promise<Check[]> {
-  const response = await fetch(buildUrl('/checks/pending/due-before', { date }));
-  return handleResponse<Check[]>(response);
-}
-
+export async function getPendingChecksDueBefore(_date: string): Promise<Check[]> { return []; }
 export async function createCheck(data: CreateCheckRequest): Promise<Check> {
-  const response = await fetch(`${API_BASE_URL}/checks`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<Check>(response);
+  return tPost<Check>("/checks", data);
 }
-
-export async function updateCheck(id: string, data: Partial<CreateCheckRequest>): Promise<Check> {
-  const response = await fetch(`${API_BASE_URL}/checks/${id}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<Check>(response);
+export async function updateCheck(_id: string, _d: unknown): Promise<Check> {
+  throw new Error("La modification d'un chèque n'est pas disponible.");
 }
-
-export async function depositCheck(id: string, depositDate: string): Promise<Check> {
-  const response = await fetch(buildUrl(`/checks/${id}/deposit`, { depositDate }), { method: 'POST' });
-  return handleResponse<Check>(response);
+export async function depositCheck(id: string, _depositDate?: string): Promise<Check> {
+  return tPost<Check>(`/checks/${id}/deposit`);
 }
-
-export async function cashCheck(id: string, cashedDate: string): Promise<Check> {
-  const response = await fetch(buildUrl(`/checks/${id}/cash`, { cashedDate }), { method: 'POST' });
-  return handleResponse<Check>(response);
+export async function cashCheck(id: string): Promise<Check> {
+  return tPost<Check>(`/checks/${id}/cash`);
 }
-
 export async function rejectCheck(id: string, reason: string): Promise<Check> {
-  const response = await fetch(buildUrl(`/checks/${id}/reject`, { reason }), { method: 'POST' });
-  return handleResponse<Check>(response);
+  return tPost<Check>(`/checks/${id}/reject`, { reason });
 }
-
 export async function cancelCheck(id: string): Promise<Check> {
-  const response = await fetch(`${API_BASE_URL}/checks/${id}/cancel`, { method: 'POST' });
-  return handleResponse<Check>(response);
+  return tPost<Check>(`/checks/${id}/cancel`, { reason: "Annulation" });
+}
+export async function deleteCheck(_id: string): Promise<void> {
+  throw new Error("La suppression d'un chèque n'est pas disponible.");
 }
 
-export async function deleteCheck(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/checks/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Échec de la suppression');
-}
-
-// ============================================================================
-// BANK STATEMENTS API
-// ============================================================================
+// ─── BANK STATEMENTS ─────────────────────────────────────────────────────────
+// Backend: GET/POST /api/treasury/statements
+//          GET      /api/treasury/statements/{id}
+//          POST     /api/treasury/statements/{id}/close
 
 export async function getBankStatements(): Promise<BankStatement[]> {
-  const response = await fetch(`${API_BASE_URL}/bank-statements`);
-  return handleResponse<BankStatement[]>(response);
+  return tGet<BankStatement[]>("/statements");
 }
-
 export async function getBankStatementById(id: string): Promise<BankStatement> {
-  const response = await fetch(`${API_BASE_URL}/bank-statements/${id}`);
-  return handleResponse<BankStatement>(response);
+  return tGet<BankStatement>(`/statements/${id}`);
 }
-
 export async function getBankStatementsByAccountId(accountId: string): Promise<BankStatement[]> {
-  const response = await fetch(`${API_BASE_URL}/bank-statements/account/${accountId}`);
-  return handleResponse<BankStatement[]>(response);
+  return tGet<BankStatement[]>(`/statements${qs({ bankAccountId: accountId })}`);
 }
-
-export async function getBankStatementsByStatus(status: string): Promise<BankStatement[]> {
-  const response = await fetch(`${API_BASE_URL}/bank-statements/status/${status}`);
-  return handleResponse<BankStatement[]>(response);
+export async function getBankStatementsByStatus(_status: string): Promise<BankStatement[]> {
+  return getBankStatements();
 }
-
 export async function createBankStatement(data: CreateBankStatementRequest): Promise<BankStatement> {
-  const response = await fetch(`${API_BASE_URL}/bank-statements`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<BankStatement>(response);
+  return tPost<BankStatement>("/statements", data);
 }
-
-export async function updateBankStatement(id: string, data: Partial<CreateBankStatementRequest>): Promise<BankStatement> {
-  const response = await fetch(`${API_BASE_URL}/bank-statements/${id}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<BankStatement>(response);
+export async function updateBankStatement(_id: string, _d: unknown): Promise<BankStatement> {
+  throw new Error("La modification d'un relevé n'est pas disponible.");
 }
-
-export async function updateStatementTotals(id: string): Promise<BankStatement> {
-  const response = await fetch(`${API_BASE_URL}/bank-statements/${id}/update-totals`, { method: 'POST' });
-  return handleResponse<BankStatement>(response);
+export async function updateStatementTotals(_id: string): Promise<BankStatement> {
+  throw new Error("Le recalcul des totaux n'est pas disponible.");
 }
-
 export async function closeBankStatement(id: string): Promise<BankStatement> {
-  const response = await fetch(`${API_BASE_URL}/bank-statements/${id}/close`, { method: 'POST' });
-  return handleResponse<BankStatement>(response);
+  return tPost<BankStatement>(`/statements/${id}/close`);
+}
+export async function deleteBankStatement(_id: string): Promise<void> {
+  throw new Error("La suppression d'un relevé n'est pas disponible.");
 }
 
-export async function deleteBankStatement(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/bank-statements/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Échec de la suppression');
-}
-
-// ============================================================================
-// STATEMENT LINES API
-// ============================================================================
+// ─── STATEMENT LINES ─────────────────────────────────────────────────────────
+// Backend: POST /api/treasury/statements/{id}/lines
+//          GET  /api/treasury/statements/{id}/lines
+//          POST /api/treasury/statement-lines/{id}/ignore (with body { reason })
 
 export async function getStatementLines(statementId: string): Promise<StatementLine[]> {
-  const response = await fetch(`${API_BASE_URL}/statement-lines/statement/${statementId}`);
-  return handleResponse<StatementLine[]>(response);
+  return tGet<StatementLine[]>(`/statements/${statementId}/lines`);
 }
-
-export async function getStatementLineById(id: string): Promise<StatementLine> {
-  const response = await fetch(`${API_BASE_URL}/statement-lines/${id}`);
-  return handleResponse<StatementLine>(response);
-}
-
+export async function getStatementLineById(_id: string): Promise<StatementLine | null> { return null; }
 export async function getUnmatchedStatementLines(statementId: string): Promise<StatementLine[]> {
-  const response = await fetch(`${API_BASE_URL}/statement-lines/statement/${statementId}/unmatched`);
-  return handleResponse<StatementLine[]>(response);
+  const lines = await getStatementLines(statementId);
+  return lines.filter((l: any) => l.status === "UNRECONCILED" || l.status === "PENDING");
 }
-
 export async function getMatchedStatementLines(statementId: string): Promise<StatementLine[]> {
-  const response = await fetch(`${API_BASE_URL}/statement-lines/statement/${statementId}/matched`);
-  return handleResponse<StatementLine[]>(response);
+  const lines = await getStatementLines(statementId);
+  return lines.filter((l: any) => l.status === "RECONCILED");
 }
-
-export async function createStatementLine(data: CreateStatementLineRequest): Promise<StatementLine> {
-  const response = await fetch(`${API_BASE_URL}/statement-lines`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<StatementLine>(response);
+export async function createStatementLine(_d: CreateStatementLineRequest): Promise<StatementLine> {
+  throw new Error("Utilisez createStatementLinesBatch pour importer des lignes.");
 }
-
 export async function createStatementLinesBatch(statementId: string, lines: CreateStatementLineRequest[]): Promise<StatementLine[]> {
-  const response = await fetch(`${API_BASE_URL}/statement-lines/statement/${statementId}/batch`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(lines),
-  });
-  return handleResponse<StatementLine[]>(response);
+  return tPost<StatementLine[]>(`/statements/${statementId}/lines`, lines);
+}
+export async function ignoreStatementLine(id: string, reason = "Ignoré"): Promise<StatementLine> {
+  return tPost<StatementLine>(`/statement-lines/${id}/ignore`, { reason });
+}
+export async function resetStatementLine(_id: string): Promise<StatementLine> {
+  throw new Error("La réinitialisation d'une ligne n'est pas disponible.");
+}
+export async function deleteStatementLine(_id: string): Promise<void> {
+  throw new Error("La suppression d'une ligne n'est pas disponible.");
 }
 
-export async function ignoreStatementLine(id: string): Promise<StatementLine> {
-  const response = await fetch(`${API_BASE_URL}/statement-lines/${id}/ignore`, { method: 'POST' });
-  return handleResponse<StatementLine>(response);
-}
-
-export async function resetStatementLine(id: string): Promise<StatementLine> {
-  const response = await fetch(`${API_BASE_URL}/statement-lines/${id}/reset`, { method: 'POST' });
-  return handleResponse<StatementLine>(response);
-}
-
-export async function deleteStatementLine(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/statement-lines/${id}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Échec de la suppression');
-}
-
-// ============================================================================
-// RECONCILIATION API
-// ============================================================================
+// ─── RECONCILIATION ──────────────────────────────────────────────────────────
+// Backend: POST /api/treasury/reconciliation/manual-match  (body)
+//          POST /api/treasury/reconciliation/auto-match    (?statementId=)
+//          POST /api/treasury/reconciliation/unmatch/{id}
+//          GET  /api/treasury/reconciliation/summary       (?statementId=)
 
 export async function reconcileManual(data: ReconcileManualRequest): Promise<ReconciliationMatch> {
-  const response = await fetch(`${API_BASE_URL}/reconciliation/manual`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<ReconciliationMatch>(response);
+  return tPost<ReconciliationMatch>("/reconciliation/manual-match", data);
 }
-
-export async function reconcileAuto(data: AutoReconcileRequest): Promise<ReconciliationMatch[]> {
-  const response = await fetch(`${API_BASE_URL}/reconciliation/auto`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  });
-  return handleResponse<ReconciliationMatch[]>(response);
+export async function reconcileAuto(statementId: string): Promise<unknown> {
+  return tPost(`/reconciliation/auto-match${qs({ statementId })}`);
 }
-
 export async function unmatch(matchId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/reconciliation/match/${matchId}`, { method: 'DELETE' });
-  if (!response.ok) throw new Error('Échec de l\'annulation');
+  await tPost(`/reconciliation/unmatch/${matchId}`);
 }
-
 export async function getReconciliationSummary(statementId: string): Promise<ReconciliationSummary> {
-  const response = await fetch(`${API_BASE_URL}/reconciliation/summary/${statementId}`);
-  return handleResponse<ReconciliationSummary>(response);
+  return tGet<ReconciliationSummary>(`/reconciliation/summary${qs({ statementId })}`);
 }
+export async function getMatchesByLineId(_lineId: string): Promise<ReconciliationMatch[]> { return []; }
 
-export async function getMatchesByLineId(lineId: string): Promise<ReconciliationMatch[]> {
-  const response = await fetch(`${API_BASE_URL}/reconciliation/matches/line/${lineId}`);
-  return handleResponse<ReconciliationMatch[]>(response);
-}
-
-// ============================================================================
-// DASHBOARD STATS API (calculs côté client pour l'instant)
-// ============================================================================
+// ─── BANKING STATS (calculées côté client) ───────────────────────────────────
 
 export async function getBankingStats(): Promise<BankingStats> {
-  const [accounts, transactions, checks, statements] = await Promise.all([
+  const [accounts, stmts] = await Promise.all([
     getBankAccounts(),
-    getBankTransactionsByStatus('DRAFT'),
-    getChecksByStatus('PENDING'),
-    getBankStatementsByStatus('IN_PROGRESS'),
+    getBankStatements().catch(() => []),
   ]);
-
-  const totalBalance = accounts.reduce((sum, acc) => sum + acc.currentBalance, 0);
-  const activeAccounts = accounts.filter(acc => acc.isActive).length;
-
+  const totalBalance = accounts.reduce((s: number, a: any) => s + (a.currentBalance ?? 0), 0);
   return {
     totalBalance,
     totalAccounts: accounts.length,
-    activeAccounts,
-    pendingTransactions: transactions.length,
-    pendingChecks: checks.length,
-    unreconciledStatements: statements.length,
-    monthlyCredits: 0, // À calculer avec une requête dédiée
-    monthlyDebits: 0,  // À calculer avec une requête dédiée
+    activeAccounts: accounts.filter((a: any) => a.isActive).length,
+    pendingTransactions: 0,
+    pendingChecks: 0,
+    unreconciledStatements: stmts.filter((s: any) => s.status === "IN_PROGRESS").length,
+    monthlyCredits: 0,
+    monthlyDebits: 0,
   };
 }

@@ -63,11 +63,12 @@ import {
 // UTILITAIRES
 // =============================================================================
 
-const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
+const formatCurrency = (amount: number, currency?: string | null): string => {
+  const safeCode = currency && currency.trim().length >= 3 ? currency.trim().toUpperCase() : 'XAF';
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
-    currency,
-    minimumFractionDigits: currency === 'XAF' || currency === 'XOF' ? 0 : 2,
+    currency: safeCode,
+    minimumFractionDigits: safeCode === 'XAF' || safeCode === 'XOF' ? 0 : 2,
   }).format(amount);
 };
 

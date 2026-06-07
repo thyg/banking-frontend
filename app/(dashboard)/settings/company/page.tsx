@@ -2,7 +2,7 @@ import { getGeneralOptions } from "@/lib/api";
 import { CompanySettingsView } from "@/components/settings/company-settings-view";
 
 export default async function CompanySettingsPage() {
-    const options = await getGeneralOptions();
+    const options = await getGeneralOptions().catch(() => null);
 
     return (
         <div className="h-full flex flex-col gap-4">

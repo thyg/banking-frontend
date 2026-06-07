@@ -172,6 +172,7 @@ export interface BankTransaction {
   paymentMethod?: PaymentMethod;
   description?: string;
   partnerName?: string;
+  partnerId?: string;
   status: TransactionStatus;
   systemDate?: string;
   isReconciled: boolean;
@@ -553,6 +554,7 @@ export interface CreateBankTransactionRequest {
   paymentMethod?: PaymentMethod;
   description?: string;
   partnerName?: string;
+  partnerId?: string;
   /** Optional: ID of a check to link. Auto-validates transaction and updates check to CASHED. */
   checkId?: string;
 }

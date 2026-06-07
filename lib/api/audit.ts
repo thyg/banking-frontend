@@ -1,287 +1,108 @@
-/**
- * @file lib/api/audit.ts
- * @description API client pour le Journal des Opérations
- * @version 1.0.0 - Incrément 5
- */
+// lib/api/audit.ts — Journal d'audit (iwm-treasury-core)
+// Backend: GET /api/treasury/audit-logs  (?module=&action=&entityId=&from=&to=&page=&size=)
 
-import type {
-  AuditLog,
-  AuditLogFilters,
-  FilterOption,
-} from '@/types/audit';
+import { tGet, qs } from "@/lib/api/treasury-client";
+import type { AuditLog, FilterOption } from "@/types/audit";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+export type { AuditLog };
 
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-/**
- * Gère la réponse HTTP et parse le JSON.
- * @throws Error si la réponse n'est pas OK
- */
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Une erreur est survenue' }));
-    throw new Error(error.message || `Erreur HTTP: ${response.status}`);
-  }
-  return response.json();
+export interface AuditLogFilters {
+  module?: string;
+  action?: string;
+  entityId?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
 }
 
-/**
- * Construit la query string à partir des filtres.
- */
-function buildQueryString(filters: AuditLogFilters): string {
-  const params = new URLSearchParams();
-  
-  if (filters.module) params.append('module', filters.module);
-  if (filters.action) params.append('action', filters.action);
-  if (filters.entityId) params.append('entityId', filters.entityId);
-  if (filters.entityReference) params.append('entityReference', filters.entityReference);
-  if (filters.userId) params.append('userId', filters.userId);
-  if (filters.userName) params.append('userName', filters.userName);
-  if (filters.startDate) params.append('startDate', filters.startDate);
-  if (filters.endDate) params.append('endDate', filters.endDate);
-  if (filters.search) params.append('search', filters.search);
-  if (filters.page !== undefined) params.append('page', String(filters.page));
-  if (filters.size !== undefined) params.append('size', String(filters.size));
-  
-  const queryString = params.toString();
-  return queryString ? `?${queryString}` : '';
+export async function getAuditLogs(filters?: AuditLogFilters): Promise<AuditLog[]> {
+  return tGet<AuditLog[]>(`/audit-logs${qs({ ...filters })}`);
 }
 
-// =============================================================================
-// AUDIT LOG API
-// =============================================================================
-
-/**
- * Récupère les logs d'audit avec filtres.
- */
-export async function getAuditLogs(filters: AuditLogFilters = {}): Promise<AuditLog[]> {
-  const queryString = buildQueryString(filters);
-  const response = await fetch(`${API_BASE_URL}/audit-logs${queryString}`);
-  return handleResponse<AuditLog[]>(response);
+export async function getAuditLogsCount(_filters?: AuditLogFilters): Promise<number> {
+  const logs = await getAuditLogs(_filters);
+  return logs.length;
 }
 
-/**
- * Compte les logs d'audit avec filtres.
- */
-export async function countAuditLogs(filters: AuditLogFilters = {}): Promise<number> {
-  const queryString = buildQueryString(filters);
-  const response = await fetch(`${API_BASE_URL}/audit-logs/count${queryString}`);
-  const result = await handleResponse<{ total: number }>(response);
-  return result.total;
+export async function getAuditLogById(_id: string): Promise<AuditLog | null> { return null; }
+export async function getAuditLogsByEntityId(entityId: string): Promise<AuditLog[]> {
+  return getAuditLogs({ entityId });
 }
-
-/**
- * Récupère un log d'audit par son ID.
- */
-export async function getAuditLogById(id: string): Promise<AuditLog> {
-  const response = await fetch(`${API_BASE_URL}/audit-logs/${id}`);
-  return handleResponse<AuditLog>(response);
-}
-
-/**
- * Récupère l'historique d'audit pour une entité.
- */
-export async function getEntityAuditHistory(entityId: string): Promise<AuditLog[]> {
-  const response = await fetch(`${API_BASE_URL}/audit-logs/entity/${entityId}`);
-  return handleResponse<AuditLog[]>(response);
-}
-
-/**
- * Récupère les logs d'audit d'aujourd'hui.
- */
 export async function getTodayAuditLogs(): Promise<AuditLog[]> {
-  const response = await fetch(`${API_BASE_URL}/audit-logs/today`);
-  return handleResponse<AuditLog[]>(response);
+  const from = new Date().toISOString().split("T")[0];
+  return getAuditLogs({ from });
+}
+export async function getAvailableModules(): Promise<FilterOption[]> { return []; }
+export async function getAvailableActions(): Promise<FilterOption[]> { return []; }
+export const countAuditLogs = getAuditLogsCount;
+export const getAuditModules = getAvailableModules;
+export const getAuditActions = getAvailableActions;
+
+export function exportToCsv(logs: AuditLog[], filename: string): void {
+  const header = "id,module,action,entityReference,entityId,userId,createdAt";
+  const rows = logs.map(l =>
+    [l.id, l.module, l.action, l.entityReference, l.entityId, l.userId, l.createdAt].join(",")
+  );
+  const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
-// =============================================================================
-// METADATA API
-// =============================================================================
-
-/**
- * Récupère la liste des modules disponibles.
- */
-export async function getAuditModules(): Promise<FilterOption[]> {
-  const response = await fetch(`${API_BASE_URL}/audit-logs/modules`);
-  return handleResponse<FilterOption[]>(response);
+export function exportToJson(logs: AuditLog[], filename: string): void {
+  const blob = new Blob([JSON.stringify(logs, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
-/**
- * Récupère la liste des actions disponibles.
- */
-export async function getAuditActions(): Promise<FilterOption[]> {
-  const response = await fetch(`${API_BASE_URL}/audit-logs/actions`);
-  return handleResponse<FilterOption[]>(response);
-}
-
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
-
-/**
- * Parse le JSON des changements pour affichage.
- */
-export function parseChanges(oldValue: string | null, newValue: string | null): {
-  oldParsed: Record<string, unknown> | null;
-  newParsed: Record<string, unknown> | null;
-  differences: Array<{ field: string; old: unknown; new: unknown }>;
-} {
-  let oldParsed: Record<string, unknown> | null = null;
-  let newParsed: Record<string, unknown> | null = null;
-  
-  try {
-    oldParsed = oldValue ? JSON.parse(oldValue) : null;
-  } catch {
-    console.warn('[parseChanges] Failed to parse oldValue');
+// Utilitaires pour l'affichage des changements (utilisés par journal-detail-modal.tsx)
+// Supporte deux signatures :
+//   parseChanges(changes)               — depuis AuditLog.changes (format backend)
+//   parseChanges(oldValue, newValue)    — depuis AuditLog.oldValue/newValue (format legacy)
+export function parseChanges(
+  changesOrOld: Record<string, { before: unknown; after: unknown }> | unknown | undefined,
+  newValue?: unknown
+): { differences: Array<{ field: string; before: unknown; after: unknown }> } {
+  if (newValue !== undefined) {
+    // Signature (oldValue, newValue) — comparer deux objets
+    const oldObj = (typeof changesOrOld === "object" && changesOrOld !== null ? changesOrOld : {}) as Record<string, unknown>;
+    const newObj = (typeof newValue === "object" && newValue !== null ? newValue : {}) as Record<string, unknown>;
+    const fields = new Set([...Object.keys(oldObj), ...Object.keys(newObj)]);
+    const differences = Array.from(fields)
+      .filter(f => JSON.stringify(oldObj[f]) !== JSON.stringify(newObj[f]))
+      .map(f => ({ field: f, before: oldObj[f], after: newObj[f] }));
+    return { differences };
   }
-  
-  try {
-    newParsed = newValue ? JSON.parse(newValue) : null;
-  } catch {
-    console.warn('[parseChanges] Failed to parse newValue');
-  }
-  
-  const differences: Array<{ field: string; old: unknown; new: unknown }> = [];
-  
-  if (oldParsed && newParsed) {
-    // Trouver les champs modifiés
-    const allKeys = new Set([...Object.keys(oldParsed), ...Object.keys(newParsed)]);
-    allKeys.forEach(key => {
-      // Ignorer certains champs techniques
-      if (['createdAt', 'updatedAt', 'isNew'].includes(key)) return;
-      
-      const oldVal = oldParsed![key];
-      const newVal = newParsed![key];
-      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
-        differences.push({ field: key, old: oldVal, new: newVal });
-      }
-    });
-  } else if (newParsed) {
-    // Création: tous les champs sont nouveaux
-    Object.entries(newParsed).forEach(([key, value]) => {
-      if (['createdAt', 'updatedAt', 'isNew'].includes(key)) return;
-      differences.push({ field: key, old: null, new: value });
-    });
-  } else if (oldParsed) {
-    // Suppression: tous les champs sont supprimés
-    Object.entries(oldParsed).forEach(([key, value]) => {
-      if (['createdAt', 'updatedAt', 'isNew'].includes(key)) return;
-      differences.push({ field: key, old: value, new: null });
-    });
-  }
-  
-  return { oldParsed, newParsed, differences };
+  // Signature (changes) — format backend { field: { before, after } }
+  const changes = changesOrOld as Record<string, { before: unknown; after: unknown }> | undefined;
+  if (!changes) return { differences: [] };
+  return { differences: Object.entries(changes).map(([field, { before, after }]) => ({ field, before, after })) };
 }
 
-/**
- * Formate une valeur pour l'affichage.
- */
 export function formatValue(value: unknown): string {
-  if (value === null || value === undefined) return '(vide)';
-  if (typeof value === 'boolean') return value ? 'Oui' : 'Non';
-  if (typeof value === 'object') {
-    try {
-      return JSON.stringify(value, null, 2);
-    } catch {
-      return String(value);
-    }
-  }
-  return String(value);
+  if (value === null || value === undefined) return "—";
+  if (typeof value === "boolean") return value ? "Oui" : "Non";
+  if (typeof value === "number") return value.toLocaleString("fr-FR");
+  if (typeof value === "string") return value;
+  return JSON.stringify(value);
 }
 
-/**
- * Traduit un nom de champ en français.
- */
 export function translateFieldName(field: string): string {
-  const translations: Record<string, string> = {
-    id: 'ID',
-    reference: 'Référence',
-    name: 'Nom',
-    code: 'Code',
-    label: 'Libellé',
-    description: 'Description',
-    amount: 'Montant',
-    direction: 'Direction',
-    status: 'Statut',
-    isActive: 'Actif',
-    isReconciled: 'Rapproché',
-    transactionDate: 'Date transaction',
-    valueDate: 'Date valeur',
-    checkNumber: 'N° chèque',
-    checkType: 'Type chèque',
-    partnerName: 'Partenaire',
-    bankAccountId: 'Compte bancaire',
-    transactionTypeId: 'Type transaction',
-    swiftCode: 'Code SWIFT',
-    country: 'Pays',
-    accountNumber: 'N° compte',
-    iban: 'IBAN',
-    bic: 'BIC',
-    currency: 'Devise',
-    currentBalance: 'Solde actuel',
-    initialBalance: 'Solde initial',
-    issueDate: 'Date émission',
-    dueDate: 'Date échéance',
-    depositDate: 'Date remise',
-    cashedDate: 'Date encaissement',
-    rejectionReason: 'Motif rejet',
+  const labels: Record<string, string> = {
+    amount: "Montant",
+    status: "Statut",
+    description: "Description",
+    transactionDate: "Date",
+    direction: "Sens",
+    bankAccountId: "Compte",
+    referenceCode: "Référence",
+    beneficiary: "Bénéficiaire",
+    issueDate: "Date d'émission",
+    dueDate: "Échéance",
   };
-  return translations[field] || field;
-}
-
-/**
- * Exporte les logs en CSV.
- */
-export function exportToCsv(logs: AuditLog[], filename: string = 'journal-operations.csv'): void {
-  const headers = [
-    'Date',
-    'Module',
-    'Action',
-    'Référence',
-    'Utilisateur',
-    'Description',
-  ];
-  
-  const rows = logs.map(log => [
-    log.formattedDate,
-    log.moduleLabel,
-    log.actionLabel,
-    log.entityReference || log.entityId,
-    log.userName,
-    log.description,
-  ]);
-  
-  // Encoder en CSV avec séparateur point-virgule (pour Excel français)
-  const csvContent = [
-    headers.join(';'),
-    ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';')),
-  ].join('\n');
-  
-  // Ajouter BOM UTF-8 pour Excel
-  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-  
-  // Cleanup
-  URL.revokeObjectURL(link.href);
-}
-
-/**
- * Exporte les logs en JSON.
- */
-export function exportToJson(logs: AuditLog[], filename: string = 'journal-operations.json'): void {
-  const jsonContent = JSON.stringify(logs, null, 2);
-  const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
-  const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-  
-  // Cleanup
-  URL.revokeObjectURL(link.href);
+  return labels[field] ?? field;
 }

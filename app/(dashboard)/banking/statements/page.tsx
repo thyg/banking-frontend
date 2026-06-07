@@ -502,7 +502,7 @@ export default function StatementsPage() {
 
       {/* Dialog d'upload */}
       <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Importer un releve bancaire</DialogTitle>
             <DialogDescription>

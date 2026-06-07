@@ -30,7 +30,7 @@ export function NewInventoryDialog({ isOpen, onClose, warehouses, onSubmit }: Ne
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
                 <DialogHeader>
                     <DialogTitle>Lancer un nouvel inventaire</DialogTitle>
                 </DialogHeader>
@@ -43,7 +43,7 @@ export function NewInventoryDialog({ isOpen, onClose, warehouses, onSubmit }: Ne
                 </Alert>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <FormField control={form.control} name="warehouseId" render={({ field }) => (
                                 <FormItem><FormLabel>Magasin</FormLabel>
                                     <Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Choisir..." /></SelectTrigger></FormControl><SelectContent>

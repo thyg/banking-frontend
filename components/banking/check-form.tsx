@@ -15,6 +15,7 @@ import { z } from 'zod';
 
 // Types
 import { Check, CreateCheckData, CheckType, BankAccount, Checkbook } from '@/types/banking';
+import { ThirdPartySelector } from '@/components/banking/third-party-selector';
 
 // API
 import { getBankAccounts } from '@/lib/api/banking';
@@ -84,6 +85,7 @@ const checkFormSchema = z.object({
     .string()
     .min(2, { message: "Le nom doit contenir au moins 2 caractères." })
     .max(100, { message: "Le nom ne peut pas dépasser 100 caractères." }),
+  partnerId: z.string().uuid().optional(),
   description: z
     .string()
     .max(200, { message: "La description ne peut pas dépasser 200 caractères." })
@@ -162,6 +164,7 @@ export function CheckForm({
       imageUrl: initialData?.imageUrl ?? '',
       amount: initialData?.amount ?? 0,
       partnerName: initialData?.partnerName ?? '',
+      partnerId: initialData?.partnerId ?? undefined,
       description: initialData?.description ?? '',
     },
   });
@@ -264,8 +267,9 @@ const handleSubmit = async (data: CheckFormData) => {
     const saveData: CreateCheckData = {
       checkType: data.type,
       checkbookId: resolvedCheckbookId,
-      checkNumber: data.checkNumber,
+      checkNumber: data.checkNumber || undefined,
       bankAccountId: data.bankAccountId,
+      currency: selectedAccount?.currency || 'XAF',
       issueDate: data.issueDate,
       dueDate: data.dueDate || undefined,
       receiptDate: data.receiptDate || undefined,
@@ -273,6 +277,7 @@ const handleSubmit = async (data: CheckFormData) => {
       imageUrl: data.imageUrl || undefined,
       amount: data.amount,
       partnerName: data.partnerName,
+      partnerId: data.partnerId || undefined,
       description: data.description || undefined,
     };
 
@@ -374,7 +379,22 @@ const handleSubmit = async (data: CheckFormData) => {
             <FormItem>
               <FormLabel>{watchType === 'ISSUED' ? 'Bénéficiaire *' : 'Émetteur *'}</FormLabel>
               <FormControl>
-                <Input placeholder={watchType === 'ISSUED' ? "Nom du bénéficiaire" : "Nom de l'émetteur"} {...field} disabled={isProcessed} />
+                <ThirdPartySelector
+                  value={form.watch('partnerId')}
+                  displayValue={field.value}
+                  role={watchType === 'ISSUED' ? 'SUPPLIER' : 'CUSTOMER'}
+                  placeholder={watchType === 'ISSUED' ? "Sélectionner un fournisseur" : "Sélectionner un client"}
+                  disabled={isProcessed}
+                  onSelect={(tp) => {
+                    if (tp) {
+                      form.setValue('partnerName', tp.displayName, { shouldValidate: true });
+                      form.setValue('partnerId', tp.id);
+                    } else {
+                      form.setValue('partnerName', '');
+                      form.setValue('partnerId', undefined);
+                    }
+                  }}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

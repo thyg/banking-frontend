@@ -26,6 +26,7 @@ import {
 import { getBankAccounts } from '@/lib/api/banking';
 import { getTransactionTypes } from '@/lib/api/banking';
 import { getChecks } from '@/lib/api/check';
+import { ThirdPartySelector } from '@/components/banking/third-party-selector';
 import { amountToWords } from '@/lib/utils/number-to-words';
 
 // Composants UI
@@ -99,6 +100,7 @@ const bankTransactionFormSchema = z.object({
     .max(100, { message: "Le nom ne peut pas dépasser 100 caractères." })
     .optional()
     .or(z.literal('')),
+  partnerId: z.string().uuid().optional(),
 
   description: z
     .string()
@@ -166,6 +168,7 @@ export function BankTransactionForm({
       valueDate: initialData?.valueDate ?? '',
       externalReference: initialData?.externalReference ?? '',
       partnerName: initialData?.partnerName ?? '',
+      partnerId: initialData?.partnerId ?? undefined,
       description: initialData?.description ?? '',
       checkId: '',
     },
@@ -242,6 +245,7 @@ export function BankTransactionForm({
     if (selectedCheck) {
       form.setValue('amount', selectedCheck.amount);
       form.setValue('partnerName', selectedCheck.partnerName);
+      if (selectedCheck.partnerId) form.setValue('partnerId', selectedCheck.partnerId);
       form.setValue('description', `Règlement par chèque n°${selectedCheck.checkNumber}`);
       form.setValue('direction', selectedCheck.checkType === 'RECEIVED' ? 'CREDIT' : 'DEBIT');
       form.setValue('paymentMethod', 'CHECK');
@@ -274,6 +278,7 @@ export function BankTransactionForm({
         direction: data.direction,
         paymentMethod: data.paymentMethod || undefined,
         partnerName: data.partnerName || undefined,
+        partnerId: data.partnerId || undefined,
         checkId: data.checkId || undefined,
       };
 
@@ -293,180 +298,200 @@ export function BankTransactionForm({
     );
   }
 
+  const watchDirection = form.watch('direction');
+  const currency = selectedAccount?.currency || 'FCFA';
+
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {/* En-tête - responsive */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 pb-4 border-b">
-          <div className="p-2 bg-blue-100 rounded-lg w-fit">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-5 w-full min-w-0">
+
+        {/* En-tête */}
+        <div className="flex items-center gap-3 pb-4 border-b">
+          <div className="p-2 bg-blue-50 rounded-lg shrink-0">
             <Receipt className="h-5 w-5 text-blue-600" />
           </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-gray-900 text-base sm:text-lg">
+          <div className="min-w-0">
+            <h3 className="font-semibold text-gray-900 text-base">
               {isEditMode ? 'Modifier la transaction' : 'Nouvelle transaction'}
             </h3>
-            <p className="text-xs sm:text-sm text-gray-500">
+            <p className="text-xs text-gray-500 truncate">
               {isEditMode
                 ? 'Modifiez les détails de la transaction bancaire.'
-                : 'Saisissez une nouvelle opération bancaire.'}
+                : 'Saisissez les détails de la nouvelle opération bancaire.'}
             </p>
           </div>
         </div>
 
-        {/* Avertissement si validée */}
+        {/* Alerte si validée */}
         {isValidated && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
-            ⚠️ Cette transaction est validée. Seule l'annulation est possible.
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-start gap-2">
+            <span className="shrink-0">⚠️</span>
+            <span>Cette transaction est validée et ne peut plus être modifiée. Seule l'annulation est possible.</span>
           </div>
         )}
-        
-        {/* Références et Date Système - responsive */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <FormItem>
-            <FormLabel>Nos Réf.</FormLabel>
-            <FormControl>
-              <Input
-                readOnly
-                value={initialData?.reference || 'Auto-générée'}
-                className="font-bold text-gray-700 bg-gray-100 text-xs sm:text-sm"
-              />
-            </FormControl>
-            <FormDescription className="text-xs">Réf. interne</FormDescription>
-          </FormItem>
 
-          <FormField
-            control={form.control}
-            name="externalReference"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Vos Réf.</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="N° document..."
-                    {...field}
-                    disabled={isValidated}
-                  />
-                </FormControl>
-                <FormDescription className="text-xs">Réf. externe (optionnel)</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {/* ── SECTION 1 : Références ── */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Références</p>
+          <div className="grid grid-cols-3 gap-3">
+            {/* Nos Réf. */}
+            <FormItem className="min-w-0">
+              <FormLabel className="text-xs">Nos Réf.</FormLabel>
+              <FormControl>
+                <Input
+                  readOnly
+                  value={initialData?.reference || 'Auto-générée'}
+                  className="bg-gray-100 font-medium text-xs h-9 truncate"
+                />
+              </FormControl>
+              <FormDescription className="text-[10px]">Réf. interne</FormDescription>
+            </FormItem>
 
-          {/* Date système */}
-          <FormItem>
-            <FormLabel>Date système</FormLabel>
-            <FormControl>
-              <Input
-                readOnly
-                value={initialData?.systemDate ? new Date(initialData.systemDate).toLocaleDateString() : new Date().toLocaleDateString()}
-                className="bg-gray-100 text-xs sm:text-sm"
-              />
-            </FormControl>
-            <FormDescription className="text-xs">Enregistrement</FormDescription>
-          </FormItem>
+            {/* Vos Réf. */}
+            <FormField
+              control={form.control}
+              name="externalReference"
+              render={({ field }) => (
+                <FormItem className="min-w-0">
+                  <FormLabel className="text-xs">Vos Réf.</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="N° document..."
+                      {...field}
+                      disabled={isValidated}
+                      className="text-xs h-9"
+                    />
+                  </FormControl>
+                  <FormDescription className="text-[10px]">Réf. externe (optionnel)</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Date système */}
+            <FormItem className="min-w-0">
+              <FormLabel className="text-xs">Date système</FormLabel>
+              <FormControl>
+                <Input
+                  readOnly
+                  value={
+                    initialData?.systemDate
+                      ? new Date(initialData.systemDate).toLocaleDateString('fr-FR')
+                      : new Date().toLocaleDateString('fr-FR')
+                  }
+                  className="bg-gray-100 text-xs h-9"
+                />
+              </FormControl>
+              <FormDescription className="text-[10px]">Enregistrement</FormDescription>
+            </FormItem>
+          </div>
         </div>
 
-        {/* Grille Type de transaction + Compte bancaire - responsive */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          {/* Type de transaction */}
-          <FormField
-            control={form.control}
-            name="transactionTypeId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Type de transaction *</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value}
-                  disabled={isValidated}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sélectionnez un type..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {filteredTypes.map(type => (
-                      <SelectItem key={type.id} value={type.id}>
-                        {type.label} ({type.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        {/* ── SECTION 2 : Classification ── */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Classification</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="transactionTypeId"
+              render={({ field }) => (
+                <FormItem className="min-w-0">
+                  <FormLabel className="text-xs">Type de transaction *</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isValidated}>
+                    <FormControl>
+                      <SelectTrigger className="w-full text-xs h-9">
+                        <SelectValue placeholder="Sélectionnez un type..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {filteredTypes.map(type => (
+                        <SelectItem key={type.id} value={type.id} className="text-xs">
+                          {type.label} ({type.code})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          {/* Compte bancaire */}
-          <FormField
-            control={form.control}
-            name="bankAccountId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Compte bancaire *</FormLabel>
-                <Select
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    handleAccountChange(value);
-                  }}
-                  value={field.value}
-                  disabled={isEditMode}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sélectionnez un compte..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {accounts.map(account => (
-                      <SelectItem key={account.id} value={account.id}>
-                        {account.name} ({account.currency})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+              control={form.control}
+              name="bankAccountId"
+              render={({ field }) => (
+                <FormItem className="min-w-0">
+                  <FormLabel className="text-xs">Compte bancaire *</FormLabel>
+                  <Select
+                    onValueChange={(value) => { field.onChange(value); handleAccountChange(value); }}
+                    value={field.value}
+                    disabled={isEditMode}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full text-xs h-9">
+                        <SelectValue placeholder="Sélectionnez un compte..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {accounts.map(account => (
+                        <SelectItem key={account.id} value={account.id} className="text-xs">
+                          {account.name} — {account.currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
 
-        {/* Sens de l'opération - responsive */}
+        {/* ── SECTION 3 : Sens de l'opération ── */}
         <FormField
           control={form.control}
           name="direction"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Sens de l'opération *</FormLabel>
+              <FormLabel className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                Sens de l'opération *
+              </FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={field.onChange}
                   value={field.value}
-                  className="flex flex-col sm:flex-row gap-3 sm:gap-4"
+                  className="flex gap-3 mt-1"
                   disabled={isValidated}
                 >
-                  <div className="flex items-center space-x-2 p-2 sm:p-0 border sm:border-0 rounded-lg sm:rounded-none">
-                    <RadioGroupItem value="DEBIT" id="debit" />
-                    <label
-                      htmlFor="debit"
-                      className="flex items-center gap-2 cursor-pointer text-sm font-medium flex-1"
-                    >
-                      <ArrowUpRight className="h-4 w-4 text-red-500" />
-                      <span>Débit <span className="text-gray-500 text-xs">(sortie)</span></span>
-                    </label>
-                  </div>
-                  <div className="flex items-center space-x-2 p-2 sm:p-0 border sm:border-0 rounded-lg sm:rounded-none">
-                    <RadioGroupItem value="CREDIT" id="credit" />
-                    <label
-                      htmlFor="credit"
-                      className="flex items-center gap-2 cursor-pointer text-sm font-medium flex-1"
-                    >
-                      <ArrowDownLeft className="h-4 w-4 text-green-500" />
-                      <span>Crédit <span className="text-gray-500 text-xs">(entrée)</span></span>
-                    </label>
-                  </div>
+                  <label
+                    htmlFor="debit"
+                    className={`flex items-center gap-2 flex-1 cursor-pointer rounded-lg border-2 px-3 py-2.5 transition-colors ${
+                      field.value === 'DEBIT'
+                        ? 'border-red-400 bg-red-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <RadioGroupItem value="DEBIT" id="debit" className="shrink-0" />
+                    <ArrowUpRight className={`h-4 w-4 shrink-0 ${field.value === 'DEBIT' ? 'text-red-500' : 'text-gray-400'}`} />
+                    <span className="text-sm font-medium">
+                      Débit <span className="text-xs text-gray-500 font-normal">(sortie)</span>
+                    </span>
+                  </label>
+
+                  <label
+                    htmlFor="credit"
+                    className={`flex items-center gap-2 flex-1 cursor-pointer rounded-lg border-2 px-3 py-2.5 transition-colors ${
+                      field.value === 'CREDIT'
+                        ? 'border-green-400 bg-green-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <RadioGroupItem value="CREDIT" id="credit" className="shrink-0" />
+                    <ArrowDownLeft className={`h-4 w-4 shrink-0 ${field.value === 'CREDIT' ? 'text-green-500' : 'text-gray-400'}`} />
+                    <span className="text-sm font-medium">
+                      Crédit <span className="text-xs text-gray-500 font-normal">(entrée)</span>
+                    </span>
+                  </label>
                 </RadioGroup>
               </FormControl>
               <FormMessage />
@@ -474,195 +499,209 @@ export function BankTransactionForm({
           )}
         />
 
-        {/* Grille Moyen de paiement + Lier à un chèque - responsive */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          {/* Moyen de paiement */}
-          <FormField
-            control={form.control}
-            name="paymentMethod"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  Moyen de paiement
-                </FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value}
-                  disabled={isValidated}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Sélectionnez..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="BANK_TRANSFER">Virement bancaire</SelectItem>
-                    <SelectItem value="CHECK">Chèque</SelectItem>
-                    <SelectItem value="CASH">Espèces</SelectItem>
-                    <SelectItem value="MOBILE_MONEY">Mobile Money (OM, MoMo)</SelectItem>
-                    <SelectItem value="OTHER">Autre</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription className="text-xs">Mode de règlement (optionnel)</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Lier à un chèque (optionnel, uniquement en création) */}
-          {!isEditMode && (
+        {/* ── SECTION 4 : Règlement ── */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Règlement</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <FormField
               control={form.control}
-              name="checkId"
+              name="paymentMethod"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Lier à un chèque</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    disabled={!watchBankAccountId || isLoadingChecks}
-                  >
+                <FormItem className="min-w-0">
+                  <FormLabel className="text-xs flex items-center gap-1.5">
+                    <CreditCard className="h-3.5 w-3.5" /> Moyen de paiement
+                  </FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isValidated}>
                     <FormControl>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={
-                          isLoadingChecks
-                            ? "Chargement..."
-                            : !watchBankAccountId
-                              ? "Sélectionnez un compte d'abord"
-                              : "Aucun chèque sélectionné"
-                        } />
+                      <SelectTrigger className="w-full text-xs h-9">
+                        <SelectValue placeholder="Sélectionnez..." />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {availableChecks.length > 0 ? (
-                        availableChecks.map(check => (
-                          <SelectItem key={check.id} value={check.id}>
-                            <span className="truncate">N°{check.checkNumber} | {check.partnerName} | {check.amount.toLocaleString('fr-FR')}</span>
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="__none__" disabled>
-                          {watchBankAccountId ? "Aucun chèque disponible" : "Sélectionnez un compte"}
-                        </SelectItem>
-                      )}
+                      <SelectItem value="BANK_TRANSFER" className="text-xs">Virement bancaire</SelectItem>
+                      <SelectItem value="CHECK" className="text-xs">Chèque</SelectItem>
+                      <SelectItem value="CASH" className="text-xs">Espèces</SelectItem>
+                      <SelectItem value="MOBILE_MONEY" className="text-xs">Mobile Money</SelectItem>
+                      <SelectItem value="OTHER" className="text-xs">Autre</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormDescription className="text-xs">
-                    Lie et valide automatiquement la transaction.
-                  </FormDescription>
+                  <FormDescription className="text-[10px]">Mode de règlement (optionnel)</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {!isEditMode && (
+              <FormField
+                control={form.control}
+                name="checkId"
+                render={({ field }) => (
+                  <FormItem className="min-w-0">
+                    <FormLabel className="text-xs">Lier à un chèque</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={!watchBankAccountId || isLoadingChecks}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full text-xs h-9">
+                          <SelectValue placeholder={
+                            isLoadingChecks ? "Chargement..."
+                              : !watchBankAccountId ? "Choisir un compte d'abord"
+                              : "Aucun (optionnel)"
+                          } />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {availableChecks.length > 0
+                          ? availableChecks.map(check => (
+                            <SelectItem key={check.id} value={check.id} className="text-xs">
+                              N°{check.checkNumber} · {check.partnerName} · {check.amount.toLocaleString('fr-FR')} {currency}
+                            </SelectItem>
+                          ))
+                          : (
+                            <SelectItem value="__none__" disabled className="text-xs">
+                              {watchBankAccountId ? "Aucun chèque disponible" : "Sélectionnez un compte"}
+                            </SelectItem>
+                          )}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription className="text-[10px]">Pré-remplit et lie automatiquement</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* ── SECTION 5 : Montant ── */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Montant</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="amount"
+              render={({ field }) => (
+                <FormItem className="min-w-0">
+                  <FormLabel className="text-xs">Montant *</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0"
+                        {...field}
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        disabled={isValidated}
+                        className="pr-14 text-sm h-9 font-medium"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-medium">
+                        {currency}
+                      </span>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormItem className="min-w-0">
+              <FormLabel className="text-xs">Montant en lettres</FormLabel>
+              <FormControl>
+                <Input
+                  readOnly
+                  value={amountInWordsText}
+                  className="bg-gray-50 italic text-xs h-9 text-gray-600"
+                />
+              </FormControl>
+            </FormItem>
+          </div>
+        </div>
+
+        {/* ── SECTION 6 : Dates ── */}
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Dates</p>
+          <div className="grid grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="transactionDate"
+              render={({ field }) => (
+                <FormItem className="min-w-0">
+                  <FormLabel className="text-xs">Date d'opération *</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} disabled={isEditMode} className="text-xs h-9" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="valueDate"
+              render={({ field }) => (
+                <FormItem className="min-w-0">
+                  <FormLabel className="text-xs">Date de valeur</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} disabled={isValidated} className="text-xs h-9" />
+                  </FormControl>
+                  <FormDescription className="text-[10px]">Optionnel</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
+
+        {/* ── SECTION 7 : Bénéficiaire / Émetteur ── */}
+        <FormField
+          control={form.control}
+          name="partnerName"
+          render={({ field }) => (
+            <FormItem className="min-w-0">
+              <FormLabel className="text-xs">
+                {watchDirection === 'DEBIT' ? 'Bénéficiaire' : 'Émetteur'}
+              </FormLabel>
+              <FormControl>
+                <ThirdPartySelector
+                  value={form.watch('partnerId')}
+                  displayValue={field.value}
+                  role={watchDirection === 'DEBIT' ? 'SUPPLIER' : 'CUSTOMER'}
+                  placeholder={watchDirection === 'DEBIT' ? 'Sélectionner un fournisseur' : 'Sélectionner un client'}
+                  disabled={isValidated}
+                  onSelect={(tp) => {
+                    if (tp) {
+                      form.setValue('partnerName', tp.displayName, { shouldValidate: true });
+                      form.setValue('partnerId', tp.id);
+                    } else {
+                      form.setValue('partnerName', '');
+                      form.setValue('partnerId', undefined);
+                    }
+                  }}
+                />
+              </FormControl>
+              <FormDescription className="text-[10px]">
+                {watchDirection === 'DEBIT' ? 'Fournisseur ou tiers destinataire' : 'Client ou tiers émetteur'} (optionnel)
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
           )}
-        </div>
+        />
 
-        {/* Grille Montant + Montant en lettres - responsive */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-          {/* Montant */}
-          <FormField
-            control={form.control}
-            name="amount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Montant *</FormLabel>
-                <FormControl>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                      disabled={isValidated}
-                      className="pr-16"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs sm:text-sm">
-                      {selectedAccount?.currency || 'EUR'}
-                    </span>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Montant en lettres */}
-          <FormItem>
-            <FormLabel className="text-xs sm:text-sm">Montant en lettres</FormLabel>
-            <FormControl>
-              <Input readOnly value={amountInWordsText} className="bg-gray-100 italic text-xs sm:text-sm" />
-            </FormControl>
-          </FormItem>
-        </div>
-
-        {/* Grille Dates + Bénéficiaire - responsive */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <FormField
-            control={form.control}
-            name="transactionDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Date d'opération *</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} disabled={isEditMode} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="valueDate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Date de valeur</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} disabled={isValidated} />
-                </FormControl>
-                <FormDescription className="text-xs">Optionnel</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Bénéficiaire/Émetteur */}
-          <FormField
-            control={form.control}
-            name="partnerName"
-            render={({ field }) => (
-              <FormItem className="sm:col-span-2 md:col-span-1">
-                <FormLabel>
-                  {form.watch('direction') === 'DEBIT' ? 'Bénéficiaire' : 'Émetteur'}
-                </FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="Nom du tiers"
-                    {...field}
-                    disabled={isValidated}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Description */}
+        {/* ── SECTION 8 : Description ── */}
         <FormField
           control={form.control}
           name="description"
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
+            <FormItem className="min-w-0">
+              <FormLabel className="text-xs">Description</FormLabel>
               <FormControl>
                 <Textarea
                   placeholder="Description de l'opération..."
-                  rows={3}
-                  className="resize-none sm:resize-y"
+                  rows={2}
+                  className="resize-none text-xs"
                   {...field}
                   disabled={isValidated}
                 />
@@ -672,8 +711,8 @@ export function BankTransactionForm({
           )}
         />
 
-        {/* Boutons */}
-        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t">
+        {/* ── Boutons ── */}
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t">
           <Button
             type="button"
             variant="outline"
@@ -686,7 +725,7 @@ export function BankTransactionForm({
           {!isValidated && (
             <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditMode ? 'Enregistrer' : 'Créer la transaction'}
+              {isEditMode ? 'Enregistrer les modifications' : 'Créer la transaction'}
             </Button>
           )}
         </div>

@@ -64,8 +64,8 @@ export function CheckbookList({ checkbooks, isLoading, onView, onCancel }: Check
   }
 
   return (
-    <div className="table-responsive">
-      <Table>
+    <div className="w-full overflow-x-auto rounded-lg border">
+      <Table className="min-w-[700px]">
         <TableHeader>
           <TableRow>
             <TableHead>Type</TableHead>
@@ -189,6 +189,102 @@ export function CheckbookList({ checkbooks, isLoading, onView, onCancel }: Check
           ))}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+// Mobile card view component for very small screens
+export function CheckbookMobileCard({
+  checkbook,
+  onView,
+  onCancel
+}: {
+  checkbook: Checkbook;
+  onView: (cb: Checkbook) => void;
+  onCancel: (cb: Checkbook) => void;
+}) {
+  const getStatusVariant = (status: Checkbook['status']) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'bg-green-100 text-green-800';
+      case 'FINISHED':
+        return 'bg-gray-100 text-gray-800';
+      case 'CANCELLED':
+        return 'bg-red-100 text-red-800';
+      default:
+        return '';
+    }
+  };
+
+  return (
+    <div
+      className="p-4 border rounded-lg bg-card hover:bg-muted/50 transition-colors cursor-pointer"
+      onClick={() => onView(checkbook)}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          {checkbook.isSystem ? (
+            <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300 text-xs">
+              <Shield className="h-3 w-3 mr-1" />
+              SYSTEME
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
+              REEL
+            </Badge>
+          )}
+          <Badge className={cn("text-xs", getStatusVariant(checkbook.status))}>
+            {checkbook.status}
+          </Badge>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onView(checkbook); }}>
+              <Eye className="mr-2 h-4 w-4" />
+              Voir détails
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => { e.stopPropagation(); onCancel(checkbook); }}
+              disabled={checkbook.status !== 'ACTIVE' || checkbook.isSystem}
+              className="text-red-600"
+            >
+              <Ban className="mr-2 h-4 w-4" />
+              Annuler
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <div className="space-y-2 text-sm">
+        <div className="font-medium truncate">
+          {checkbook.type === 'FICTIF' ? (
+            <span className="text-muted-foreground italic">Chèques reçus</span>
+          ) : (
+            checkbook.bankAccountName
+          )}
+        </div>
+        {checkbook.type !== 'FICTIF' && (
+          <div className="text-xs text-muted-foreground font-mono">
+            Plage: {checkbook.startNumber} - {checkbook.endNumber}
+          </div>
+        )}
+        <div className="flex justify-between items-center pt-2 border-t">
+          <span className="text-xs text-muted-foreground">Restants:</span>
+          {checkbook.type === 'FICTIF' || checkbook.availableChecks === -1 ? (
+            <div className="flex items-center gap-1 text-purple-600">
+              <Infinity className="h-4 w-4" />
+              <span className="text-xs font-medium">Illimité</span>
+            </div>
+          ) : (
+            <span className="font-semibold">{checkbook.availableChecks}</span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

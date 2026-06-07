@@ -33,7 +33,7 @@ export function CustomerForm({ initialData, onSave }: CustomerFormProps) {
                     <FormField control={form.control} name="companyName" render={({ field }) => (
                         <FormItem><FormLabel>Raison sociale *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField control={form.control} name="code" render={({ field }) => (
                             <FormItem><FormLabel>Code *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                         )} />

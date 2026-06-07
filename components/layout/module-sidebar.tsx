@@ -7,10 +7,18 @@ import { modules } from "@/config/navigation";
 import { Button } from "../ui/button";
 import { Menu } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
+import { useRouter } from "next/navigation";
 
 export function ModuleSidebar() {
   const { isCollapsed, toggle } = useModuleSidebar();
   const { activeModule, setActiveModule } = useNavigationStore();
+  const router = useRouter();
+
+  function handleModuleClick(key: string) {
+    setActiveModule(key as any);
+    const firstLink = modules[key as keyof typeof modules]?.sidebarLinks.find(l => !l.disabled);
+    if (firstLink) router.push(firstLink.href);
+  }
 
   return (
     <aside
@@ -42,7 +50,7 @@ export function ModuleSidebar() {
                     variant={isActive ? "secondary" : "ghost"}
                     size="icon"
                     className="h-14 w-14"
-                    onClick={() => setActiveModule(key as any)}
+                    onClick={() => handleModuleClick(key)}
                   >
                     <Icon className="h-6 w-6" />
                   </Button>
@@ -57,7 +65,7 @@ export function ModuleSidebar() {
                   "w-[90%] h-12 justify-start px-4 text-base",
                   isActive && "font-bold"
                 )}
-                onClick={() => setActiveModule(key as any)}
+                onClick={() => handleModuleClick(key)}
               >
                 <Icon className="mr-4 h-6 w-6" />
                 {module.name}

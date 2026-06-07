@@ -1,592 +1,183 @@
-/**
- * @file lib/api/check.ts
- * @description API pour la gestion des chèques (émis et reçus).
- * Appels HTTP vers le backend Spring Boot.
- * 
- * @version 2.0.0 - Fix: Utilisation du backend réel au lieu des mocks
- * @author RT-ComOps Team
- * @since 2024-12-12
- */
+// lib/api/check.ts — Chèques (iwm-treasury-core)
+// Backend: GET/POST /api/treasury/checks  (?bankAccountId=)
+//          GET      /api/treasury/checks/{id}
+//          POST     /api/treasury/checks/{id}/issue|deposit|cash|reject|cancel
+// Note: reject et cancel attendent un body JSON { reason: string }
 
-import type {
-  Check,
-  CheckType,
-  CheckStatus,
-  CreateCheckData,
-  UpdateCheckData,
-  CheckFilters,
-} from '@/types/banking';
+import { tGet, tPost, qs } from "@/lib/api/treasury-client";
+import type { Check, CheckType, CheckStatus, CreateCheckData } from "@/types/banking";
 
-// =============================================================================
-// CONFIGURATION
-// =============================================================================
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
-
-const headers = {
-  'Content-Type': 'application/json',
-};
-
-// =============================================================================
-// HELPERS
-// =============================================================================
-
-/**
- * Gère la réponse HTTP et extrait le JSON ou lance une erreur.
- */
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    let errorMessage = `Erreur HTTP: ${response.status}`;
-    try {
-      const text = await response.text();
-      console.error(`[API:Check] Erreur ${response.status} - Réponse brute:`, text);
-
-      if (text) {
-        const errorBody = JSON.parse(text);
-        // Spring Boot peut renvoyer le message dans différents champs
-        errorMessage = errorBody.message || errorBody.error || errorBody.detail || errorMessage;
-      }
-    } catch {
-      // Si on ne peut pas parser le JSON, on garde le message par défaut
-    }
-    throw new Error(errorMessage);
-  }
-  return response.json();
+export interface UpdateCheckData extends Partial<CreateCheckData> {}
+export interface CheckFilters {
+  bankAccountId?: string;
+  checkbookId?: string;
+  type?: CheckType;
+  status?: CheckStatus | CheckStatus[];
+  dateFrom?: string;
+  startDate?: string;
+  dateTo?: string;
+  endDate?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  search?: string;
 }
-
-/**
- * Construit une URL avec des paramètres de requête.
- */
-function buildUrl(path: string, params?: Record<string, string | number | boolean | undefined>): string {
-  const url = new URL(`${API_BASE_URL}${path}`);
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        url.searchParams.append(key, String(value));
-      }
-    });
-  }
-  return url.toString();
-}
-
-/**
- * Enrichit un chèque avec des champs calculés pour l'affichage.
- * Note: Le backend devrait déjà fournir bankAccountName, mais on garde cette fonction
- * pour la rétrocompatibilité et les cas où le backend ne le fournit pas.
- */
-function enrichCheck(check: Check): Check {
-  return {
-    ...check,
-    // Le backend devrait retourner bankAccountName, mais on s'assure qu'il existe
-    bankAccountName: check.bankAccountName || 'Compte inconnu',
-  };
-}
-
-// =============================================================================
-// API CHÈQUES - LECTURE
-// =============================================================================
-
-/**
- * Récupère les chèques avec filtres optionnels.
- * 
- * @param filters - Filtres optionnels (compte, type, statut, dates, montants, recherche)
- * @returns Liste des chèques correspondant aux critères
- * 
- * @example
- * // Récupérer tous les chèques
- * const allChecks = await getChecks();
- * 
- * // Récupérer les chèques reçus en attente
- * const pendingReceived = await getChecks({ type: 'RECEIVED', status: 'PENDING' });
- */
-export async function getChecks(filters?: CheckFilters): Promise<Check[]> {
-  console.log('[API:Check] getChecks - filters:', filters);
-
-  let checks: Check[] = [];
-
-  // Construction des paramètres backend
-  const params: Record<string, any> = {};
-  if (filters?.checkbookId) params.checkbookId = filters.checkbookId;
-
-  // Normaliser le statut en tableau pour un traitement uniforme
-  const statusFilter = filters?.status
-    ? (Array.isArray(filters.status) ? filters.status : [filters.status])
-    : null;
-  const isSingleStatus = statusFilter && statusFilter.length === 1;
-
-  // Déterminer quel endpoint utiliser selon les filtres
-  if (filters?.checkbookId) {
-    // Filtrer par chéquier (via query param backend)
-    const response = await fetch(buildUrl('/checks', params));
-    checks = await handleResponse<Check[]>(response);
-  } else if (filters?.bankAccountId) {
-    // Filtrer par compte bancaire
-    const response = await fetch(`${API_BASE_URL}/checks/account/${filters.bankAccountId}`);
-    checks = await handleResponse<Check[]>(response);
-  } else if (filters?.type && isSingleStatus) {
-    // Filtrer par type ET statut unique (endpoint backend dédié)
-    const checkType = filters.type === 'RECEIVED' ? 'RECEIVED' : 'ISSUED';
-    const response = await fetch(`${API_BASE_URL}/checks/type/${checkType}/status/${statusFilter[0]}`);
-    checks = await handleResponse<Check[]>(response);
-  } else if (filters?.type) {
-    // Filtrer par type seulement (statuts multiples filtrés côté client)
-    const checkType = filters.type === 'RECEIVED' ? 'RECEIVED' : 'ISSUED';
-    const response = await fetch(`${API_BASE_URL}/checks/type/${checkType}`);
-    checks = await handleResponse<Check[]>(response);
-  } else if (isSingleStatus) {
-    // Filtrer par statut unique seulement
-    const response = await fetch(`${API_BASE_URL}/checks/status/${statusFilter[0]}`);
-    checks = await handleResponse<Check[]>(response);
-  } else {
-    // Récupérer tous les chèques (statuts multiples filtrés côté client)
-    const response = await fetch(`${API_BASE_URL}/checks`);
-    checks = await handleResponse<Check[]>(response);
-  }
-
-  // Filtrage par statuts côté client lorsque l'endpoint utilisé ne l'a pas géré
-  // (cas: bankAccountId, checkbookId, ou multi-statuts)
-  if (statusFilter && statusFilter.length > 0) {
-    const endpointHandledStatus = !filters?.bankAccountId && !filters?.checkbookId && isSingleStatus;
-    if (!endpointHandledStatus) {
-      checks = checks.filter(c => statusFilter.includes(c.status));
-    }
-  }
-  
-  // Appliquer les filtres supplémentaires côté client
-  // (le backend pourrait être étendu pour supporter ces filtres)
-  if (filters) {
-    // Filtre par dates
-    if (filters.dateFrom || filters.startDate) {
-      const startDate = filters.dateFrom || filters.startDate;
-      checks = checks.filter(c => c.issueDate >= startDate!);
-    }
-    if (filters.dateTo || filters.endDate) {
-      const endDate = filters.dateTo || filters.endDate;
-      checks = checks.filter(c => c.issueDate <= endDate!);
-    }
-    
-    // Filtre par montants
-    if (filters.minAmount !== undefined) {
-      checks = checks.filter(c => c.amount >= filters.minAmount!);
-    }
-    if (filters.maxAmount !== undefined) {
-      checks = checks.filter(c => c.amount <= filters.maxAmount!);
-    }
-    
-    // Filtre par recherche textuelle
-    if (filters.search) {
-      const searchLower = filters.search.toLowerCase();
-      checks = checks.filter(c =>
-        c.checkNumber.toLowerCase().includes(searchLower) ||
-        c.partnerName.toLowerCase().includes(searchLower) ||
-        c.description?.toLowerCase().includes(searchLower) ||
-        c.referenceCode?.toLowerCase().includes(searchLower)
-      );
-    }
-  }
-  
-  // Trier par date d'émission décroissante
-  checks.sort((a, b) =>
-    new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()
-  );
-  
-  return checks.map(enrichCheck);
-}
-
-/**
- * Récupère un chèque par son ID.
- * 
- * @param id - Identifiant UUID du chèque
- * @returns Le chèque ou null si non trouvé
- */
-export async function getCheckById(id: string): Promise<Check | null> {
-  console.log('[API:Check] getCheckById:', id);
-  
-  try {
-    const response = await fetch(`${API_BASE_URL}/checks/${id}`);
-    if (response.status === 404) {
-      return null;
-    }
-    const check = await handleResponse<Check>(response);
-    return enrichCheck(check);
-  } catch (error) {
-    console.error('[API:Check] Erreur getCheckById:', error);
-    return null;
-  }
-}
-
-/**
- * Récupère les chèques par type (ISSUED ou RECEIVED).
- */
-export async function getChecksByType(checkType: CheckType): Promise<Check[]> {
-  console.log('[API:Check] getChecksByType:', checkType);
-  
-  const response = await fetch(`${API_BASE_URL}/checks/type/${checkType}`);
-  const checks = await handleResponse<Check[]>(response);
-  return checks.map(enrichCheck);
-}
-
-/**
- * Récupère les chèques par statut.
- */
-export async function getChecksByStatus(status: CheckStatus): Promise<Check[]> {
-  console.log('[API:Check] getChecksByStatus:', status);
-  
-  const response = await fetch(`${API_BASE_URL}/checks/status/${status}`);
-  const checks = await handleResponse<Check[]>(response);
-  return checks.map(enrichCheck);
-}
-
-/**
- * Récupère les chèques d'un compte bancaire.
- */
-export async function getChecksByAccountId(accountId: string): Promise<Check[]> {
-  console.log('[API:Check] getChecksByAccountId:', accountId);
-  
-  const response = await fetch(`${API_BASE_URL}/checks/account/${accountId}`);
-  const checks = await handleResponse<Check[]>(response);
-  return checks.map(enrichCheck);
-}
-
-/**
- * Récupère les chèques en attente dont l'échéance est avant une date donnée.
- */
-export async function getPendingChecksDueBefore(date: string): Promise<Check[]> {
-  console.log('[API:Check] getPendingChecksDueBefore:', date);
-  
-  const response = await fetch(buildUrl('/checks/pending/due-before', { date }));
-  const checks = await handleResponse<Check[]>(response);
-  return checks.map(enrichCheck);
-}
-
-// =============================================================================
-// API CHÈQUES - ÉCRITURE
-// =============================================================================
-
-/**
- * Crée un nouveau chèque.
- *
- * @param data - Données du chèque à créer
- * @returns Le chèque créé avec son ID
- * @throws Error si le compte bancaire n'existe pas ou si le numéro de chèque existe déjà
- */export async function createCheck(data: CreateCheckData): Promise<Check> {
-  // On prend une copie des données du formulaire
-  const saveData: Partial<CreateCheckData> = { ...data };
-
-  // On nettoie les valeurs optionnelles qui sont vides
-  if (!saveData.checkbookId) delete saveData.checkbookId;
-  if (!saveData.dueDate) delete saveData.dueDate;
-  if (!saveData.description) delete saveData.description;
-   if (!saveData.issuerBank) delete saveData.issuerBank;
-  if (!saveData.receiptDate) delete saveData.receiptDate;
-  // ... ajoutez d'autres champs optionnels à nettoyer si nécessaire
-
-  console.log('[API:Check] createCheck - données envoyées:', saveData);
-
-  const response = await fetch(`${API_BASE_URL}/checks`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(saveData),
-  });
-
-  const check = await handleResponse<Check>(response);
-  console.log('[API:Check] Chèque créé:', check.id);
-
-  return enrichCheck(check);
-}
-/**
- * Met à jour un chèque existant.
- * 
- * @param id - Identifiant du chèque
- * @param data - Données à mettre à jour
- * @returns Le chèque mis à jour
- * @throws Error si le chèque n'existe pas ou ne peut plus être modifié
- */
-export async function updateCheck(id: string, data: UpdateCheckData): Promise<Check> {
-  console.log('[API:Check] updateCheck:', id, data);
-  
-  const response = await fetch(`${API_BASE_URL}/checks/${id}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(data),
-  });
-  
-  const check = await handleResponse<Check>(response);
-  console.log('[API:Check] Chèque mis à jour:', id);
-  
-  return enrichCheck(check);
-}
-
-/**
- * Supprime un chèque (en attente uniquement).
- * 
- * @param id - Identifiant du chèque
- * @throws Error si le chèque n'existe pas ou n'est pas en attente
- */
-export async function deleteCheck(id: string): Promise<void> {
-  console.log('[API:Check] deleteCheck:', id);
-  
-  const response = await fetch(`${API_BASE_URL}/checks/${id}`, {
-    method: 'DELETE',
-  });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Échec de la suppression' }));
-    throw new Error(error.message || 'Échec de la suppression');
-  }
-  
-  console.log('[API:Check] Chèque supprimé:', id);
-}
-
-// =============================================================================
-// ACTIONS SUR LES CHÈQUES
-// =============================================================================
-
-/**
- * Remet un chèque reçu en banque (passage en DEPOSITED).
- * 
- * @param id - Identifiant du chèque
- * @param depositDate - Date de remise (optionnelle, utilise la date du jour si non fournie)
- * @returns Le chèque mis à jour
- */
-export async function depositCheck(id: string, depositDate?: string): Promise<Check> {
-  console.log('[API:Check] depositCheck:', id, depositDate);
-  
-  const date = depositDate || new Date().toISOString().split('T')[0];
-  const response = await fetch(
-    buildUrl(`/checks/${id}/deposit`, { depositDate: date }),
-    { method: 'POST' }
-  );
-  
-  const check = await handleResponse<Check>(response);
-  console.log('[API:Check] Chèque remis en banque:', id);
-  
-  return enrichCheck(check);
-}
-
-/**
- * Marque un chèque comme encaissé/débité.
- * Crée automatiquement la transaction bancaire associée côté backend.
- * 
- * @param id - Identifiant du chèque
- * @param cashedDate - Date d'encaissement (optionnelle)
- * @returns Le chèque mis à jour
- */
-export async function cashCheck(id: string, cashedDate?: string): Promise<Check> {
-  console.log('[API:Check] cashCheck:', id, cashedDate);
-  
-  const date = cashedDate || new Date().toISOString().split('T')[0];
-  const response = await fetch(
-    buildUrl(`/checks/${id}/cash`, { cashedDate: date }),
-    { method: 'POST' }
-  );
-  
-  const check = await handleResponse<Check>(response);
-  console.log('[API:Check] Chèque encaissé:', id);
-  
-  return enrichCheck(check);
-}
-
-/**
- * Marque un chèque comme rejeté.
- * 
- * @param id - Identifiant du chèque
- * @param rejectionReason - Motif du rejet (obligatoire)
- * @param rejectedDate - Date de rejet (optionnelle)
- * @returns Le chèque mis à jour
- */
-export async function rejectCheck(
-  id: string,
-  rejectionReason: string,
-  rejectedDate?: string
-): Promise<Check> {
-  console.log('[API:Check] rejectCheck:', id, rejectionReason);
-  
-  // Le backend attend 'reason' comme paramètre
-  const response = await fetch(
-    buildUrl(`/checks/${id}/reject`, { reason: rejectionReason }),
-    { method: 'POST' }
-  );
-  
-  const check = await handleResponse<Check>(response);
-  console.log('[API:Check] Chèque rejeté:', id);
-  
-  return enrichCheck(check);
-}
-
-/**
- * Annule un chèque émis (avant qu'il soit débité).
- * 
- * @param id - Identifiant du chèque
- * @returns Le chèque mis à jour
- */
-export async function cancelCheck(id: string): Promise<Check> {
-  console.log('[API:Check] cancelCheck:', id);
-  
-  const response = await fetch(`${API_BASE_URL}/checks/${id}/cancel`, {
-    method: 'POST',
-  });
-  
-  const check = await handleResponse<Check>(response);
-  console.log('[API:Check] Chèque annulé:', id);
-  
-  return enrichCheck(check);
-}
-
-// =============================================================================
-// STATISTIQUES
-// =============================================================================
-
-/**
- * Interface pour les statistiques de chèques retournées par le backend.
- */
 export interface CheckStats {
-  // Totaux
   totalChecks: number;
   totalAmount: number;
-  // Par statut
   pendingCount: number;
   pendingAmount: number;
   issuedCount: number;
   issuedAmount: number;
+  cashedCount: number;
+  cashedAmount: number;
+  rejectedCount: number;
+  rejectedAmount: number;
+  overdueCount: number;
+  overdueAmount: number;
+  totalIssuedTypeCount: number;
+  totalIssuedTypeAmount: number;
+  totalReceivedTypeCount: number;
+  totalReceivedTypeAmount: number;
   receivedCount: number;
   receivedAmount: number;
   depositedCount: number;
   depositedAmount: number;
   inProgressCount: number;
   inProgressAmount: number;
-  cashedCount: number;
-  cashedAmount: number;
-  rejectedCount: number;
-  rejectedAmount: number;
-  // Chèques en retard
-  overdueCount: number;
-  overdueAmount: number;
-  // Par type
-  totalIssuedTypeCount: number;
-  totalIssuedTypeAmount: number;
-  totalReceivedTypeCount: number;
-  totalReceivedTypeAmount: number;
 }
 
-/**
- * Récupère les statistiques agrégées des chèques depuis le backend.
- * Utilise l'endpoint dédié /api/checks/stats pour des performances optimales.
- */
-export async function getCheckStats(): Promise<CheckStats> {
-  console.log('[API:Check] getCheckStats');
+function applyClientFilters(checks: Check[], filters?: CheckFilters): Check[] {
+  if (!filters) return checks;
+  let result = [...checks];
 
-  const response = await fetch(`${API_BASE_URL}/checks/stats`);
-  return handleResponse<CheckStats>(response);
-}
+  if (filters.type) result = result.filter(c => c.checkType === filters.type);
 
-/**
- * Récupère les chèques en retard (date d'échéance dépassée).
- */
-export async function getOverdueChecks(): Promise<Check[]> {
-  console.log('[API:Check] getOverdueChecks');
+  const statuses = filters.status
+    ? (Array.isArray(filters.status) ? filters.status : [filters.status])
+    : null;
+  if (statuses?.length) result = result.filter(c => statuses.includes(c.status));
 
-  const response = await fetch(`${API_BASE_URL}/checks/overdue`);
-  const checks = await handleResponse<Check[]>(response);
-  return checks.map(enrichCheck);
-}
-
-/**
- * Récupère les chèques en attente (à surveiller).
- * 
- * @param type - Filtre par type (optionnel)
- * @param limit - Nombre maximum de résultats
- */
-export async function getPendingChecks(
-  type?: CheckType,
-  limit: number = 10
-): Promise<Check[]> {
-  console.log('[API:Check] getPendingChecks - type:', type, 'limit:', limit);
-  
-  let checks: Check[];
-  
-  if (type) {
-    // Récupérer par type et statuts PENDING + DEPOSITED
-    const pending = await getChecks({ type, status: 'PENDING' });
-    const deposited = await getChecks({ type, status: 'DEPOSITED' });
-    checks = [...pending, ...deposited];
-  } else {
-    // Récupérer tous les PENDING et DEPOSITED
-    const pending = await getChecksByStatus('PENDING');
-    const deposited = await getChecksByStatus('DEPOSITED');
-    checks = [...pending, ...deposited];
+  if (filters.dateFrom || filters.startDate) {
+    const d = filters.dateFrom ?? filters.startDate!;
+    result = result.filter(c => c.issueDate >= d);
   }
-  
-  // Trier par date d'échéance ou d'émission
-  checks.sort((a, b) => {
-    const dateA = a.dueDate || a.issueDate;
-    const dateB = b.dueDate || b.issueDate;
-    return new Date(dateA).getTime() - new Date(dateB).getTime();
-  });
-  
+  if (filters.dateTo || filters.endDate) {
+    const d = filters.dateTo ?? filters.endDate!;
+    result = result.filter(c => c.issueDate <= d);
+  }
+  if (filters.minAmount !== undefined) result = result.filter(c => c.amount >= filters.minAmount!);
+  if (filters.maxAmount !== undefined) result = result.filter(c => c.amount <= filters.maxAmount!);
+  if (filters.search) {
+    const s = filters.search.toLowerCase();
+    result = result.filter(c =>
+      c.checkNumber?.toLowerCase().includes(s) ||
+      c.partnerName?.toLowerCase().includes(s) ||
+      c.description?.toLowerCase().includes(s)
+    );
+  }
+  return result;
+}
+
+export async function getChecks(filters?: CheckFilters): Promise<Check[]> {
+  const params: Record<string, string | undefined> = {};
+  if (filters?.bankAccountId) params.bankAccountId = filters.bankAccountId;
+  if (filters?.checkbookId)   params.checkbookId   = filters.checkbookId;
+
+  const checks = await tGet<Check[]>(`/checks${qs(params)}`);
+  return applyClientFilters(checks, filters).sort(
+    (a, b) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()
+  );
+}
+
+export async function getCheckById(id: string): Promise<Check | null> {
+  try { return await tGet<Check>(`/checks/${id}`); } catch { return null; }
+}
+
+export async function getChecksByType(type: CheckType): Promise<Check[]> {
+  return getChecks({ type });
+}
+
+export async function getChecksByStatus(status: CheckStatus): Promise<Check[]> {
+  return getChecks({ status });
+}
+
+export async function getChecksByAccountId(accountId: string): Promise<Check[]> {
+  return getChecks({ bankAccountId: accountId });
+}
+
+export async function getPendingChecksDueBefore(_date: string): Promise<Check[]> { return []; }
+export async function getOverdueChecks(): Promise<Check[]> { return []; }
+export async function getPendingChecks(_type?: CheckType, limit = 10): Promise<Check[]> {
+  const checks = await getChecks({ status: "PENDING" });
   return checks.slice(0, limit);
 }
 
-// =============================================================================
-// ACTIONS SUPPLÉMENTAIRES
-// =============================================================================
+export async function createCheck(data: CreateCheckData): Promise<Check> {
+  const payload: Record<string, unknown> = { ...data };
+  if (!payload.checkbookId) delete payload.checkbookId;
+  if (!payload.dueDate)     delete payload.dueDate;
+  if (!payload.description) delete payload.description;
+  return tPost<Check>("/checks", payload);
+}
 
-/**
- * Émettre un chèque (PENDING -> ISSUED).
- * Change le statut d'un chèque créé en émis.
- */
+export async function updateCheck(_id: string, _data: UpdateCheckData): Promise<Check> {
+  throw new Error("La modification d'un chèque n'est pas disponible.");
+}
+
+export async function deleteCheck(_id: string): Promise<void> {
+  throw new Error("La suppression d'un chèque n'est pas disponible.");
+}
+
 export async function emitCheck(id: string): Promise<Check> {
-  console.log('[API:Check] emitCheck - id:', id);
-
-  const response = await fetch(`${API_BASE_URL}/checks/${id}/emit`, {
-    method: 'POST',
-    headers,
-  });
-
-  return handleResponse<Check>(response);
+  return tPost<Check>(`/checks/${id}/issue`);
 }
 
-/**
- * Marquer un chèque comme reçu (PENDING -> RECEIVED).
- * Pour les chèques de type RECEIVED uniquement.
- */
-export async function markReceivedCheck(id: string, receivedDate?: string): Promise<Check> {
-  console.log('[API:Check] markReceivedCheck - id:', id);
-
-  const params = new URLSearchParams();
-  if (receivedDate) params.set('receivedDate', receivedDate);
-
-  const url = params.toString()
-    ? `${API_BASE_URL}/checks/${id}/receive?${params.toString()}`
-    : `${API_BASE_URL}/checks/${id}/receive`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-  });
-
-  return handleResponse<Check>(response);
+export async function markReceivedCheck(id: string): Promise<Check> {
+  return tPost<Check>(`/checks/${id}/issue`);
 }
 
-/**
- * Marquer un chèque en cours de traitement (DEPOSITED -> IN_PROGRESS).
- */
-export async function markProcessingCheck(id: string): Promise<Check> {
-  console.log('[API:Check] markProcessingCheck - id:', id);
-
-  const response = await fetch(`${API_BASE_URL}/checks/${id}/processing`, {
-    method: 'POST',
-    headers,
-  });
-
-  return handleResponse<Check>(response);
+export async function depositCheck(id: string, depositId?: string): Promise<Check> {
+  return tPost<Check>(`/checks/${id}/deposit${qs({ depositId })}`);
 }
 
-/**
- * Marquer un chèque émis comme payé.
- * Alias de cashCheck pour plus de clarté.
- */
-export async function markPaidCheck(id: string, paidDate?: string): Promise<Check> {
-  console.log('[API:Check] markPaidCheck - id:', id);
-  return cashCheck(id, paidDate);
+export async function cashCheck(id: string, _cashDate?: string): Promise<Check> {
+  return tPost<Check>(`/checks/${id}/cash`);
+}
+
+export async function rejectCheck(id: string, reason = "Rejet", _rejectDate?: string): Promise<Check> {
+  return tPost<Check>(`/checks/${id}/reject`, { reason });
+}
+
+export async function cancelCheck(id: string): Promise<Check> {
+  return tPost<Check>(`/checks/${id}/cancel`, { reason: "Annulation" });
+}
+
+export async function markProcessingCheck(_id: string): Promise<Check> {
+  throw new Error("Action non disponible dans cette version.");
+}
+
+export async function markPaidCheck(id: string): Promise<Check> {
+  return cashCheck(id);
+}
+
+export async function getCheckStats(): Promise<CheckStats> {
+  const checks = await getChecks();
+  const sum = (arr: Check[]) => arr.reduce((s, c) => s + c.amount, 0);
+  const byStatus = (s: CheckStatus) => checks.filter(c => c.status === s);
+  const issued   = checks.filter(c => c.checkType === "ISSUED");
+  const received = checks.filter(c => c.checkType === "RECEIVED");
+  return {
+    totalChecks: checks.length,
+    totalAmount: sum(checks),
+    pendingCount:    byStatus("PENDING").length,    pendingAmount:    sum(byStatus("PENDING")),
+    issuedCount:     byStatus("ISSUED").length,     issuedAmount:     sum(byStatus("ISSUED")),
+    cashedCount:     byStatus("CASHED").length,     cashedAmount:     sum(byStatus("CASHED")),
+    rejectedCount:   byStatus("REJECTED").length,   rejectedAmount:   sum(byStatus("REJECTED")),
+    receivedCount:   byStatus("RECEIVED").length,   receivedAmount:   sum(byStatus("RECEIVED")),
+    depositedCount:  byStatus("DEPOSITED").length,  depositedAmount:  sum(byStatus("DEPOSITED")),
+    inProgressCount: byStatus("IN_PROGRESS").length,inProgressAmount: sum(byStatus("IN_PROGRESS")),
+    overdueCount: 0, overdueAmount: 0,
+    totalIssuedTypeCount:    issued.length,   totalIssuedTypeAmount:    sum(issued),
+    totalReceivedTypeCount:  received.length, totalReceivedTypeAmount:  sum(received),
+  };
 }

@@ -5,14 +5,16 @@ export const dynamic = 'force-dynamic';
 
 
 export default async function DashboardPage() {
-    const orders = await getOrders();
-    const clients = await getClients();
-    const products = await getProducts();
+    const [orders, clients, products] = await Promise.all([
+        getOrders().catch(() => []),
+        getClients().catch(() => []),
+        getProducts().catch(() => []),
+    ]);
 
     return (
         <div className="h-full">
             <DashboardView
-                totalRevenue={orders.reduce((sum, order) => sum + order.netToPay, 0)}
+                totalRevenue={orders.reduce((sum: number, order: any) => sum + (order.netToPay ?? 0), 0)}
                 totalClients={clients.length}
                 totalProducts={products.length}
                 recentOrders={orders.slice(0, 5)}

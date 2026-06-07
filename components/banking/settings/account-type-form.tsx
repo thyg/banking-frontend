@@ -18,8 +18,8 @@ import { cn } from '@/lib/utils';
 
 // Schéma Zod
 const accountTypeSchema = z.object({
-  code: z.string().min(1, "Le code est requis").max(20).regex(/^[A-Za-z0-9_]+$/, "Le code ne doit contenir que des lettres, chiffres et underscores"),
-  libelle: z.string().min(1, "Le libellé est requis").max(100),
+  code: z.string().trim().min(1, "Le code est requis").max(20).regex(/^[A-Za-z0-9_]+$/, "Le code ne doit contenir que des lettres, chiffres et underscores"),
+  libelle: z.string().trim().min(1, "Le libellé est requis").max(100),
   description: z.string().max(500).optional(),
   peutEmettreChecques: z.boolean(),
   peutRecevoirChecques: z.boolean(),

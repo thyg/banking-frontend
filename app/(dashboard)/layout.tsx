@@ -2,7 +2,6 @@
 
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
-import { useSidebar } from "@/hooks/useSidebar";
 import React, { useEffect } from "react";
 import { ComposeWindow } from "@/components/ui/compose-window";
 import { usePathname } from "next/navigation";
@@ -16,7 +15,6 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isCollapsed } = useSidebar();
   const pathname = usePathname();
   const { activeModule, setActiveModule } = useNavigationStore();
 

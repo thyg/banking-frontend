@@ -9,7 +9,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { BankTransaction, TransactionFilters } from '@/types/banking';
+import { BankAccount, BankTransaction, TransactionFilters } from '@/types/banking';
 
 // Composants UI
 import { Button } from '@/components/ui/button';
@@ -68,7 +68,7 @@ import {
 // UTILITAIRES
 // =============================================================================
 
-const formatCurrency = (amount: number, currency: string = 'EUR'): string => {
+const formatCurrency = (amount: number, currency: string = 'XOF'): string => {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency,
@@ -149,12 +149,11 @@ interface BankTransactionListProps {
   onPost?: (transaction: BankTransaction) => void;
   onTransfer?: (transaction: BankTransaction) => void;
   onRefresh: () => void;
-  /** Callback pour afficher les détails d'une transaction */
   onViewDetails?: (transaction: BankTransaction) => void;
-  /** Afficher la colonne compte (utile si vue globale) */
   showAccountColumn?: boolean;
-  /** Afficher le solde courant */
   showRunningBalance?: boolean;
+  /** Liste des comptes bancaires pour le sélecteur de filtre */
+  accounts?: BankAccount[];
 }
 
 // =============================================================================
@@ -178,6 +177,7 @@ export function BankTransactionList({
   onViewDetails,
   showAccountColumn = false,
   showRunningBalance = false,
+  accounts = [],
 }: BankTransactionListProps) {
   const [searchValue, setSearchValue] = useState(filters.search || '');
 
@@ -250,7 +250,9 @@ export function BankTransactionList({
           <p className="text-gray-500 mb-6 max-w-md">
             {filters.search || filters.dateFrom || filters.dateTo
               ? "Aucune transaction ne correspond à vos critères de recherche."
-              : "Créez votre première transaction bancaire pour commencer."}
+              : filters.bankAccountId
+                ? "Ce compte n'a pas encore de transactions."
+                : "Aucune transaction enregistrée pour le moment."}
           </p>
           <Button onClick={onAddNew}>
             <Plus className="mr-2 h-4 w-4" />
@@ -401,6 +403,17 @@ export function BankTransactionList({
                         </DropdownMenuItem>
                       )}
 
+                      {/* Supprimer - seulement pour brouillons */}
+                      {txn.status === 'DRAFT' && (
+                        <DropdownMenuItem
+                          onClick={(e) => { e.stopPropagation(); onDelete(txn); }}
+                          className="text-red-600 focus:text-red-600"
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          Supprimer
+                        </DropdownMenuItem>
+                      )}
+
                       <DropdownMenuSeparator />
 
                       {/* Imprimer */}
@@ -527,7 +540,29 @@ export function BankTransactionList({
       {/* Filtres */}
       <Card>
         <CardContent className="pt-4 sm:pt-6">
-          <div className="space-y-3 sm:space-y-0 sm:flex sm:flex-row sm:gap-4">
+          <div className="space-y-3">
+            {/* Sélecteur de compte — toujours affiché */}
+            <Select
+              value={filters.bankAccountId || '__all__'}
+              onValueChange={(value) =>
+                onFiltersChange({ ...filters, bankAccountId: value === '__all__' ? undefined : value })
+              }
+              disabled={accounts.length === 0}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={accounts.length === 0 ? "Chargement des comptes..." : "Sélectionnez un compte bancaire..."} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">Tous les comptes</SelectItem>
+                {accounts.map(a => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name} — {a.currency}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <div className="sm:flex sm:flex-row sm:gap-4 space-y-3 sm:space-y-0">
             {/* Recherche */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -598,6 +633,7 @@ export function BankTransactionList({
                 className="w-full sm:w-[140px]"
                 placeholder="Au"
               />
+            </div>
             </div>
           </div>
         </CardContent>

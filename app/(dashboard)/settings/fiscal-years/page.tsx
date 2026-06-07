@@ -2,8 +2,10 @@ import { getFiscalYears, getOrders } from "@/lib/api";
 import { FiscalYearsView } from "@/components/settings/fiscal-years/fiscal-years-view";
 
 export default async function FiscalYearsPage() {
-    const fiscalYears = await getFiscalYears();
-    const allOrders = await getOrders();
+    const [fiscalYears, allOrders] = await Promise.all([
+        getFiscalYears().catch(() => []),
+        getOrders().catch(() => []),
+    ]);
 
     return (
         <div className="h-full flex flex-col gap-4">

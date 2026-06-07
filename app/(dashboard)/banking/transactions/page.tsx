@@ -13,6 +13,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 
 // Types
 import {
+  BankAccount,
   BankTransaction,
   TransactionFilters,
   CreateBankTransactionData
@@ -28,6 +29,7 @@ import {
   validateBankTransaction,
   cancelBankTransaction,
 } from '@/lib/api/bank-transaction';
+import { getBankAccounts } from '@/lib/api/banking';
 
 // Utilitaires PDF
 import { generateTransactionPDF } from '@/lib/utils/pdf-generator';
@@ -67,6 +69,7 @@ export default function BankTransactionsPage() {
   // ---------------------------------------------------------------------------
   
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<TransactionFilters>({});
   
@@ -151,10 +154,33 @@ export default function BankTransactionsPage() {
   // CHARGEMENT DES DONNÉES
   // ---------------------------------------------------------------------------
 
-  const fetchTransactions = useCallback(async () => {
+  // Charger les comptes bancaires une seule fois au montage
+  useEffect(() => {
+    getBankAccounts()
+      .then(setAccounts)
+      .catch(() => setAccounts([]));
+  }, []);
+
+  const fetchTransactions = useCallback(async (overrideFilters?: TransactionFilters) => {
+    const activeFilters = overrideFilters ?? filters;
     setIsLoading(true);
     try {
-      const data = await getBankTransactions(filters);
+      let data: BankTransaction[];
+      if (activeFilters.bankAccountId) {
+        // Un seul compte sélectionné
+        data = await getBankTransactions(activeFilters);
+      } else if (accounts.length > 0) {
+        // "Tous les comptes" : fetch parallèle sur tous les comptes puis fusion
+        const results = await Promise.all(
+          accounts.map(a => getBankTransactions({ ...activeFilters, bankAccountId: a.id }).catch(() => []))
+        );
+        data = results
+          .flat()
+          .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
+      } else {
+        // Comptes pas encore chargés
+        data = [];
+      }
       setTransactions(data);
     } catch (error) {
       console.error('[TransactionsPage] Erreur chargement:', error);
@@ -166,7 +192,7 @@ export default function BankTransactionsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [filters, toast]);
+  }, [filters, accounts, toast]);
 
   useEffect(() => {
     fetchTransactions();
@@ -203,17 +229,22 @@ export default function BankTransactionsPage() {
           title: 'Transaction modifiée',
           description: 'La transaction a été mise à jour avec succès.',
         });
+        setIsFormOpen(false);
+        setEditingTransaction(null);
+        await fetchTransactions();
       } else {
         await createBankTransaction(data);
         toast({
           title: 'Transaction créée',
           description: 'La nouvelle transaction a été enregistrée.',
         });
+        setIsFormOpen(false);
+        setEditingTransaction(null);
+        // Forcer le filtre sur le compte de la transaction créée, puis recharger
+        const newFilters: TransactionFilters = { bankAccountId: data.bankAccountId };
+        setFilters(newFilters);
+        await fetchTransactions(newFilters);
       }
-      
-      setIsFormOpen(false);
-      setEditingTransaction(null);
-      await fetchTransactions();
     } catch (error) {
       console.error('[TransactionsPage] Erreur sauvegarde:', error);
       toast({
@@ -359,9 +390,10 @@ export default function BankTransactionsPage() {
         onPrint={handlePrint}
         onPost={handlePost}
         onTransfer={handleTransfer}
-        onRefresh={fetchTransactions}
+        onRefresh={() => fetchTransactions()}
         onViewDetails={setSelectedTransaction}
         showAccountColumn={true}
+        accounts={accounts}
       />
 
       {/* Modale Détails Transaction */}

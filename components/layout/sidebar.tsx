@@ -19,26 +19,19 @@ import { useSidebar } from "@/hooks/useSidebar";
 import { useNavigationStore } from "@/hooks/use-navigation-store";
 import { modules } from "@/config/navigation";
 import { Button } from "../ui/button";
-import { 
-  ShoppingCart, 
-  Warehouse, 
-  UserCog, 
-  Settings,
-  Landmark
-} from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
-
-const moduleIcons = {
-    ventes: ShoppingCart,
-    stock: Warehouse,
-    tresorerie: Landmark,
-    personnel: UserCog,
-    parametres: Settings
-};
+import { useRouter } from "next/navigation";
 
 export function Sidebar() {
   const { isCollapsed } = useSidebar();
   const { activeModule, setActiveModule } = useNavigationStore();
+  const router = useRouter();
+
+  function handleModuleClick(key: string) {
+    setActiveModule(key as any);
+    const firstLink = modules[key as keyof typeof modules]?.sidebarLinks.find(l => !l.disabled);
+    if (firstLink) router.push(firstLink.href);
+  }
 
   const currentModuleData = modules[activeModule];
 
@@ -60,7 +53,7 @@ export function Sidebar() {
                                     variant={activeModule === key ? "secondary" : "ghost"}
                                     size="icon" 
                                     className="h-12 w-12 flex-col gap-3 text-xs"
-                                    onClick={() => setActiveModule(key as any)}
+                                    onClick={() => handleModuleClick(key)}
                                 >
                                     <Icon className={cn(
                                         "h-5 w-5",

@@ -146,7 +146,7 @@ export default function BankCategoriesPage() {
       </div>
 
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="w-[95vw] max-w-[450px] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>
               {editingCategory ? `Modifier "${editingCategory.label}"` : 'Nouvelle catégorie'}

@@ -126,8 +126,8 @@ export function BankList({
 
     // État avec données
     return (
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
+      <div className="border rounded-lg overflow-x-auto">
+        <Table className="min-w-[500px]">
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="w-[80px] sm:w-[100px]">Code</TableHead>

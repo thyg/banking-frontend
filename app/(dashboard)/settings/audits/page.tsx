@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AuditTableClient } from '@/components/personnel/audits/audit-table-client';
 
 export default async function AuditPage() {
-    const audits = await getSystemAudits();
+    const audits = await getSystemAudits().catch(() => []);
 
     return (
         <div className="h-full flex flex-col gap-4">
