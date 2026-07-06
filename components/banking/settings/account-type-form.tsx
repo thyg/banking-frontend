@@ -21,8 +21,8 @@ const accountTypeSchema = z.object({
   code: z.string().trim().min(1, "Le code est requis").max(20).regex(/^[A-Za-z0-9_]+$/, "Le code ne doit contenir que des lettres, chiffres et underscores"),
   libelle: z.string().trim().min(1, "Le libellé est requis").max(100),
   description: z.string().max(500).optional(),
-  peutEmettreChecques: z.boolean(),
-  peutRecevoirChecques: z.boolean(),
+  peutEmettreCheques: z.boolean(),
+  peutRecevoirCheques: z.boolean(),
   peutTransactionsEspeces: z.boolean(),
   decouvertAutorise: z.boolean(),
   ordreAffichage: z.coerce.number().int("Doit être un nombre entier").optional(),
@@ -77,8 +77,8 @@ export function AccountTypeForm({ initialData, onSave, onCancel }: AccountTypeFo
       code: initialData?.code || '',
       libelle: initialData?.libelle || '',
       description: initialData?.description || '',
-      peutEmettreChecques: initialData?.peutEmettreChecques || false,
-      peutRecevoirChecques: initialData?.peutRecevoirChecques || false,
+      peutEmettreCheques: initialData?.peutEmettreCheques || false,
+      peutRecevoirCheques: initialData?.peutRecevoirCheques || false,
       peutTransactionsEspeces: initialData?.peutTransactionsEspeces || false,
       decouvertAutorise: initialData?.decouvertAutorise || false,
       ordreAffichage: initialData?.ordreAffichage || 0,
@@ -146,8 +146,8 @@ export function AccountTypeForm({ initialData, onSave, onCancel }: AccountTypeFo
         <div className="space-y-3">
           <h3 className="text-sm font-medium text-muted-foreground">Permissions</h3>
           <div className="space-y-2">
-            <FormField control={form.control} name="peutEmettreChecques" render={({ field }) => (<PermissionToggle field={field} icon={<CheckSquare size={20} />} title="Émission de chèques" description="Autorise la création de chèques." />)} />
-            <FormField control={form.control} name="peutRecevoirChecques" render={({ field }) => (<PermissionToggle field={field} icon={<PackageOpen size={20} />} title="Réception de chèques" description="Autorise l'encaissement de chèques." />)} />
+            <FormField control={form.control} name="peutEmettreCheques" render={({ field }) => (<PermissionToggle field={field} icon={<CheckSquare size={20} />} title="Émission de chèques" description="Autorise la création de chèques." />)} />
+            <FormField control={form.control} name="peutRecevoirCheques" render={({ field }) => (<PermissionToggle field={field} icon={<PackageOpen size={20} />} title="Réception de chèques" description="Autorise l'encaissement de chèques." />)} />
             <FormField control={form.control} name="peutTransactionsEspeces" render={({ field }) => (<PermissionToggle field={field} icon={<Banknote size={20} />} title="Transactions en espèces" description="Autorise les dépôts et retraits." />)} />
           </div>
         </div>

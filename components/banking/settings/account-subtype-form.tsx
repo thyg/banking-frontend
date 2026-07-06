@@ -48,10 +48,10 @@ export function AccountSubTypeForm({ parentType, initialData, onSave, onCancel }
   };
 
   const [emettreOverride, setEmettreOverride] = useState<OverrideState>(
-    getInitialOverride(initialData?.peutEmettreChequesOverride, parentType.peutEmettreChecques)
+    getInitialOverride(initialData?.peutEmettreChequesOverride, parentType.peutEmettreCheques)
   );
   const [recevoirOverride, setRecevoirOverride] = useState<OverrideState>(
-    getInitialOverride(initialData?.peutRecevoirChequesOverride, parentType.peutRecevoirChecques)
+    getInitialOverride(initialData?.peutRecevoirChequesOverride, parentType.peutRecevoirCheques)
   );
   const [especesOverride, setEspecesOverride] = useState<OverrideState>(
     getInitialOverride(initialData?.peutTransactionsEspecesOverride, parentType.peutTransactionsEspeces)
@@ -88,16 +88,17 @@ export function AccountSubTypeForm({ parentType, initialData, onSave, onCancel }
     }
 
     try {
+      // Le backend attend des champs plats : l'héritage « inherit » est résolu ici
+      // avec la valeur du type parent.
       const data: CreateAccountSubTypeData = {
         accountTypeId: parentType.id,
         code: code.toUpperCase().trim(),
         libelle: libelle.trim(),
         description: description.trim() || undefined,
-        peutEmettreChequesOverride: emettreOverride === 'inherit' ? null : emettreOverride === 'true',
-        peutRecevoirChequesOverride: recevoirOverride === 'inherit' ? null : recevoirOverride === 'true',
-        peutTransactionsEspecesOverride: especesOverride === 'inherit' ? null : especesOverride === 'true',
-        decouvertAutoriseOverride: decouvertOverride === 'inherit' ? null : decouvertOverride === 'true',
-        decouvertParDefautOverride: decouvertMontantOverride ? parseFloat(decouvertMontantOverride) : null,
+        peutEmettreCheques: getEffectiveValue(emettreOverride, parentType.peutEmettreCheques),
+        peutRecevoirCheques: getEffectiveValue(recevoirOverride, parentType.peutRecevoirCheques),
+        peutTransactionsEspeces: getEffectiveValue(especesOverride, parentType.peutTransactionsEspeces),
+        decouvertAutorise: getEffectiveValue(decouvertOverride, parentType.decouvertAutorise),
         ordreAffichage: parseInt(ordreAffichage) || 0,
         isActive,
       };
@@ -265,7 +266,7 @@ export function AccountSubTypeForm({ parentType, initialData, onSave, onCancel }
         <OverrideSelector
           label="Peut emettre des cheques"
           description="Autorise l'emission de cheques"
-          parentValue={parentType.peutEmettreChecques}
+          parentValue={parentType.peutEmettreCheques}
           value={emettreOverride}
           onChange={setEmettreOverride}
         />
@@ -273,7 +274,7 @@ export function AccountSubTypeForm({ parentType, initialData, onSave, onCancel }
         <OverrideSelector
           label="Peut recevoir des cheques"
           description="Autorise la reception de cheques"
-          parentValue={parentType.peutRecevoirChecques}
+          parentValue={parentType.peutRecevoirCheques}
           value={recevoirOverride}
           onChange={setRecevoirOverride}
         />

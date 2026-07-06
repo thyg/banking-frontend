@@ -1,10 +1,12 @@
-// lib/api/check.ts — Chèques (iwm-treasury-core)
-// Backend: GET/POST /api/treasury/checks  (?bankAccountId=)
+// lib/api/check.ts — Chèques (RT-comops-treasury-core)
+// Backend: GET/POST /api/treasury/checks  (?organizationId= requis, &bankAccountId=)
 //          GET      /api/treasury/checks/{id}
 //          POST     /api/treasury/checks/{id}/issue|deposit|cash|reject|cancel
-// Note: reject et cancel attendent un body JSON { reason: string }
+// Notes: reject et cancel attendent un body JSON { reason: string } ;
+//        deposit exige ?depositId= (remise existante) ;
+//        la création exige organizationId dans le body (RegisterCheckPaymentRequest).
 
-import { tGet, tPost, qs } from "@/lib/api/treasury-client";
+import { tGet, tPost, qs, requireOrg, withOrg } from "@/lib/api/treasury-client";
 import type { Check, CheckType, CheckStatus, CreateCheckData } from "@/types/banking";
 
 export interface UpdateCheckData extends Partial<CreateCheckData> {}
@@ -79,7 +81,7 @@ function applyClientFilters(checks: Check[], filters?: CheckFilters): Check[] {
 }
 
 export async function getChecks(filters?: CheckFilters): Promise<Check[]> {
-  const params: Record<string, string | undefined> = {};
+  const params: Record<string, string | undefined> = { organizationId: requireOrg() };
   if (filters?.bankAccountId) params.bankAccountId = filters.bankAccountId;
   if (filters?.checkbookId)   params.checkbookId   = filters.checkbookId;
 
@@ -113,7 +115,7 @@ export async function getPendingChecks(_type?: CheckType, limit = 10): Promise<C
 }
 
 export async function createCheck(data: CreateCheckData): Promise<Check> {
-  const payload: Record<string, unknown> = { ...data };
+  const payload: Record<string, unknown> = withOrg({ ...data });
   if (!payload.checkbookId) delete payload.checkbookId;
   if (!payload.dueDate)     delete payload.dueDate;
   if (!payload.description) delete payload.description;
@@ -136,8 +138,27 @@ export async function markReceivedCheck(id: string): Promise<Check> {
   return tPost<Check>(`/checks/${id}/issue`);
 }
 
-export async function depositCheck(id: string, depositId?: string): Promise<Check> {
-  return tPost<Check>(`/checks/${id}/deposit${qs({ depositId })}`);
+export async function depositCheck(id: string, depositIdOrDate?: string): Promise<Check> {
+  // Le backend exige un depositId (?depositId=) : un chèque se remet via une remise.
+  // Compat : la page Chèques passe historiquement une date en 2e argument.
+  const isUuid = !!depositIdOrDate && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(depositIdOrDate);
+  if (isUuid) {
+    return tPost<Check>(`/checks/${id}/deposit${qs({ depositId: depositIdOrDate })}`);
+  }
+
+  // Pas de remise fournie : on crée une remise pour ce seul chèque, on l'y ajoute
+  // puis on la soumet (submit passe le chèque à DEPOSITED côté backend).
+  const check = await getCheckById(id);
+  if (!check) throw new Error("Chèque introuvable.");
+  const depositDate = depositIdOrDate || new Date().toISOString().split("T")[0];
+  const deposit = await tPost<{ id: string }>("/check-deposits", withOrg({
+    bankAccountId: check.bankAccountId,
+    reference: `REM-${depositDate.replace(/-/g, "")}-${check.checkNumber || id.slice(0, 6)}`,
+    depositDate,
+  }));
+  await tPost(`/check-deposits/${deposit.id}/checks`, { checkId: id, amount: check.amount });
+  await tPost(`/check-deposits/${deposit.id}/submit`);
+  return (await getCheckById(id)) ?? check;
 }
 
 export async function cashCheck(id: string, _cashDate?: string): Promise<Check> {

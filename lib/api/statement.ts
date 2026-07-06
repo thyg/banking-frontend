@@ -1,10 +1,11 @@
-// lib/api/statement.ts — Import de relevés bancaires (iwm-treasury-core)
-// Backend: POST /api/treasury/statements                  (créer relevé)
-//          POST /api/treasury/statements/{id}/lines       (importer lignes)
-//          POST /api/treasury/statements/{id}/close       (clôturer)
+// lib/api/statement.ts — Import de relevés bancaires (RT-comops-treasury-core)
+// Délègue à lib/api/banking.ts qui applique le contrat backend :
+//   POST /api/treasury/statements        { organizationId, bankAccountId, statementNumber?, statementDate, openingBalance, closingBalance }
+//   POST /api/treasury/statements/{id}/lines  { lines: [{ operationDate, valueDate?, label, amount, direction, referenceCode? }] }
+//   POST /api/treasury/statements/{id}/close
 
-import { tPost } from "@/lib/api/treasury-client";
-import type { BankStatement, StatementLine } from "@/types/banking";
+import { createBankStatement, createStatementLinesBatch, closeBankStatement } from "@/lib/api/banking";
+import type { BankStatement, CreateStatementLineRequest } from "@/types/banking";
 
 export interface ParsedStatementLine {
   date?: string;
@@ -29,31 +30,31 @@ export interface ParsedStatement {
 }
 
 export async function importStatement(parsed: ParsedStatement): Promise<BankStatement> {
-  const statement = await tPost<BankStatement>("/statements", {
+  const statement = await createBankStatement({
     bankAccountId:  parsed.bankAccountId,
-    startDate:      parsed.startDate,
-    endDate:        parsed.endDate,
+    statementDate:  parsed.endDate || parsed.startDate || new Date().toISOString().split("T")[0],
+    periodStart:    parsed.startDate,
+    periodEnd:      parsed.endDate,
     openingBalance: parsed.openingBalance ?? 0,
     closingBalance: parsed.closingBalance ?? 0,
-    currency:       parsed.currency ?? "XOF",
   });
 
   if (parsed.lines?.length) {
-    await tPost<StatementLine[]>(`/statements/${statement.id}/lines`,
-      parsed.lines.map((l: any) => ({
-        operationDate: l.date ?? l.operationDate,
-        valueDate:     l.valueDate ?? l.date,
-        label:         l.label ?? l.description,
-        amount:        l.amount,
-        direction:     l.direction,
-        referenceCode: l.reference ?? l.referenceCode,
-      }))
-    );
+    const lines: CreateStatementLineRequest[] = parsed.lines.map((l) => ({
+      bankStatementId: statement.id,
+      transactionDate: l.date ?? l.operationDate ?? statement.statementDate,
+      valueDate:       l.valueDate ?? l.date,
+      description:     l.label ?? l.description,
+      amount:          l.amount,
+      direction:       l.direction,
+      reference:       l.reference ?? l.referenceCode,
+    }));
+    await createStatementLinesBatch(statement.id, lines);
   }
 
   return statement;
 }
 
 export async function closeStatement(statementId: string): Promise<BankStatement> {
-  return tPost<BankStatement>(`/statements/${statementId}/close`);
+  return closeBankStatement(statementId);
 }

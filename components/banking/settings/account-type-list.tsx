@@ -153,8 +153,8 @@ export function AccountTypeList({
 
         <div className="flex-1">
           <PermissionsList
-            peutEmettre={subType.peutEmettreChecques}
-            peutRecevoir={subType.peutRecevoirChecques}
+            peutEmettre={subType.peutEmettreCheques}
+            peutRecevoir={subType.peutRecevoirCheques}
             peutEspeces={subType.peutTransactionsEspeces}
             isInherited
           />
@@ -235,7 +235,7 @@ function TypeRow({ type, isExpanded, onToggleExpand, onEdit, onAddSubType, onDel
                     <div className="font-medium text-sm sm:text-base">{type.libelle}</div>
                     <div className="text-xs sm:text-sm text-muted-foreground truncate max-w-[120px] sm:max-w-xs">{type.description}</div>
                 </TableCell>
-                <TableCell className="hidden md:table-cell"><PermissionsList peutEmettre={type.peutEmettreChecques} peutRecevoir={type.peutRecevoirChecques} peutEspeces={type.peutTransactionsEspeces} /></TableCell>
+                <TableCell className="hidden md:table-cell"><PermissionsList peutEmettre={type.peutEmettreCheques} peutRecevoir={type.peutRecevoirCheques} peutEspeces={type.peutTransactionsEspeces} /></TableCell>
                 <TableCell className="hidden lg:table-cell text-center"><DecouvertBadge autorise={type.decouvertAutorise} montant={type.decouvertParDefaut} /></TableCell>
                 <TableCell className="text-center"><Badge variant={type.isActive ? 'default' : 'secondary'} className="text-xs">{type.isActive ? "Actif" : "Inactif"}</Badge></TableCell>
                 <TableCell onClick={(e) => e.stopPropagation()}>
@@ -259,7 +259,7 @@ function TypeRow({ type, isExpanded, onToggleExpand, onEdit, onAddSubType, onDel
                         <div className="font-medium text-xs sm:text-sm">{subType.libelle}</div>
                         <div className="text-xs text-muted-foreground truncate max-w-[100px] sm:max-w-xs">{subType.description}</div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell"><PermissionsList peutEmettre={subType.peutEmettreChecques} peutRecevoir={subType.peutRecevoirChecques} peutEspeces={subType.peutTransactionsEspeces} /></TableCell>
+                    <TableCell className="hidden md:table-cell"><PermissionsList peutEmettre={subType.peutEmettreCheques} peutRecevoir={subType.peutRecevoirCheques} peutEspeces={subType.peutTransactionsEspeces} /></TableCell>
                     <TableCell className="hidden lg:table-cell text-center"><DecouvertBadge autorise={subType.decouvertAutorise} montant={subType.decouvertParDefaut} /></TableCell>
                     <TableCell className="text-center"><Badge variant={subType.isActive ? 'default' : 'secondary'} className="text-xs">{subType.isActive ? "Actif" : "Inactif"}</Badge></TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
@@ -390,7 +390,7 @@ function TypeRow({ type, isExpanded, onToggleExpand, onEdit, onAddSubType, onDel
                   <div className="space-y-2">
                     <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                       <span className="text-sm">Émission de chèques</span>
-                      {selectedType.peutEmettreChecques ? (
+                      {selectedType.peutEmettreCheques ? (
                         <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
                           <CheckCircle2 className="h-3 w-3 mr-1" /> Autorisé
                         </Badge>
@@ -402,7 +402,7 @@ function TypeRow({ type, isExpanded, onToggleExpand, onEdit, onAddSubType, onDel
                     </div>
                     <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                       <span className="text-sm">Réception de chèques</span>
-                      {selectedType.peutRecevoirChecques ? (
+                      {selectedType.peutRecevoirCheques ? (
                         <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
                           <CheckCircle2 className="h-3 w-3 mr-1" /> Autorisé
                         </Badge>
@@ -491,12 +491,12 @@ function TypeRow({ type, isExpanded, onToggleExpand, onEdit, onAddSubType, onDel
                               </p>
                             )}
                             <div className="flex flex-wrap gap-1">
-                              {subType.peutEmettreChecques && (
+                              {subType.peutEmettreCheques && (
                                 <Badge variant="outline" className="text-xs border-green-300 text-green-700">
                                   Émission
                                 </Badge>
                               )}
-                              {subType.peutRecevoirChecques && (
+                              {subType.peutRecevoirCheques && (
                                 <Badge variant="outline" className="text-xs border-teal-300 text-teal-700">
                                   Réception
                                 </Badge>

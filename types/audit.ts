@@ -14,27 +14,39 @@
 export type AuditModule =
   | 'BANK'
   | 'BANK_ACCOUNT'
+  | 'BANK_CATEGORY'
   | 'TRANSACTION_TYPE'
+  | 'ACCOUNT_TYPE'
+  | 'ACCOUNT_CONNECTOR'
   | 'BANK_TRANSACTION'
   | 'CHECK'
+  | 'CHECK_PAYMENT'
+  | 'CHECK_DEPOSIT'
   | 'CHECKBOOK'
   | 'BANK_STATEMENT'
   | 'STATEMENT_LINE'
-  | 'RECONCILIATION';
+  | 'RECONCILIATION'
+  | 'INVOICE_SETTLEMENT';
 
 /**
- * Labels des modules en français.
+ * Labels des modules en français (aligné sur l'enum AuditModule du backend).
  */
 export const AUDIT_MODULE_LABELS: Record<AuditModule, string> = {
   BANK: 'Banques',
   BANK_ACCOUNT: 'Comptes bancaires',
+  BANK_CATEGORY: 'Catégories de banques',
   TRANSACTION_TYPE: 'Types de transactions',
+  ACCOUNT_TYPE: 'Types de comptes',
+  ACCOUNT_CONNECTOR: 'Connecteurs de comptes',
   BANK_TRANSACTION: 'Transactions bancaires',
   CHECK: 'Chèques',
+  CHECK_PAYMENT: 'Chèques',
+  CHECK_DEPOSIT: 'Remises de chèques',
   CHECKBOOK: 'Chéquiers',
   BANK_STATEMENT: 'Relevés bancaires',
   STATEMENT_LINE: 'Lignes de relevés',
   RECONCILIATION: 'Rapprochement',
+  INVOICE_SETTLEMENT: 'Règlements de factures',
 };
 
 /**
@@ -58,7 +70,11 @@ export type AuditAction =
   | 'AUTO_MATCH'
   | 'UNMATCH'
   | 'IGNORE'
-  | 'RESET';
+  | 'RESET'
+  | 'RECONCILE'
+  | 'ISSUE'
+  | 'LINK'
+  | 'UNLINK';
 
 /**
  * Labels des actions en français.
@@ -82,6 +98,10 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   UNMATCH: 'Dé-rapprochement',
   IGNORE: 'Ignorer',
   RESET: 'Réinitialiser',
+  RECONCILE: 'Rapprochement',
+  ISSUE: 'Émission',
+  LINK: 'Liaison',
+  UNLINK: 'Déliaison',
 };
 
 /**
@@ -108,6 +128,10 @@ export const AUDIT_ACTION_SEVERITY: Record<AuditAction, ActionSeverity> = {
   UNMATCH: 'warning',
   IGNORE: 'secondary',
   RESET: 'info',
+  RECONCILE: 'success',
+  ISSUE: 'info',
+  LINK: 'info',
+  UNLINK: 'warning',
 };
 
 // =============================================================================

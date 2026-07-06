@@ -1,8 +1,13 @@
-// lib/api/audit.ts — Journal d'audit (iwm-treasury-core)
-// Backend: GET /api/treasury/audit-logs  (?module=&action=&entityId=&from=&to=&page=&size=)
+// lib/api/audit.ts — Journal d'audit (RT-comops-treasury-core)
+// Backend: GET /api/treasury/audit-logs?organizationId=   (organizationId REQUIS, seul filtre serveur)
+//          GET /api/treasury/audit-logs/entity?entityId=&entityType=
+// Réponse: { id, tenantId, organizationId, module, action, entityType, entityId,
+//            userId, newValue, timestamp, requestId, metadata }
+// Les filtres UI (module, action, dates, pagination) sont appliqués côté client.
 
-import { tGet, qs } from "@/lib/api/treasury-client";
+import { tGet, qs, requireOrg } from "@/lib/api/treasury-client";
 import type { AuditLog, FilterOption } from "@/types/audit";
+import { AUDIT_MODULE_LABELS, AUDIT_ACTION_LABELS, AUDIT_ACTION_SEVERITY } from "@/types/audit";
 
 export type { AuditLog };
 
@@ -16,25 +21,75 @@ export interface AuditLogFilters {
   size?: number;
 }
 
-export async function getAuditLogs(filters?: AuditLogFilters): Promise<AuditLog[]> {
-  return tGet<AuditLog[]>(`/audit-logs${qs({ ...filters })}`);
+/** Réponse backend → forme UI (timestamp→createdAt, entityReference, labels). */
+function mapAuditLog(r: any): AuditLog {
+  const createdAt = r.createdAt ?? r.timestamp ?? "";
+  const shortId = typeof r.entityId === "string" ? r.entityId.slice(0, 8) : r.entityId;
+  return {
+    ...r,
+    createdAt,
+    entityReference: r.entityReference ?? (r.entityType ? `${r.entityType}#${shortId}` : String(r.entityId ?? "")),
+    moduleLabel: (AUDIT_MODULE_LABELS as Record<string, string>)[r.module] ?? r.module,
+    actionLabel: (AUDIT_ACTION_LABELS as Record<string, string>)[r.action] ?? r.action,
+    actionSeverity: (AUDIT_ACTION_SEVERITY as Record<string, AuditLog["actionSeverity"]>)[r.action] ?? "info",
+    userId: r.userId ?? null,
+    userName: r.userName ?? r.userId ?? "Système",
+    oldValue: r.oldValue ?? null,
+    newValue: r.newValue ?? null,
+    hasChanges: r.hasChanges ?? !!r.newValue,
+    ipAddress: r.ipAddress ?? null,
+    userAgent: r.userAgent ?? null,
+    description: r.description ?? "",
+    formattedDate: r.formattedDate ?? createdAt,
+    relativeTime: r.relativeTime ?? "",
+  } as AuditLog;
 }
 
-export async function getAuditLogsCount(_filters?: AuditLogFilters): Promise<number> {
-  const logs = await getAuditLogs(_filters);
+function applyClientFilters(logs: AuditLog[], filters?: AuditLogFilters): AuditLog[] {
+  if (!filters) return logs;
+  let result = logs;
+  if (filters.module)   result = result.filter(l => l.module === filters.module);
+  if (filters.action)   result = result.filter(l => l.action === filters.action);
+  if (filters.entityId) result = result.filter(l => l.entityId === filters.entityId);
+  if (filters.from)     result = result.filter(l => l.createdAt >= filters.from!);
+  if (filters.to)       result = result.filter(l => l.createdAt <= `${filters.to}T23:59:59`);
+  if (filters.page !== undefined && filters.size) {
+    result = result.slice(filters.page * filters.size, (filters.page + 1) * filters.size);
+  }
+  return result;
+}
+
+export async function getAuditLogs(filters?: AuditLogFilters): Promise<AuditLog[]> {
+  const raw = await tGet<any[]>(`/audit-logs${qs({ organizationId: requireOrg() })}`);
+  const logs = (raw ?? [])
+    .map(mapAuditLog)
+    .sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
+  return applyClientFilters(logs, filters);
+}
+
+export async function getAuditLogsCount(filters?: AuditLogFilters): Promise<number> {
+  const { page: _p, size: _s, ...rest } = filters ?? {};
+  const logs = await getAuditLogs(rest);
   return logs.length;
 }
 
 export async function getAuditLogById(_id: string): Promise<AuditLog | null> { return null; }
+
 export async function getAuditLogsByEntityId(entityId: string): Promise<AuditLog[]> {
   return getAuditLogs({ entityId });
 }
+
 export async function getTodayAuditLogs(): Promise<AuditLog[]> {
   const from = new Date().toISOString().split("T")[0];
   return getAuditLogs({ from });
 }
-export async function getAvailableModules(): Promise<FilterOption[]> { return []; }
-export async function getAvailableActions(): Promise<FilterOption[]> { return []; }
+
+export async function getAvailableModules(): Promise<FilterOption[]> {
+  return Object.entries(AUDIT_MODULE_LABELS).map(([value, label]) => ({ value, label }));
+}
+export async function getAvailableActions(): Promise<FilterOption[]> {
+  return Object.entries(AUDIT_ACTION_LABELS).map(([value, label]) => ({ value, label }));
+}
 export const countAuditLogs = getAuditLogsCount;
 export const getAuditModules = getAvailableModules;
 export const getAuditActions = getAvailableActions;

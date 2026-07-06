@@ -76,8 +76,8 @@ export interface AccountType {
   code: string;
   libelle: string;
   description?: string;
-  peutEmettreChecques: boolean;
-  peutRecevoirChecques: boolean;
+  peutEmettreCheques: boolean;
+  peutRecevoirCheques: boolean;
   peutTransactionsEspeces: boolean;
   decouvertAutorise: boolean;
   decouvertParDefaut: number;
@@ -101,8 +101,8 @@ export interface AccountSubType {
   decouvertAutoriseOverride?: boolean;
   decouvertParDefautOverride?: number;
   // Effective values (computed)
-  peutEmettreChecques: boolean;
-  peutRecevoirChecques: boolean;
+  peutEmettreCheques: boolean;
+  peutRecevoirCheques: boolean;
   peutTransactionsEspeces: boolean;
   decouvertAutorise: boolean;
   decouvertParDefaut: number;
@@ -857,8 +857,8 @@ export interface CreateAccountTypeRequest {
   code: string;
   libelle: string;
   description?: string;
-  peutEmettreChecques?: boolean;
-  peutRecevoirChecques?: boolean;
+  peutEmettreCheques?: boolean;
+  peutRecevoirCheques?: boolean;
   peutTransactionsEspeces?: boolean;
   decouvertAutorise?: boolean;
   decouvertParDefaut?: number;
@@ -870,8 +870,8 @@ export interface UpdateAccountTypeRequest {
   code?: string;
   libelle?: string;
   description?: string;
-  peutEmettreChecques?: boolean;
-  peutRecevoirChecques?: boolean;
+  peutEmettreCheques?: boolean;
+  peutRecevoirCheques?: boolean;
   peutTransactionsEspeces?: boolean;
   decouvertAutorise?: boolean;
   decouvertParDefaut?: number;
@@ -891,12 +891,12 @@ export interface CreateAccountSubTypeRequest {
   code: string;
   libelle: string;
   description?: string;
-  // Override values (null = inherit from parent type)
-  peutEmettreChequesOverride?: boolean | null;
-  peutRecevoirChequesOverride?: boolean | null;
-  peutTransactionsEspecesOverride?: boolean | null;
-  decouvertAutoriseOverride?: boolean | null;
-  decouvertParDefautOverride?: number | null;
+  // Champs plats attendus par le backend (RegisterAccountSubTypeRequest).
+  // L'héritage depuis le type parent est résolu côté formulaire avant envoi.
+  peutEmettreCheques?: boolean;
+  peutRecevoirCheques?: boolean;
+  peutTransactionsEspeces?: boolean;
+  decouvertAutorise?: boolean;
   ordreAffichage?: number;
   isActive?: boolean;
 }
@@ -928,7 +928,7 @@ export type UpdateAccountSubTypeData = UpdateAccountSubTypeRequest;
  * - CASHED: Remise encaissée, fonds reçus sur le compte
  * - RECONCILED: Remise rapprochée avec une ligne de relevé bancaire
  */
-export type CheckDepositStatus = 'PENDING' | 'DEPOSITED' | 'CASHED' | 'RECONCILED';
+export type CheckDepositStatus = 'PENDING' | 'DEPOSITED' | 'CASHED' | 'RECONCILED' | 'REJECTED';
 
 /**
  * Représente une remise de chèques en lot.
