@@ -6,8 +6,8 @@
 
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -54,11 +54,18 @@ type RegisterForm = z.infer<typeof registerSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useAuth((s) => s.login);
   const [tab, setTab] = useState<"login" | "register">("login");
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("tab") === "register") {
+      setTab("register");
+    }
+  }, [searchParams]);
 
   const loginForm = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),

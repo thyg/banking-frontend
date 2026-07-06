@@ -47,11 +47,15 @@ import {
   Plus,
   RefreshCw,
   ArrowUpDown,
+  ArrowDownCircle,
+  ArrowUpCircle,
   MoreHorizontal,
   Pencil,
   Trash2,
   CheckCircle2,
   XCircle,
+  ToggleLeft,
+  ToggleRight,
   Landmark,
   Banknote,
   FileCheck,
@@ -94,18 +98,13 @@ const CATEGORY_CONFIG = {
 // =============================================================================
 
 interface TransactionTypeListProps {
-  /** Liste des types de transactions à afficher */
   transactionTypes: TransactionType[];
-  /** Indicateur de chargement */
   isLoading: boolean;
-  /** Callback pour ajouter un nouveau type */
   onAddNew: () => void;
-  /** Callback pour rafraîchir la liste */
   onRefresh: () => void;
-  /** Callback pour éditer un type */
   onEdit: (type: TransactionType) => void;
-  /** Callback pour supprimer un type */
   onDelete: (type: TransactionType) => void;
+  onToggleActive: (type: TransactionType) => void;
 }
 
 // =============================================================================
@@ -138,6 +137,7 @@ export function TransactionTypeList({
   onRefresh,
   onEdit,
   onDelete,
+  onToggleActive,
 }: TransactionTypeListProps) {
   
   /**
@@ -184,6 +184,7 @@ export function TransactionTypeList({
               <TableHead className="w-[120px]">Code</TableHead>
               <TableHead>Libellé</TableHead>
               <TableHead className="w-[130px]">Catégorie</TableHead>
+              <TableHead className="w-[110px]">Sens</TableHead>
               <TableHead className="w-[100px] text-center">Statut</TableHead>
               <TableHead className="w-[70px] text-right">Actions</TableHead>
             </TableRow>
@@ -208,10 +209,25 @@ export function TransactionTypeList({
                 <TableCell>
                   <CategoryBadge category={type.category} />
                 </TableCell>
-                
+
+                {/* Sens */}
+                <TableCell>
+                  {type.inbound ? (
+                    <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+                      <ArrowDownCircle className="h-3 w-3 mr-1" />
+                      Entrée
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">
+                      <ArrowUpCircle className="h-3 w-3 mr-1" />
+                      Sortie
+                    </Badge>
+                  )}
+                </TableCell>
+
                 {/* Statut */}
                 <TableCell className="text-center">
-                  {type.isActive ? (
+                  {(type.active ?? type.isActive) ? (
                     <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       Actif
@@ -223,7 +239,7 @@ export function TransactionTypeList({
                     </Badge>
                   )}
                 </TableCell>
-                
+
                 {/* Actions */}
                 <TableCell className="text-right">
                   <DropdownMenu>
@@ -239,7 +255,19 @@ export function TransactionTypeList({
                         Modifier
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem 
+                      {(type.active ?? type.isActive) ? (
+                        <DropdownMenuItem onClick={() => onToggleActive(type)}>
+                          <ToggleLeft className="mr-2 h-4 w-4" />
+                          Désactiver
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuItem onClick={() => onToggleActive(type)} className="text-green-600 focus:text-green-600">
+                          <ToggleRight className="mr-2 h-4 w-4" />
+                          Activer
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
                         onClick={() => onDelete(type)}
                         className="text-red-600 focus:text-red-600"
                       >

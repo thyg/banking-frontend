@@ -2,6 +2,7 @@
 // Tous les chemins sont relatifs à /api/treasury (géré par treasury-client.ts)
 
 import { tGet, tPost, tPut, qs } from "@/lib/api/treasury-client";
+import { DEFAULT_ORG_ID } from "@/lib/api-client";
 
 import type {
   Bank, CreateBankRequest, UpdateBankRequest,
@@ -87,6 +88,12 @@ export async function createTransactionType(data: CreateTransactionTypeRequest):
 export async function updateTransactionType(id: string, data: Partial<CreateTransactionTypeRequest>): Promise<TransactionType> {
   return tPut<TransactionType>(`/transaction-types/${id}`, data);
 }
+export async function deactivateTransactionType(id: string): Promise<TransactionType> {
+  return tPost<TransactionType>(`/transaction-types/${id}/deactivate`);
+}
+export async function activateTransactionType(id: string): Promise<TransactionType> {
+  return tPost<TransactionType>(`/transaction-types/${id}/activate`);
+}
 export async function deleteTransactionType(id: string): Promise<void> {
   await tPost(`/transaction-types/${id}/deactivate`, {});
 }
@@ -140,7 +147,7 @@ export async function deleteAccountSubType(_atId: string, _stId: string): Promis
 //          GET      /api/treasury/bank-accounts/{id}/balance
 
 export async function getBankAccounts(_activeOnly = false): Promise<BankAccount[]> {
-  return tGet<BankAccount[]>("/bank-accounts");
+  return tGet<BankAccount[]>(`/bank-accounts${qs({ organizationId: DEFAULT_ORG_ID || undefined })}`);
 }
 export async function getBankAccountById(id: string): Promise<BankAccount> {
   return tGet<BankAccount>(`/bank-accounts/${id}`);
@@ -194,7 +201,7 @@ export async function deleteBankTransaction(_id: string): Promise<void> {
 //          POST /api/treasury/checks/{id}/issue|deposit|cash|reject|cancel
 
 export async function getChecks(): Promise<Check[]> {
-  return tGet<Check[]>("/checks");
+  return tGet<Check[]>(`/checks${qs({ organizationId: DEFAULT_ORG_ID || undefined })}`);
 }
 export async function getCheckById(id: string): Promise<Check> {
   return tGet<Check>(`/checks/${id}`);
@@ -233,7 +240,7 @@ export async function deleteCheck(_id: string): Promise<void> {
 //          POST     /api/treasury/statements/{id}/close
 
 export async function getBankStatements(): Promise<BankStatement[]> {
-  return tGet<BankStatement[]>("/statements");
+  return tGet<BankStatement[]>(`/statements${qs({ organizationId: DEFAULT_ORG_ID || undefined })}`);
 }
 export async function getBankStatementById(id: string): Promise<BankStatement> {
   return tGet<BankStatement>(`/statements/${id}`);

@@ -13,11 +13,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 
 // Types et API
 import { TransactionType, CreateTransactionTypeData } from '@/types/banking';
-import { 
-  getTransactionTypes, 
-  createTransactionType, 
-  updateTransactionType, 
-  deleteTransactionType 
+import {
+  getTransactionTypes,
+  createTransactionType,
+  updateTransactionType,
+  deleteTransactionType,
+  activateTransactionType,
+  deactivateTransactionType,
 } from '@/lib/api/banking';
 
 // Composants
@@ -191,6 +193,23 @@ export default function TransactionTypesPage() {
   };
 
   /**
+   * Active ou désactive un type de transaction.
+   */
+  const handleToggleActive = async (type: TransactionType) => {
+    try {
+      const isActive = type.active ?? type.isActive;
+      if (isActive) {
+        await deactivateTransactionType(type.id);
+      } else {
+        await activateTransactionType(type.id);
+      }
+      await fetchTransactionTypes();
+    } catch (error) {
+      console.error("[TransactionTypesPage] Erreur toggle actif:", error);
+    }
+  };
+
+  /**
    * Ouvre le dialog de confirmation de suppression.
    */
   const handleDelete = (type: TransactionType) => {
@@ -205,13 +224,14 @@ export default function TransactionTypesPage() {
   return (
     <>
       {/* Composant de liste principal */}
-      <TransactionTypeList 
+      <TransactionTypeList
         transactionTypes={transactionTypes}
         isLoading={isLoading}
         onAddNew={handleAddNew}
         onEdit={handleEdit}
         onDelete={handleDelete}
         onRefresh={fetchTransactionTypes}
+        onToggleActive={handleToggleActive}
       />
 
       {/* Dialog de confirmation de suppression - Utilise AlertDialog directement */}

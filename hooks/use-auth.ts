@@ -6,6 +6,7 @@ import { persist } from "zustand/middleware";
 export interface AuthUser {
   userId: string;
   tenantId: string;
+  organizationId?: string;
   actorId?: string;
   email?: string;
   token: string;

@@ -81,7 +81,9 @@ const transactionTypeFormSchema = z.object({
   category: z.enum(['BANK', 'CASH', 'CHECK', 'OTHER'], {
     required_error: "Veuillez sélectionner une catégorie.",
   }),
-  
+
+  inbound: z.boolean(),
+
   description: z.string().max(200, { message: "La description ne peut pas dépasser 200 caractères." }).optional(),
 
   isActive: z.boolean(),
@@ -128,6 +130,7 @@ export function TransactionTypeForm({
       code: initialData?.code ?? '',
       label: initialData?.label ?? '',
       category: initialData?.category ?? 'BANK',
+      inbound: initialData?.inbound ?? true,
       description: initialData?.description ?? '',
       isActive: initialData?.isActive ?? true,
     },
@@ -144,6 +147,7 @@ export function TransactionTypeForm({
         code: data.code,
         label: data.label,
         category: data.category,
+        inbound: data.inbound,
         description: data.description,
         isActive: data.isActive,
       };
@@ -258,6 +262,38 @@ export function TransactionTypeForm({
             )}
           />
           
+          {/* Champ Sens (Entrée/Sortie) */}
+          <FormField
+            control={form.control}
+            name="inbound"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sens *</FormLabel>
+                <Select
+                  onValueChange={(value) => field.onChange(value === 'true')}
+                  value={field.value ? 'true' : 'false'}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sélectionnez le sens..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="true">Entrée (crédit)</SelectItem>
+                    <SelectItem value="false">Sortie (débit)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Sens du mouvement de trésorerie
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Ligne 3: Description */}
+        <div className="grid grid-cols-1 gap-4">
           {/* Champ Description */}
           <FormField
             control={form.control}

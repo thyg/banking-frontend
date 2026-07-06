@@ -1,23 +1,13 @@
 /**
  * @file lib/api/auth.ts
- * @description Fonctions d'authentification connectées au backend Spring Boot.
+ * @description Fonctions d'authentification — passent désormais par le BFF Next.js.
+ * Le login dépose un cookie de session httpOnly côté serveur ; aucun secret ni
+ * token kernel ne transite par le navigateur.
+ *
+ * Voir new infos/ARCHITECTURE_BFF.md
  */
 
 import type { AuthUser } from "@/hooks/use-auth";
-import { useAuth } from "@/hooks/use-auth";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || "dev-api-key";
-const DEFAULT_TENANT_ID = process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID || "";
-
-function authHeaders(): Record<string, string> {
-  const token = useAuth.getState().getToken();
-  const tenantId = useAuth.getState().getTenantId();
-  return {
-    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-    ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-  };
-}
 
 export interface LoginPayload {
   email: string;
@@ -38,18 +28,31 @@ export interface RegisteredUser {
   email: string;
 }
 
+/** Erreur spécifique signalant qu'une étape MFA est requise. */
+export class MfaRequiredError extends Error {
+  constructor(public mfaToken?: string) {
+    super("Vérification MFA requise.");
+    this.name = "MfaRequiredError";
+  }
+}
+
 export async function loginApi(payload: LoginPayload): Promise<AuthUser> {
-  const tenantId = payload.tenantId || DEFAULT_TENANT_ID;
-  const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
+  // BFF même origine : le cookie de session est posé par la réponse.
+  const res = await fetch("/api/auth/login", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Api-Key": API_KEY,
-      ...(tenantId ? { "X-Tenant-Id": tenantId } : {}),
-    },
-    body: JSON.stringify({ principal: payload.email, password: payload.password }),
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      email: payload.email,
+      password: payload.password,
+      tenantId: payload.tenantId,
+    }),
   });
 
+  if (res.status === 202) {
+    const data = await res.json().catch(() => ({}));
+    throw new MfaRequiredError(data?.mfaToken);
+  }
   if (res.status === 401) throw new Error("Email ou mot de passe incorrect.");
   if (!res.ok) {
     let msg = "Erreur de connexion.";
@@ -58,26 +61,24 @@ export async function loginApi(payload: LoginPayload): Promise<AuthUser> {
   }
 
   const json = await res.json();
-  const data = json?.data ?? json;
-
+  const user = json?.user ?? {};
   return {
-    userId: data.id ?? data.userId,
-    tenantId: data.tenantId,
-    actorId: data.actorId,
-    token: data.sessionToken ?? data.token,
-    expiresAt: data.expiresAt,
-    email: payload.email,
+    userId: user.userId,
+    tenantId: user.tenantId,
+    organizationId: user.organizationId,
+    actorId: user.actorId,
+    // Le token réel reste côté serveur (cookie httpOnly). Marqueur de session.
+    token: "session",
+    email: user.email ?? payload.email,
   };
 }
 
 export async function registerApi(payload: RegisterPayload): Promise<RegisteredUser> {
-  const res = await fetch(`${API_BASE_URL}/api/auth/register`, {
+  // Relayé via le proxy BFF vers /api/auth/register du kernel.
+  const res = await fetch("/api/kernel/auth/register", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Api-Key": API_KEY,
-      ...authHeaders(),
-    },
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({
       username: payload.username ?? payload.email,
       email: payload.email,
@@ -96,4 +97,12 @@ export async function registerApi(payload: RegisterPayload): Promise<RegisteredU
   const json = await res.json();
   const data = json?.data ?? json;
   return { id: data.id, username: data.username, email: data.email };
+}
+
+/** Déconnexion : efface la session côté serveur. */
+export async function logoutApi(): Promise<void> {
+  await fetch("/api/auth/logout", {
+    method: "POST",
+    credentials: "include",
+  }).catch(() => undefined);
 }

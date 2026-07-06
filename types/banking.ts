@@ -116,11 +116,13 @@ export interface TransactionType {
   id: string;
   code: string;
   label: string;
+  inbound: boolean;
   category: TransactionCategory;
   description?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  active: boolean;
+  isActive?: boolean; // alias rétrocompat
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface BankAccount {
@@ -464,6 +466,7 @@ export interface BankCategoryRequest {
 export interface CreateTransactionTypeRequest {
   code: string;
   label: string;
+  inbound: boolean;
   category: TransactionCategory;
   description?: string;
   isActive?: boolean;
@@ -472,6 +475,7 @@ export interface CreateTransactionTypeRequest {
 export interface UpdateTransactionTypeRequest {
   code?: string;
   label?: string;
+  inbound: boolean;
   category?: TransactionCategory;
   description?: string;
   isActive?: boolean;
