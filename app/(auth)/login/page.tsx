@@ -107,27 +107,27 @@ export default function LoginPage() {
   };
 
   return (
-    <Card className="w-full max-w-md bg-white/95 backdrop-blur shadow-2xl border-0 rounded-2xl overflow-hidden">
+    <Card className="w-full max-w-md shadow-2xl border-border/60 rounded-2xl overflow-hidden py-0 gap-0">
       {/* En-tête */}
-      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white text-center space-y-2">
-        <div className="mx-auto w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center mb-2">
-          <Building2 className="h-8 w-8 text-white" />
+      <CardHeader className="bg-gradient-to-br from-primary to-primary/70 p-8 text-center space-y-2 border-b-0">
+        <div className="mx-auto w-14 h-14 bg-primary-foreground/15 rounded-xl flex items-center justify-center mb-2">
+          <Building2 className="h-8 w-8 text-primary-foreground" />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight">KSM Pro</h1>
-        <p className="text-blue-100 text-sm">Solution de gestion commerciale</p>
+        <h1 className="text-2xl font-bold tracking-tight text-primary-foreground">KSM Pro</h1>
+        <p className="text-primary-foreground/80 text-sm">Solution de gestion commerciale</p>
       </CardHeader>
 
       <CardContent className="p-8 space-y-6">
         {/* Onglets */}
-        <div className="flex rounded-lg bg-slate-100 p-1 gap-1">
+        <div className="flex rounded-lg bg-muted p-1 gap-1">
           {(["login", "register"] as const).map((t) => (
             <button
               key={t}
               onClick={() => { setTab(t); setError(null); }}
               className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
                 tab === t
-                  ? "bg-white text-blue-700 shadow-sm"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "bg-card text-primary shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {t === "login" ? "Connexion" : "Inscription"}
@@ -149,7 +149,7 @@ export default function LoginPage() {
             <div className="space-y-2">
               <Label htmlFor="login-email">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="login-email"
                   type="email"
@@ -159,14 +159,14 @@ export default function LoginPage() {
                 />
               </div>
               {loginForm.formState.errors.email && (
-                <p className="text-xs text-red-500">{loginForm.formState.errors.email.message}</p>
+                <p className="text-xs text-destructive">{loginForm.formState.errors.email.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="login-pwd">Mot de passe</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="login-pwd"
                   type={showPwd ? "text" : "password"}
@@ -176,7 +176,7 @@ export default function LoginPage() {
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPwd(!showPwd)}
                   tabIndex={-1}
                 >
@@ -184,11 +184,11 @@ export default function LoginPage() {
                 </button>
               </div>
               {loginForm.formState.errors.password && (
-                <p className="text-xs text-red-500">{loginForm.formState.errors.password.message}</p>
+                <p className="text-xs text-destructive">{loginForm.formState.errors.password.message}</p>
               )}
             </div>
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 h-11" disabled={loading}>
+            <Button type="submit" className="w-full h-11" disabled={loading}>
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
@@ -205,7 +205,7 @@ export default function LoginPage() {
             <div className="space-y-2">
               <Label htmlFor="reg-email">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="reg-email"
                   type="email"
@@ -215,14 +215,14 @@ export default function LoginPage() {
                 />
               </div>
               {registerForm.formState.errors.email && (
-                <p className="text-xs text-red-500">{registerForm.formState.errors.email.message}</p>
+                <p className="text-xs text-destructive">{registerForm.formState.errors.email.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="reg-pwd">Mot de passe</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="reg-pwd"
                   type={showPwd ? "text" : "password"}
@@ -232,7 +232,7 @@ export default function LoginPage() {
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   onClick={() => setShowPwd(!showPwd)}
                   tabIndex={-1}
                 >
@@ -240,14 +240,14 @@ export default function LoginPage() {
                 </button>
               </div>
               {registerForm.formState.errors.password && (
-                <p className="text-xs text-red-500">{registerForm.formState.errors.password.message}</p>
+                <p className="text-xs text-destructive">{registerForm.formState.errors.password.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="reg-confirm">Confirmer le mot de passe</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="reg-confirm"
                   type={showPwd ? "text" : "password"}
@@ -257,18 +257,18 @@ export default function LoginPage() {
                 />
               </div>
               {registerForm.formState.errors.confirm && (
-                <p className="text-xs text-red-500">{registerForm.formState.errors.confirm.message}</p>
+                <p className="text-xs text-destructive">{registerForm.formState.errors.confirm.message}</p>
               )}
             </div>
 
-            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 h-11" disabled={loading}>
+            <Button type="submit" className="w-full h-11" disabled={loading}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {loading ? "Création du compte..." : "Créer mon compte"}
             </Button>
           </form>
         )}
 
-        <p className="text-center text-xs text-slate-400">
+        <p className="text-center text-xs text-muted-foreground">
           En vous connectant, vous acceptez les conditions d'utilisation de KSM Pro.
         </p>
       </CardContent>

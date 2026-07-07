@@ -25,6 +25,9 @@ import {
   Clock,
   CreditCard,
   CheckCircle2,
+  Check,
+  Minus,
+  Star,
 } from "lucide-react";
 
 const NAV_LINKS = [
@@ -76,6 +79,52 @@ const STATS = [
   { number: "Multi", label: "Comptes & banques" },
   { number: "24/7", label: "Disponibilité" },
   { number: "< 1 j", label: "Mise en route" },
+];
+
+// "full" = inclus, "partial" = partiel / module payant, "none" = absent
+type ComparisonState = "full" | "partial" | "none";
+
+const COMPARISON_COLUMNS = ["KSM Banking", "Odoo (module bancaire)", "Excel / cahier", "Logiciel bancaire générique"];
+
+const COMPARISON_ROWS: { criterion: string; values: ComparisonState[] }[] = [
+  {
+    criterion: "Rapprochement bancaire automatique",
+    values: ["full", "partial", "none", "none"],
+  },
+  {
+    criterion: "Multi-comptes & multi-banques natif",
+    values: ["full", "partial", "none", "partial"],
+  },
+  {
+    criterion: "Piste d'audit par opération",
+    values: ["full", "partial", "none", "none"],
+  },
+  {
+    criterion: "Gestion des chèques en attente",
+    values: ["full", "partial", "none", "partial"],
+  },
+  {
+    criterion: "Authentification forte (MFA)",
+    values: ["full", "partial", "none", "partial"],
+  },
+  {
+    criterion: "Rôles & permissions par compte",
+    values: ["full", "partial", "none", "partial"],
+  },
+  {
+    criterion: "Intégré à l'ERP (ventes, stock, RH...)",
+    values: ["full", "full", "none", "none"],
+  },
+  {
+    criterion: "Mise en route en moins d'un jour",
+    values: ["full", "none", "partial", "none"],
+  },
+];
+
+const COMPARISON_LEGEND: { state: ComparisonState; label: string }[] = [
+  { state: "full", label: "Inclus" },
+  { state: "partial", label: "Partiel / module payant" },
+  { state: "none", label: "Absent" },
 ];
 
 export function LandingPage() {
@@ -317,8 +366,79 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Comparatif / CTA Section */}
-      <section id="comparatif" className="py-20 bg-gradient-to-r from-primary to-chart-4">
+      {/* Comparatif Section */}
+      <section id="comparatif" className="py-20 sm:py-24 bg-muted/30 border-y border-border">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              Comment on se compare
+            </h2>
+            <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
+              Face aux solutions habituelles des entreprises de la région, sur le module trésorerie
+              &amp; banque.
+            </p>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-border shadow-sm bg-card">
+            <table className="w-full min-w-[720px] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left font-semibold text-foreground px-6 py-4 whitespace-nowrap">
+                    Critère
+                  </th>
+                  {COMPARISON_COLUMNS.map((col, idx) => (
+                    <th
+                      key={col}
+                      className={`px-6 py-4 text-center font-semibold whitespace-nowrap ${
+                        idx === 0
+                          ? "text-primary bg-primary/5"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {idx === 0 && (
+                        <Star className="inline h-3.5 w-3.5 mr-1.5 -mt-0.5 fill-primary text-primary" />
+                      )}
+                      {col}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARISON_ROWS.map((row, rowIdx) => (
+                  <tr
+                    key={row.criterion}
+                    className={rowIdx !== COMPARISON_ROWS.length - 1 ? "border-b border-border" : ""}
+                  >
+                    <td className="px-6 py-4 font-medium text-foreground whitespace-nowrap">
+                      {row.criterion}
+                    </td>
+                    {row.values.map((value, colIdx) => (
+                      <td
+                        key={colIdx}
+                        className={`px-6 py-4 text-center ${colIdx === 0 ? "bg-primary/5" : ""}`}
+                      >
+                        <ComparisonMark state={value} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm text-muted-foreground">
+            {COMPARISON_LEGEND.map((item) => (
+              <span key={item.state} className="flex items-center gap-2">
+                <ComparisonMark state={item.state} />
+                {item.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-gradient-to-r from-primary to-chart-4">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl sm:text-4xl font-bold text-primary-foreground mb-6">
             Prêt à reprendre le contrôle de votre trésorerie ?
@@ -393,4 +513,14 @@ export function LandingPage() {
       </footer>
     </div>
   );
+}
+
+function ComparisonMark({ state }: { state: ComparisonState }) {
+  if (state === "full") {
+    return <Check className="inline h-4 w-4 text-green-600 dark:text-green-400" />;
+  }
+  if (state === "partial") {
+    return <Minus className="inline h-4 w-4 text-chart-3" />;
+  }
+  return <Minus className="inline h-4 w-4 text-muted-foreground/40" />;
 }
