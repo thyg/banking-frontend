@@ -22,7 +22,6 @@ import {
   ArrowRight,
   Menu,
   X,
-  Clock,
   CreditCard,
   CheckCircle2,
   Check,
@@ -44,27 +43,33 @@ const FEATURES = [
   },
   {
     icon: RefreshCw,
-    title: "Rapprochement automatique",
+    title: "Rapprochement assisté",
     description:
-      "Relevés bancaires, transactions et chèques rapprochés en temps réel — le moindre écart saute aux yeux immédiatement.",
+      "Import des relevés et rapprochement guidé avec les transactions et les chèques : suggestions automatiques par montant et date, écarts mis en évidence.",
+  },
+  {
+    icon: Landmark,
+    title: "Mobile Money & banques réunis",
+    description:
+      "Comptes MTN MoMo, Orange Money et comptes bancaires classiques dans une même trésorerie, en francs CFA — sans jongler entre plusieurs applications.",
   },
   {
     icon: Users,
     title: "Multi-comptes & rôles",
     description:
-      "Caissiers, comptables et administrateurs : chacun voit exactement son périmètre, banque par banque, compte par compte.",
+      "Caissiers, comptables et administrateurs : des rôles de lecture ou de gestion pour cadrer qui fait quoi sur la trésorerie.",
   },
   {
     icon: ShieldCheck,
-    title: "Sécurité de niveau bancaire",
+    title: "Accès sécurisé",
     description:
-      "Authentification forte (MFA), sessions chiffrées et piste d'audit complète sur chaque écriture et chaque rapprochement.",
+      "Authentification protégée par le socle du kernel et sessions chiffrées, avec des permissions dédiées au module trésorerie.",
   },
   {
     icon: BarChart3,
     title: "Reporting en direct",
     description:
-      "Soldes, chèques en attente et journaux d'écritures par compte, exportables en PDF pour votre comptabilité.",
+      "Soldes, chèques en attente et opérations par compte, exportables en PDF pour votre comptabilité.",
   },
   {
     icon: Zap,
@@ -75,55 +80,59 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { number: "100%", label: "Rapprochement automatisé" },
+  { number: "MoMo + OM", label: "& comptes bancaires" },
+  { number: "XAF", label: "Franc CFA natif" },
   { number: "Multi", label: "Comptes & banques" },
-  { number: "24/7", label: "Disponibilité" },
-  { number: "< 1 j", label: "Mise en route" },
+  { number: "ERP", label: "Ventes, stock, personnel" },
 ];
 
-// "full" = inclus, "partial" = partiel / module payant, "none" = absent
+// "full" = oui / natif, "partial" = possible mais limité, coûteux ou non local, "none" = absent
 type ComparisonState = "full" | "partial" | "none";
 
-const COMPARISON_COLUMNS = ["KSM Banking", "Odoo (module bancaire)", "Excel / cahier", "Logiciel bancaire générique"];
+// Comparatif honnête : critères centrés sur le marché local (PME Afrique francophone).
+// Nous reconnaissons les forces des solutions établies là où elles existent — un comparatif
+// crédible n'affiche pas "tout vert d'un côté, tout gris de l'autre".
+const COMPARISON_COLUMNS = ["KSM Banking", "Odoo / Sage", "Excel / cahier", "App Mobile Money seule"];
 
 const COMPARISON_ROWS: { criterion: string; values: ComparisonState[] }[] = [
   {
-    criterion: "Rapprochement bancaire automatique",
+    // Notre différenciateur central pour le marché camerounais.
+    criterion: "Comptes Mobile Money (MoMo, OM) et bancaires réunis",
+    values: ["full", "none", "partial", "partial"],
+  },
+  {
+    criterion: "Devise XAF (FCFA) native",
+    values: ["full", "partial", "full", "full"],
+  },
+  {
+    criterion: "Gestion des chèques (émission, remise, encaissement)",
     values: ["full", "partial", "none", "none"],
   },
   {
-    criterion: "Multi-comptes & multi-banques natif",
-    values: ["full", "partial", "none", "partial"],
+    criterion: "Multi-comptes & multi-banques",
+    values: ["full", "full", "partial", "none"],
   },
   {
-    criterion: "Piste d'audit par opération",
-    values: ["full", "partial", "none", "none"],
-  },
-  {
-    criterion: "Gestion des chèques en attente",
-    values: ["full", "partial", "none", "partial"],
-  },
-  {
-    criterion: "Authentification forte (MFA)",
-    values: ["full", "partial", "none", "partial"],
-  },
-  {
-    criterion: "Rôles & permissions par compte",
-    values: ["full", "partial", "none", "partial"],
-  },
-  {
-    criterion: "Intégré à l'ERP (ventes, stock, RH...)",
+    criterion: "Rapprochement bancaire assisté",
     values: ["full", "full", "none", "none"],
   },
   {
-    criterion: "Mise en route en moins d'un jour",
-    values: ["full", "none", "partial", "none"],
+    criterion: "Intégré à un ERP (ventes, stock, personnel)",
+    values: ["full", "full", "none", "none"],
+  },
+  {
+    criterion: "Contrôle des accès (rôles lecture / gestion)",
+    values: ["full", "full", "none", "partial"],
+  },
+  {
+    criterion: "Pensé pour les PME d'Afrique francophone",
+    values: ["full", "partial", "partial", "full"],
   },
 ];
 
 const COMPARISON_LEGEND: { state: ComparisonState; label: string }[] = [
-  { state: "full", label: "Inclus" },
-  { state: "partial", label: "Partiel / module payant" },
+  { state: "full", label: "Oui / natif" },
+  { state: "partial", label: "Limité, coûteux ou non local" },
   { state: "none", label: "Absent" },
 ];
 
@@ -233,9 +242,9 @@ export function LandingPage() {
               </h1>
 
               <p className="mt-6 text-lg sm:text-xl text-muted-foreground max-w-xl leading-relaxed">
-                Encaissez, rapprochez et pilotez chaque compte bancaire en temps réel.
-                Une plateforme unique, sécurisée et conforme, pensée pour les entreprises
-                africaines.
+                Encaissez, rapprochez et pilotez vos comptes Mobile Money et bancaires
+                au même endroit, en francs CFA. Une plateforme unique et sécurisée, pensée
+                pour les entreprises d&apos;Afrique francophone.
               </p>
 
               <div className="mt-10 flex flex-col sm:flex-row gap-4">
@@ -254,12 +263,12 @@ export function LandingPage() {
 
               <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-primary" />
-                  Mise en route &lt; 1 jour
+                  <CreditCard className="h-4 w-4 text-primary" />
+                  Mobile Money &amp; banques
                 </span>
                 <span className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-primary" />
-                  Multi-comptes &amp; multi-banques
+                  Franc CFA (XAF) natif
                 </span>
               </div>
             </div>
@@ -374,8 +383,9 @@ export function LandingPage() {
               Comment on se compare
             </h2>
             <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Face aux solutions habituelles des entreprises de la région, sur le module trésorerie
-              &amp; banque.
+              Les grands ERP sont solides — mais rarement pensés pour le Mobile Money, le franc CFA
+              et les chèques d&apos;ici. Voilà où KSM Banking fait la différence pour une PME
+              d&apos;Afrique francophone.
             </p>
           </div>
 
@@ -438,12 +448,12 @@ export function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-primary to-chart-4">
+      <section className="py-20 bg-gradient-to-r from-primary to-chart-4 dark:from-primary/80 dark:to-chart-4/60">
         <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl sm:text-4xl font-bold text-primary-foreground mb-6">
+          <h2 className="text-3xl sm:text-4xl font-bold text-primary-foreground dark:text-white mb-6">
             Prêt à reprendre le contrôle de votre trésorerie ?
           </h2>
-          <p className="text-lg sm:text-xl text-primary-foreground/85 mb-8 leading-relaxed">
+          <p className="text-lg sm:text-xl text-primary-foreground/85 dark:text-white/85 mb-8 leading-relaxed">
             Comptes, chèques, relevés et rapprochement bancaire réunis dans un seul module,
             au sein de votre ERP KSM.
           </p>
@@ -460,7 +470,7 @@ export function LandingPage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="w-full sm:w-auto px-8 text-base border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 bg-transparent"
+                className="w-full sm:w-auto px-8 text-base border-primary-foreground/40 text-primary-foreground dark:text-white dark:border-white/40 hover:bg-primary-foreground/10 dark:hover:bg-white/10 bg-transparent"
               >
                 Créer un compte
               </Button>
