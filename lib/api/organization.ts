@@ -45,3 +45,51 @@ export async function suspendOrganization(id: string): Promise<Organization> {
 export async function deleteOrganization(id: string): Promise<void> {
   return apiDelete(`/api/organizations/${id}`);
 }
+
+// ─── Membres (acteurs rattachés à une organisation) ──────────────────────────
+// Backend : POST /api/organizations/{organizationId}/actors   { actorId, type }
+//           GET  /api/organizations/{organizationId}/actors
+
+export interface OrganizationActor {
+  id: string;
+  organizationId: string;
+  actorId: string;
+  type?: string;
+}
+
+/** Forme brute renvoyée par le kernel pour un acteur d'organisation. */
+interface OrganizationActorRaw {
+  id: string;
+  organizationId?: string;
+  actorId?: string;
+  type?: string;
+}
+
+/** Rattache un acteur (utilisateur) à une organisation. `type` ex. OWNER / EMPLOYEE. */
+export async function linkActorToOrganization(
+  organizationId: string,
+  actorId: string,
+  type = "EMPLOYEE",
+): Promise<OrganizationActor> {
+  const raw = await apiPost<OrganizationActorRaw>(
+    `/api/organizations/${organizationId}/actors`,
+    { actorId, type },
+  );
+  return {
+    id: raw.id,
+    organizationId: raw.organizationId ?? organizationId,
+    actorId: raw.actorId ?? actorId,
+    type: raw.type ?? type,
+  };
+}
+
+/** Liste les acteurs (membres) rattachés à une organisation. */
+export async function getOrganizationActors(organizationId: string): Promise<OrganizationActor[]> {
+  const raw = await apiGet<OrganizationActorRaw[]>(`/api/organizations/${organizationId}/actors`);
+  return (raw ?? []).map((r) => ({
+    id: r.id,
+    organizationId: r.organizationId ?? organizationId,
+    actorId: r.actorId ?? "",
+    type: r.type,
+  }));
+}

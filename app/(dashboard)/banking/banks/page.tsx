@@ -241,7 +241,8 @@ export default function BanksPage() {
     setIsLoading(true);
     
     try {
-      const data = await getBanks();
+      // Toutes les banques (actives et désactivées) : les compteurs Actives / Inactives en dépendent.
+      const data = await getBanks(false);
       setBanks(data);
     } catch (error) {
       console.error("[BanksPage] Erreur lors de la récupération des banques:", error);
@@ -428,12 +429,12 @@ export default function BanksPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Supprimer la banque "{bankToDelete?.name}" ?
+              Désactiver la banque "{bankToDelete?.name}" ?
             </AlertDialogTitle>
             <AlertDialogDescription className={deleteError ? "text-red-600" : ""}>
               {deleteError 
                 ? deleteError 
-                : "Cette action est irréversible. Assurez-vous qu'aucun compte bancaire n'est associé à cette banque avant de la supprimer."
+                : "La banque n'apparaîtra plus dans les listes de sélection. Les comptes bancaires existants qui y sont rattachés ne sont pas modifiés."
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -446,7 +447,7 @@ export default function BanksPage() {
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >
-              {isDeleting ? "Suppression..." : "Supprimer"}
+              {isDeleting ? "Désactivation..." : "Désactiver"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

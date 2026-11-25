@@ -73,6 +73,8 @@ const formatCurrency = (amount: number, currency?: string | null): string => {
 };
 
 const formatDate = (dateString: string): string => {
+  // Une date absente s'affichait « 01 janv. 1970 » (new Date(null)).
+  if (!dateString) return '—';
   return new Date(dateString).toLocaleDateString('fr-FR', {
     day: '2-digit',
     month: 'short',
@@ -108,10 +110,8 @@ function getAvailableActions(check: Check): CheckAction[] {
       case 'PENDING':
         actions.push(
           { id: 'emit', label: 'Émettre (remettre)', icon: Send },
-          { id: 'edit', label: 'Modifier', icon: Pencil },
           { id: 'print', label: 'Imprimer', icon: Printer },
-          { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true },
-          { id: 'delete', label: 'Supprimer', icon: Trash2, variant: 'destructive' }
+          { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true }
         );
         break;
       case 'ISSUED':
@@ -125,6 +125,8 @@ function getAvailableActions(check: Check): CheckAction[] {
         if (check.bankTransactionId) actions.push(viewTransactionAction);
         actions.push({ id: 'print', label: 'Imprimer', icon: Printer });
         actions.push(viewDetailsAction);
+        // Retour impayé après encaissement : extourne du mouvement (Q5).
+        actions.push({ id: 'reject', label: 'Déclarer impayé (retour)', icon: Ban, variant: 'destructive', separator: true });
         break;
       default: // Pour CANCELLED, REJECTED
         actions.push({ id: 'print', label: 'Imprimer', icon: Printer });
@@ -147,12 +149,11 @@ function getAvailableActions(check: Check): CheckAction[] {
         actions.push(
           { id: 'deposit', label: 'Déposer en banque', icon: Building2 },
           { id: 'print', label: 'Imprimer', icon: Printer },
-          { id: 'cancel', label: 'Annuler', icon: XCircle, variant: 'warning', separator: true }
+          { id: 'reject', label: 'Rejeter (impayé)', icon: Ban, variant: 'destructive', separator: true }
         );
         break;
       case 'DEPOSITED':
         actions.push(
-          { id: 'mark_processing', label: 'Marquer En Cours', icon: Clock },
           { id: 'cash', label: 'Encaisser', icon: Banknote },
           { id: 'print', label: 'Imprimer', icon: Printer },
           { id: 'reject', label: 'Rejeter', icon: Ban, variant: 'destructive', separator: true }
@@ -169,6 +170,8 @@ function getAvailableActions(check: Check): CheckAction[] {
         if (check.bankTransactionId) actions.push(viewTransactionAction);
         actions.push({ id: 'print', label: 'Imprimer', icon: Printer });
         actions.push(viewDetailsAction);
+        // Retour impayé après encaissement : extourne du mouvement (Q5).
+        actions.push({ id: 'reject', label: 'Déclarer impayé (retour)', icon: Ban, variant: 'destructive', separator: true });
         break;
       default: // Pour CANCELLED, REJECTED
         actions.push({ id: 'print', label: 'Imprimer', icon: Printer });
@@ -359,7 +362,9 @@ export function CheckList({
 
   // Statistiques par statut (excluant les annulés)
   const activeChecks = checks.filter(c => c.status !== 'CANCELLED');
-  const pendingChecks = activeChecks.filter(c => c.status === 'PENDING');
+  // « En attente » = chèques pas encore remis : émis en attente ET reçus en portefeuille
+  // (les chèques reçus n'apparaissaient dans aucun compteur).
+  const pendingChecks = activeChecks.filter(c => c.status === 'PENDING' || c.status === 'RECEIVED');
   const depositedChecks = activeChecks.filter(c => c.status === 'DEPOSITED');
   const issuedChecks = activeChecks.filter(c => c.status === 'ISSUED'); // Chèques émis en circulation
   const cashedChecks = activeChecks.filter(c => c.status === 'CASHED');

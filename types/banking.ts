@@ -288,6 +288,7 @@ export interface StatementLine {
   partnerAccount?: string;
   balanceAfter?: number;
   reconciliationStatus: ReconciliationStatus;
+  ignoredReason?: string;
   isReconciled?: boolean;
   reconciledAt?: string;
   createdAt: string;

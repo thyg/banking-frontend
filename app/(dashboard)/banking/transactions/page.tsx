@@ -264,8 +264,8 @@ export default function BankTransactionsPage() {
     try {
       await deleteBankTransaction(transactionToDelete.id);
       toast({
-        title: 'Transaction supprimée',
-        description: 'La transaction a été supprimée.',
+        title: 'Brouillon annulé',
+        description: "Le brouillon a été annulé ; il n'a jamais affecté le solde.",
       });
       await fetchTransactions();
     } catch (error) {
@@ -346,30 +346,6 @@ export default function BankTransactionsPage() {
     generateTransactionPDF(transaction, organization);
   };
 
-  /**
-   * Comptabilise une transaction (génère les écritures comptables).
-   */
-  const handlePost = (transaction: BankTransaction) => {
-    toast({
-      title: 'Comptabilisation',
-      description: `La transaction "${transaction.reference || transaction.description}" sera comptabilisée. (Fonctionnalité à implémenter avec le module comptabilité)`,
-    });
-    // TODO: Implémenter l'intégration avec le module comptabilité
-    // await postTransaction(transaction.id);
-  };
-
-  /**
-   * Transfère une transaction vers un autre compte.
-   */
-  const handleTransfer = (transaction: BankTransaction) => {
-    toast({
-      title: 'Transfert',
-      description: `Transfert de la transaction "${transaction.reference || transaction.description}". (Fonctionnalité à implémenter)`,
-    });
-    // TODO: Ouvrir une modale pour sélectionner le compte de destination
-    // et créer la transaction de transfert
-  };
-
   // ---------------------------------------------------------------------------
   // RENDU
   // ---------------------------------------------------------------------------
@@ -388,8 +364,6 @@ export default function BankTransactionsPage() {
         onValidate={setTransactionToValidate}
         onCancel={setTransactionToCancel}
         onPrint={handlePrint}
-        onPost={handlePost}
-        onTransfer={handleTransfer}
         onRefresh={() => fetchTransactions()}
         onViewDetails={setSelectedTransaction}
         showAccountColumn={true}
@@ -402,7 +376,6 @@ export default function BankTransactionsPage() {
         open={!!selectedTransaction}
         onOpenChange={(open) => !open && setSelectedTransaction(null)}
         onPrint={handlePrint}
-        onPost={handlePost}
         onCancel={setTransactionToCancel}
       />
 
@@ -437,19 +410,19 @@ export default function BankTransactionsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cette transaction ?</AlertDialogTitle>
+            <AlertDialogTitle>Annuler ce brouillon ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Vous êtes sur le point de supprimer la transaction
-              "{transactionToDelete?.reference || transactionToDelete?.description}". Cette action est irréversible.
+              Le brouillon "{transactionToDelete?.reference || transactionToDelete?.description}" passera au
+              statut « Annulé » et restera dans l'historique. Il n'a jamais affecté le solde.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel>Retour</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmDelete}
               className="bg-red-600 hover:bg-red-700"
             >
-              Supprimer
+              Annuler le brouillon
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

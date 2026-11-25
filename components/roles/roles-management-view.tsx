@@ -19,8 +19,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
-import { getRoles, createRole, updateRole, deleteRole } from "@/lib/api/role";
-import type { Role, CreateRolePayload, UpdateRolePayload } from "@/types/role";
+import { getRoles, createRole, updateRole, deleteRole, getPermissions } from "@/lib/api/role";
+import type { Role, Permission, CreateRolePayload, UpdateRolePayload } from "@/types/role";
 import { BUILTIN_PERMISSIONS, MODULE_LABELS } from "@/types/role";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 
@@ -35,6 +35,7 @@ type RoleFormData = z.infer<typeof roleSchema>;
 
 function RoleForm({
   role,
+  permissions,
   selectedPermissions,
   onPermissionsChange,
   onSave,
@@ -42,6 +43,8 @@ function RoleForm({
   loading,
 }: {
   role?: Role | null;
+  /** Catalogue des permissions réellement reconnues par le kernel. */
+  permissions: Permission[];
   selectedPermissions: string[];
   onPermissionsChange: (perms: string[]) => void;
   onSave: (data: RoleFormData) => Promise<void>;
@@ -65,7 +68,7 @@ function RoleForm({
     });
   }, [role]);
 
-  const grouped = BUILTIN_PERMISSIONS.reduce<Record<string, typeof BUILTIN_PERMISSIONS>>((acc, p) => {
+  const grouped = permissions.reduce<Record<string, Permission[]>>((acc, p) => {
     if (!acc[p.module]) acc[p.module] = [];
     acc[p.module].push(p);
     return acc;
@@ -157,6 +160,9 @@ export function RolesManagementView() {
   const [saving, setSaving] = useState(false);
   const [formPermissions, setFormPermissions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Catalogue des permissions : source de vérité = le kernel. `BUILTIN_PERMISSIONS`
+  // n'est qu'un repli si l'API est injoignable.
+  const [permissions, setPermissions] = useState<Permission[]>(BUILTIN_PERMISSIONS);
 
   const fetchRoles = useCallback(async () => {
     setIsLoading(true);
@@ -170,9 +176,19 @@ export function RolesManagementView() {
     }
   }, []);
 
+  const fetchPermissions = useCallback(async () => {
+    try {
+      const catalog = await getPermissions();
+      if (catalog.length > 0) setPermissions(catalog);
+    } catch {
+      // Catalogue injoignable : on garde le repli statique (permissions réelles mais partielles).
+    }
+  }, []);
+
   useEffect(() => {
     fetchRoles();
-  }, [fetchRoles]);
+    fetchPermissions();
+  }, [fetchRoles, fetchPermissions]);
 
   const openCreate = () => {
     setEditTarget(null);
@@ -329,7 +345,7 @@ export function RolesManagementView() {
                   <div className="space-y-4">
                     {Object.entries(
                       (selectedRole.permissions ?? []).reduce<Record<string, string[]>>((acc, code) => {
-                        const perm = BUILTIN_PERMISSIONS.find((p) => p.code === code);
+                        const perm = permissions.find((p) => p.code === code);
                         const module = perm?.module ?? "other";
                         if (!acc[module]) acc[module] = [];
                         acc[module].push(code);
@@ -342,10 +358,18 @@ export function RolesManagementView() {
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {codes.map((code) => {
-                            const perm = BUILTIN_PERMISSIONS.find((p) => p.code === code);
+                            const perm = permissions.find((p) => p.code === code);
+                            // Permission absente du catalogue kernel : elle n'accorde aucun droit.
+                            const unknown = !perm;
                             return (
-                              <Badge key={code} variant="outline" className="text-xs font-normal">
+                              <Badge
+                                key={code}
+                                variant={unknown ? "destructive" : "outline"}
+                                className="text-xs font-normal"
+                                title={unknown ? "Permission inconnue du serveur : sans effet." : perm?.description}
+                              >
                                 {perm?.label ?? code}
+                                {unknown && " ⚠"}
                               </Badge>
                             );
                           })}
@@ -374,6 +398,7 @@ export function RolesManagementView() {
           </DialogHeader>
           <RoleForm
             role={editTarget}
+            permissions={permissions}
             selectedPermissions={formPermissions}
             onPermissionsChange={setFormPermissions}
             onSave={handleSave}

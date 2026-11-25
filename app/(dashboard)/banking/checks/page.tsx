@@ -619,7 +619,7 @@ export default function ChecksPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Remettre le chèque en banque ?</AlertDialogTitle>
             <AlertDialogDescription>
-              Le chèque n°{checkToDeposit?.checkNumber} de {checkToDeposit?.partnerName} 
+              Le chèque n°{checkToDeposit?.checkNumber} de {checkToDeposit?.partnerName}{' '}
               sera marqué comme remis en banque.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -656,7 +656,7 @@ export default function ChecksPage() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               Une transaction bancaire sera automatiquement créée pour refléter 
-              {checkToCash?.checkType === 'RECEIVED' ? ' l\'encaissement' : ' le débit'} 
+              {checkToCash?.checkType === 'RECEIVED' ? ' l\'encaissement' : ' le débit'}{' '}
               de ce chèque.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -694,6 +694,7 @@ export default function ChecksPage() {
             <AlertDialogTitle>Marquer le chèque comme rejeté ?</AlertDialogTitle>
             <AlertDialogDescription>
               Le chèque n°{checkToReject?.checkNumber} sera marqué comme impayé/rejeté.
+              {checkToReject?.status === 'CASHED' && " Il a déjà été encaissé : le montant sera extourné du solde du compte."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4 space-y-4">

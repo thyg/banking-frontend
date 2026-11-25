@@ -144,7 +144,7 @@ export default function BankAccountsPage() {
       console.error("Erreur lors de la sauvegarde:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de sauvegarder le compte. Veuillez réessayer.",
+        description: (error as any)?.message || "Impossible de sauvegarder le compte. Veuillez réessayer.",
         variant: "destructive"
       });
     } finally {
@@ -172,8 +172,8 @@ export default function BankAccountsPage() {
     try {
       await deleteBankAccount(accountToDelete.id);
       toast({
-        title: "Compte supprimé",
-        description: `Le compte "${accountToDelete.name}" a été supprimé.`
+        title: "Compte désactivé",
+        description: `Le compte "${accountToDelete.name}" n'accepte plus de nouveaux mouvements.`
       });
       setAccountToDelete(null);
       await fetchData();
@@ -279,10 +279,11 @@ export default function BankAccountsPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {`Supprimer le compte "${accountToDelete?.name}" ?`}
+              {`Désactiver le compte "${accountToDelete?.name}" ?`}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irréversible. Toutes les transactions et relevés associés à ce compte seront également supprimés.
+              Le compte n&apos;acceptera plus de nouveaux mouvements. Son historique (transactions, chèques,
+              relevés) est conservé et reste consultable.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -292,7 +293,7 @@ export default function BankAccountsPage() {
               disabled={isSubmitting}
               className="bg-red-600 hover:bg-red-700"
             >
-              {isSubmitting ? "Suppression..." : "Supprimer"}
+              {isSubmitting ? "Désactivation..." : "Désactiver"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

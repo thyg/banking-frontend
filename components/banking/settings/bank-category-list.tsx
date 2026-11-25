@@ -104,6 +104,9 @@ export function BankCategoryList({
                   <div className="flex items-center gap-2">
                     <Tag className="h-4 w-4 text-gray-400" />
                     <span>{category.label}</span>
+                    {(category as any).isActive === false && (
+                      <span className="ml-2 rounded-full border px-2 py-0.5 text-xs text-muted-foreground">Inactive</span>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
@@ -123,7 +126,7 @@ export function BankCategoryList({
                         className="text-red-600 focus:text-red-600"
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Supprimer
+                        Désactiver
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

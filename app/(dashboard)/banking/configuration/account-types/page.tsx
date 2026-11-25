@@ -313,10 +313,10 @@ export default function AccountTypesPage() {
       const type = deleteTarget.item as AccountType;
       const hasSubTypes = type.subTypes && type.subTypes.length > 0;
       return {
-        title: `Supprimer le type "${type.libelle}" ?`,
+        title: `Désactiver le type "${type.libelle}" ?`,
         description: hasSubTypes
           ? `Attention: Ce type contient ${type.subTypes!.length} sous-type(s). La suppression entrainera egalement la suppression de tous les sous-types associes.`
-          : "Cette action est irreversible. Ce type ne pourra plus etre utilise pour categoriser vos comptes bancaires."
+          : "Ce type ne sera plus proposé pour les nouveaux comptes. Les comptes existants ne sont pas modifiés."
       };
     } else {
       const subType = deleteTarget.item as AccountSubType;
@@ -364,7 +364,7 @@ export default function AccountTypesPage() {
               disabled={isDeleting}
               className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
             >
-              {isDeleting ? "Suppression..." : "Supprimer"}
+              {isDeleting ? "Désactivation..." : "Désactiver"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

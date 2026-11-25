@@ -33,47 +33,64 @@ export interface UpdateRolePayload {
 
 export const PERMISSION_MODULES = [
   "treasury",
+  "administration",
+  "accounting",
   "organization",
-  "roles",
   "sales",
-  "stock",
-  "personnel",
+  "inventory",
+  "settings",
 ] as const;
 
 export type PermissionModule = (typeof PERMISSION_MODULES)[number];
 
+/**
+ * Repli minimal utilisé **uniquement** si le catalogue du kernel est injoignable.
+ *
+ * ⚠️ Ne contient que des permissions **réellement existantes** côté kernel
+ * (`PermissionCatalogService`). L'ancienne version listait `treasury:write`,
+ * `org:read`, `roles:manage`… qui n'existent pas : un rôle créé avec elles était
+ * accepté mais totalement inopérant. La source de vérité est désormais
+ * `getPermissions()` → `GET /api/administration/permissions`.
+ */
 export const BUILTIN_PERMISSIONS: Permission[] = [
-  // Treasury
-  { id: "treasury:read",   code: "treasury:read",   label: "Lire la trésorerie",       module: "treasury" },
-  { id: "treasury:write",  code: "treasury:write",  label: "Modifier la trésorerie",    module: "treasury" },
-  { id: "treasury:manage", code: "treasury:manage", label: "Administrer la trésorerie", module: "treasury" },
-  // Organizations
-  { id: "org:read",   code: "org:read",   label: "Lire les organisations",       module: "organization" },
-  { id: "org:write",  code: "org:write",  label: "Modifier les organisations",    module: "organization" },
-  { id: "org:manage", code: "org:manage", label: "Administrer les organisations", module: "organization" },
-  // Roles
-  { id: "roles:read",   code: "roles:read",   label: "Lire les rôles",       module: "roles" },
-  { id: "roles:write",  code: "roles:write",  label: "Modifier les rôles",    module: "roles" },
-  { id: "roles:manage", code: "roles:manage", label: "Administrer les rôles", module: "roles" },
-  // Sales
-  { id: "sales:read",   code: "sales:read",   label: "Lire les ventes",       module: "sales" },
-  { id: "sales:write",  code: "sales:write",  label: "Modifier les ventes",    module: "sales" },
-  { id: "sales:manage", code: "sales:manage", label: "Administrer les ventes", module: "sales" },
-  // Stock
-  { id: "stock:read",   code: "stock:read",   label: "Lire le stock",       module: "stock" },
-  { id: "stock:write",  code: "stock:write",  label: "Modifier le stock",    module: "stock" },
-  { id: "stock:manage", code: "stock:manage", label: "Administrer le stock", module: "stock" },
-  // Personnel
-  { id: "personnel:read",   code: "personnel:read",   label: "Lire le personnel",       module: "personnel" },
-  { id: "personnel:write",  code: "personnel:write",  label: "Modifier le personnel",    module: "personnel" },
-  { id: "personnel:manage", code: "personnel:manage", label: "Administrer le personnel", module: "personnel" },
+  // Trésorerie
+  { id: "treasury:read",            code: "treasury:read",            label: "Lire la trésorerie",            module: "treasury" },
+  { id: "treasury:manage",          code: "treasury:manage",          label: "Administrer la trésorerie",     module: "treasury" },
+  { id: "treasury:settle-invoices", code: "treasury:settle-invoices", label: "Régler les factures",           module: "treasury" },
+  // Administration (rôles, utilisateurs, paramètres)
+  { id: "administration:read",             code: "administration:read",             label: "Lire l'administration",     module: "administration" },
+  { id: "administration:write",            code: "administration:write",            label: "Modifier l'administration", module: "administration" },
+  { id: "administration:roles:read",       code: "administration:roles:read",       label: "Lire les rôles",            module: "administration" },
+  { id: "administration:roles:write",      code: "administration:roles:write",      label: "Gérer les rôles",           module: "administration" },
+  { id: "administration:assignments:write", code: "administration:assignments:write", label: "Affecter des rôles",      module: "administration" },
+  // Comptabilité
+  { id: "accounting:read",  code: "accounting:read",  label: "Lire la comptabilité",     module: "accounting" },
+  { id: "accounting:write", code: "accounting:write", label: "Modifier la comptabilité", module: "accounting" },
+  { id: "accounting:post",  code: "accounting:post",  label: "Comptabiliser",            module: "accounting" },
+  // Organisations
+  { id: "organizations:write", code: "organizations:write", label: "Gérer les organisations", module: "organization" },
+  // Ventes / Stock / Paramètres
+  { id: "sales:write",     code: "sales:write",     label: "Gérer les ventes",   module: "sales" },
+  { id: "inventory:write", code: "inventory:write", label: "Gérer le stock",     module: "inventory" },
+  { id: "settings:read",   code: "settings:read",   label: "Lire les paramètres",     module: "settings" },
+  { id: "settings:write",  code: "settings:write",  label: "Modifier les paramètres", module: "settings" },
 ];
 
+/** Libellés des modules du catalogue kernel (clés normalisées en minuscules). */
 export const MODULE_LABELS: Record<string, string> = {
   treasury: "Trésorerie",
+  administration: "Administration",
+  accounting: "Comptabilité",
   organization: "Organisations",
-  roles: "Rôles",
   sales: "Ventes",
-  stock: "Stock",
-  personnel: "Personnel",
+  inventory: "Stock",
+  product: "Produits",
+  settings: "Paramètres",
+  hrm: "Personnel (RH)",
+  cashier: "Caisse",
+  commercial: "Commercial",
+  resource: "Ressources",
+  blockchain: "Blockchain",
+  iam: "Identités & accès",
+  system: "Système",
 };

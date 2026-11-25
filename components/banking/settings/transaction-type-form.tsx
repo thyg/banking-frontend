@@ -36,7 +36,8 @@ import {
   FormLabel, 
   FormMessage 
 } from '@/components/ui/form';
-import { Loader2, ArrowUpDown } from 'lucide-react';
+import { Loader2, ArrowUpDown, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 // =============================================================================
 // CONSTANTES
@@ -117,6 +118,7 @@ export function TransactionTypeForm({
   onCancel 
 }: TransactionTypeFormProps) {
   // État de soumission
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Déterminer si on est en mode édition
@@ -141,7 +143,8 @@ export function TransactionTypeForm({
    */
   const handleSubmit = async (data: TransactionTypeFormData) => {
     setIsSubmitting(true);
-    
+    setSubmitError(null);
+
     try {
       const saveData: CreateTransactionTypeData = {
         code: data.code,
@@ -153,8 +156,12 @@ export function TransactionTypeForm({
       };
       
       await onSave(saveData);
-    } catch (error) {
-      console.error("[TransactionTypeForm] Erreur lors de la sauvegarde:", error);
+    } catch (error: any) {
+      // Avant : erreur seulement journalisée, l'utilisateur ne voyait rien.
+      const message: string = error?.message ?? '';
+      setSubmitError(/conflit|existe déjà|déjà utilisé|duplicate/i.test(message)
+        ? `Un type de transaction avec le code « ${data.code} » existe déjà.`
+        : message || "L'enregistrement a échoué. Réessayez.");
     } finally {
       setIsSubmitting(false);
     }
@@ -337,6 +344,13 @@ export function TransactionTypeForm({
             </FormItem>
           )}
         />
+
+        {submitError && (
+          <Alert variant="destructive" className="py-3">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Pied de page avec boutons d'action - responsive */}
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t">

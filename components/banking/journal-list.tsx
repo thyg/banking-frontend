@@ -150,9 +150,9 @@ export function JournalList({
                 <TableHead className="w-[140px] sm:w-[160px]">Date</TableHead>
                 <TableHead className="hidden sm:table-cell w-[120px] sm:w-[150px]">Module</TableHead>
                 <TableHead className="w-[100px] sm:w-[130px]">Action</TableHead>
-                <TableHead>Reference</TableHead>
+                <TableHead>Référence</TableHead>
                 <TableHead className="hidden md:table-cell w-[120px] sm:w-[140px]">Utilisateur</TableHead>
-                <TableHead className="w-[50px] sm:w-[70px] text-center">Detail</TableHead>
+                <TableHead className="w-[50px] sm:w-[70px] text-center">Détail</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

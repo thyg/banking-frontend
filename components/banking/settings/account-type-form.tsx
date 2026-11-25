@@ -113,9 +113,12 @@ export function AccountTypeForm({ initialData, onSave, onCancel }: AccountTypeFo
               <FormItem>
                 <FormLabel>Code</FormLabel>
                 <FormControl>
-                  <Input placeholder="Ex: COMP_COURANT" {...field} />
+                  {/* Le code est la clé fonctionnelle : immuable une fois créé (le backend l'ignore en modification). */}
+                  <Input placeholder="Ex: COMP_COURANT" disabled={!!initialData} {...field} />
                 </FormControl>
-                <FormDescription>Code unique du type de compte (lettres, chiffres et underscores)</FormDescription>
+                <FormDescription>
+                  {initialData ? "Le code ne peut pas être modifié." : "Code unique du type de compte (lettres, chiffres et underscores)"}
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )} />

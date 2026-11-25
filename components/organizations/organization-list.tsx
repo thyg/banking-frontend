@@ -6,6 +6,7 @@ import {
   Plus,
   RefreshCw,
   Edit,
+  Users,
   Trash2,
   CheckCircle,
   XCircle,
@@ -44,6 +45,7 @@ interface Props {
   isLoading: boolean;
   onAdd: () => void;
   onEdit: (org: Organization) => void;
+  onManageMembers: (org: Organization) => void;
   onDelete: (org: Organization) => void;
   onApprove: (org: Organization) => void;
   onReject: (org: Organization) => void;
@@ -91,6 +93,7 @@ export function OrganizationList({
   isLoading,
   onAdd,
   onEdit,
+  onManageMembers,
   onDelete,
   onApprove,
   onReject,
@@ -182,6 +185,10 @@ export function OrganizationList({
                         <DropdownMenuItem onClick={() => onEdit(org)}>
                           <Edit className="h-4 w-4 mr-2" />
                           Modifier
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onManageMembers(org)}>
+                          <Users className="h-4 w-4 mr-2" />
+                          Membres
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         {org.governanceStatus === "PENDING" && (

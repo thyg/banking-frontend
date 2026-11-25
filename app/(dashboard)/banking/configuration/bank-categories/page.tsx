@@ -173,11 +173,11 @@ export default function BankCategoriesPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Supprimer la catégorie "{categoryToDelete?.label}" ?
+              Désactiver la catégorie "{categoryToDelete?.label}" ?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est irréversible. Les banques associées à cette catégorie
-              perdront leur lien de catégorie.
+              La catégorie ne sera plus proposée pour les nouvelles banques. Les banques
+              qui y sont déjà rattachées la conservent.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -187,7 +187,7 @@ export default function BankCategoriesPage() {
               disabled={isSubmitting}
               className="bg-red-600 hover:bg-red-700"
             >
-              {isSubmitting ? "Suppression..." : "Supprimer"}
+              {isSubmitting ? "Désactivation..." : "Désactiver"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

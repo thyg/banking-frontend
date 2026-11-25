@@ -54,12 +54,41 @@ export async function deleteRole(id: string): Promise<void> {
   return apiDelete(`/api/roles/${id}`);
 }
 
+/**
+ * Réponse du catalogue de permissions du kernel :
+ * GET /api/administration/permissions
+ */
+interface KernelPermission {
+  code: string;
+  name: string;
+  description?: string;
+  module: string;
+  scope?: string;
+  system?: boolean;
+  assignable?: boolean;
+  deprecated?: boolean;
+}
+
+/**
+ * Charge le **vrai** catalogue de permissions depuis le kernel, seule source de vérité.
+ * Auparavant le formulaire s'appuyait sur une liste codée en dur (`BUILTIN_PERMISSIONS`)
+ * qui contenait des permissions inexistantes (`treasury:write`, `org:read`…) : un rôle créé
+ * avec elles était accepté par le kernel mais **totalement inopérant**.
+ *
+ * On ne garde que les permissions assignables et non dépréciées.
+ * En cas d'échec, l'appelant retombe sur la liste statique (mode dégradé).
+ */
 export async function getPermissions(): Promise<Permission[]> {
-  try {
-    return await apiGet<Permission[]>("/api/permissions");
-  } catch {
-    return [];
-  }
+  const raw = await apiGet<KernelPermission[]>("/api/administration/permissions");
+  return (raw ?? [])
+    .filter((p) => p.assignable !== false && p.deprecated !== true)
+    .map((p) => ({
+      id: p.code,
+      code: p.code,
+      label: p.name || p.code,
+      description: p.description,
+      module: (p.module || "AUTRE").toLowerCase(),
+    }));
 }
 
 export async function assignRoleToUser(userId: string, roleId: string): Promise<void> {

@@ -4,7 +4,8 @@ import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import React, { useEffect } from "react";
 import { ComposeWindow } from "@/components/ui/compose-window";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/hooks/use-auth";
 import { useNavigationStore } from "@/hooks/use-navigation-store";
 import { findModuleByPath } from "@/config/navigation";
 
@@ -16,7 +17,21 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { activeModule, setActiveModule } = useNavigationStore();
+  const user = useAuth((s) => s.user);
+  const [hydrated, setHydrated] = React.useState(false);
+
+  // L'état d'auth (persisté) n'est fiable qu'après hydratation côté client.
+  useEffect(() => { setHydrated(true); }, []);
+
+  // Sans organisation de travail, le BFF n'envoie pas X-Organization-Id et tous les appels
+  // trésorerie échouent : on fait d'abord choisir l'organisation.
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!user) router.replace(`/login?next=${encodeURIComponent(pathname ?? "/banking")}`);
+    else if (!user.organizationId) router.replace("/select-organization");
+  }, [hydrated, user, pathname, router]);
 
   useEffect(() => {
     if (pathname) {

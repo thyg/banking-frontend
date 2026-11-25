@@ -12,7 +12,7 @@
 // Résumé : { totalLines, unmatchedCount, matchedCount, ignoredCount, unmatchedAmount, matchedAmount }.
 
 import { tGet, tPost, qs, requireOrg } from "@/lib/api/treasury-client";
-import { mapStatement, mapStatementLine } from "@/lib/api/banking";
+import { mapStatement, mapStatementLine, withLineCounts } from "@/lib/api/banking";
 import { mapBankTransaction } from "@/lib/api/bank-transaction";
 import type {
   BankStatement,
@@ -27,7 +27,7 @@ import type {
 
 export async function getBankStatements(bankAccountId?: string): Promise<BankStatement[]> {
   const raw = await tGet<any[]>(`/statements${qs({ organizationId: requireOrg(), bankAccountId })}`);
-  return (raw ?? []).map(mapStatement);
+  return withLineCounts((raw ?? []).map(mapStatement));
 }
 
 export async function getBankStatementById(id: string): Promise<BankStatement> {
@@ -86,8 +86,16 @@ export async function deleteMatch(matchId: string): Promise<void> {
   await tPost(`/reconciliation/unmatch/${matchId}`);
 }
 
-export async function getMatchesByLineId(_lineId: string): Promise<ReconciliationMatch[]> {
-  return [];
+/** Rapprochements actifs d'une ligne (GET /reconciliation/matches?statementLineId=). */
+export async function getMatchesByLineId(lineId: string): Promise<ReconciliationMatch[]> {
+  return (await tGet<ReconciliationMatch[]>(`/reconciliation/matches${qs({ statementLineId: lineId })}`)) ?? [];
+}
+
+/** Annule le(s) rapprochement(s) actif(s) d'une ligne : elle redevient « à traiter ». */
+export async function unmatchLine(lineId: string): Promise<number> {
+  const matches = await getMatchesByLineId(lineId);
+  for (const m of matches) await deleteMatch(m.id);
+  return matches.length;
 }
 
 export async function getReconciliationSummary(statementId: string): Promise<ReconciliationSummary> {
@@ -178,15 +186,13 @@ export async function reconcileWithNewTransaction(
   }
 }
 
+// Une erreur (relevé clôturé, droits…) est propagée : avant, elle était avalée et l'écran
+// annonçait « 0 lignes rapprochées » comme un succès.
 export async function bulkReconcile(statementId: string): Promise<{ reconciled: number; skipped: number; errors: number }> {
-  try {
-    const result = await reconcileAuto(statementId) as any;
-    return {
-      reconciled: result?.matchesCreated ?? result?.reconciled ?? 0,
-      skipped:    result?.linesProcessed != null ? (result.linesProcessed - (result.matchesCreated ?? 0)) : 0,
-      errors:     result?.errors ?? 0,
-    };
-  } catch {
-    return { reconciled: 0, skipped: 0, errors: 1 };
-  }
+  const result = await reconcileAuto(statementId) as any;
+  return {
+    reconciled: result?.matchesCreated ?? result?.reconciled ?? 0,
+    skipped:    result?.linesProcessed != null ? (result.linesProcessed - (result.matchesCreated ?? 0)) : 0,
+    errors:     result?.errors ?? 0,
+  };
 }

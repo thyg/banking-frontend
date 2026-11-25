@@ -115,7 +115,9 @@ interface TransactionTypeListProps {
  * Badge pour afficher la catégorie d'un type de transaction.
  */
 function CategoryBadge({ category }: { category: TransactionType['category'] }) {
-  const config = CATEGORY_CONFIG[category];
+  // La catégorie est facultative côté API : un type sans catégorie (ou inconnue) est « Autre »,
+  // au lieu de faire planter toute la page.
+  const config = CATEGORY_CONFIG[category as keyof typeof CATEGORY_CONFIG] ?? CATEGORY_CONFIG.OTHER;
   const Icon = config.icon;
   
   return (
@@ -266,14 +268,7 @@ export function TransactionTypeList({
                           Activer
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => onDelete(type)}
-                        className="text-red-600 focus:text-red-600"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Supprimer
-                      </DropdownMenuItem>
+                      {/* « Supprimer » faisait exactement la même chose que « Désactiver » : retiré. */}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>
@@ -290,7 +285,7 @@ export function TransactionTypeList({
     BANK: transactionTypes.filter(t => t.category === 'BANK').length,
     CASH: transactionTypes.filter(t => t.category === 'CASH').length,
     CHECK: transactionTypes.filter(t => t.category === 'CHECK').length,
-    OTHER: transactionTypes.filter(t => t.category === 'OTHER').length,
+    OTHER: transactionTypes.filter(t => !t.category || !['BANK', 'CASH', 'CHECK'].includes(t.category)).length,
   };
 
   return (

@@ -40,6 +40,7 @@ export function ThirdPartySelector({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ThirdPartySummary[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export function ThirdPartySelector({
     if (!open) return;
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
+      setSearchError(null);
       try {
         const data = await searchThirdParties({
           search: query || undefined,
@@ -55,8 +57,10 @@ export function ThirdPartySelector({
           size: 20,
         });
         setResults(data);
-      } catch {
+      } catch (e: any) {
+        // Avant : toute erreur (droits, service tiers non souscrit…) s'affichait « Aucun tiers trouvé ».
         setResults([]);
+        setSearchError(e?.message || "Recherche des tiers indisponible.");
       } finally {
         setLoading(false);
       }
@@ -117,8 +121,26 @@ export function ThirdPartySelector({
                 Recherche en cours…
               </div>
             )}
-            {!loading && results.length === 0 && (
+            {!loading && searchError && (
+              <div className="px-3 py-2 text-xs text-amber-700 bg-amber-50">
+                Annuaire des tiers indisponible : saisissez le nom ci-dessus.
+              </div>
+            )}
+            {!loading && !searchError && results.length === 0 && !query.trim() && (
               <CommandEmpty>Aucun tiers trouvé.</CommandEmpty>
+            )}
+            {/* Saisie libre : un tiers absent de l'annuaire (client de passage) ne doit pas bloquer
+                l'enregistrement. Le backend accepte un nom sans fiche tiers. */}
+            {!loading && query.trim() && (
+              <CommandGroup>
+                <CommandItem
+                  value={`__libre__${query}`}
+                  onSelect={() => handleSelect({ id: "", displayName: query.trim() } as ThirdPartySummary)}
+                  className="cursor-pointer"
+                >
+                  Utiliser « {query.trim()} » (sans fiche tiers)
+                </CommandItem>
+              </CommandGroup>
             )}
             {!loading && results.length > 0 && (
               <CommandGroup>

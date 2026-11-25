@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { registerApi, type RegisteredUser } from '@/lib/api/auth';
 import { getRoles, assignRoleToUser } from '@/lib/api/role';
+import { createActorFor, rememberActor } from '@/lib/api/actor-directory';
 import { NewUserDialog, type NewUserPayload } from './new-user-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -33,12 +34,16 @@ export function UserManagementView() {
   const handleCreate = useCallback(async (data: NewUserPayload) => {
     setError(null);
     setSuccess(null);
+    // `register` ne crée pas d'acteur : il faut le créer d'abord et lui passer l'actorId,
+    // sinon le compte ne pourra jamais être rattaché à une organisation.
+    const actorId = await createActorFor(data.username, data.email);
     const created = await registerApi({
       username: data.username,
       email: data.email,
       password: data.password,
+      actorId,
     });
-    setPendingUser(created);
+    setPendingUser({ ...created, actorId: created.actorId ?? actorId });
     setSelectedRoleId('');
   }, []);
 
@@ -48,6 +53,16 @@ export function UserManagementView() {
     try {
       await assignRoleToUser(pendingUser.id, selectedRoleId);
       const role = roles.find(r => r.id === selectedRoleId);
+      // Mémorise l'acteur pour que le panneau « Membres » puisse afficher un nom plutôt
+      // qu'un UUID : le backend n'expose aucun listing des utilisateurs.
+      if (pendingUser.actorId) {
+        rememberActor({
+          actorId: pendingUser.actorId,
+          name: pendingUser.username,
+          email: pendingUser.email,
+          role: role?.label,
+        });
+      }
       setUsers(prev => [...prev, {
         ...pendingUser,
         createdAt: new Date().toISOString(),

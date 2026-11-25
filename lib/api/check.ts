@@ -135,7 +135,14 @@ export async function emitCheck(id: string): Promise<Check> {
 }
 
 export async function markReceivedCheck(id: string): Promise<Check> {
-  return tPost<Check>(`/checks/${id}/issue`);
+  // Un chèque reçu naît déjà RECEIVED côté backend : il n'existe pas de transition « marquer
+  // reçu » (l'ancien appel à /issue était toujours refusé pour un chèque reçu).
+  const check = await getCheckById(id);
+  if (!check) throw new Error("Chèque introuvable.");
+  if (String(check.status).toUpperCase() !== "RECEIVED") {
+    throw new Error("Seul un chèque reçu d'un tiers est en statut « reçu » ; ce chèque est " + check.status + ".");
+  }
+  return check;
 }
 
 export async function depositCheck(id: string, depositIdOrDate?: string): Promise<Check> {
@@ -165,8 +172,14 @@ export async function cashCheck(id: string, _cashDate?: string): Promise<Check> 
   return tPost<Check>(`/checks/${id}/cash`);
 }
 
+/**
+ * Chèque impayé. Avant encaissement : rejet simple. Après encaissement : retour impayé (Q5) via
+ * /bounce, qui extourne le mouvement sur le solde.
+ */
 export async function rejectCheck(id: string, reason = "Rejet", _rejectDate?: string): Promise<Check> {
-  return tPost<Check>(`/checks/${id}/reject`, { reason });
+  const current = await getCheckById(id);
+  const route = current?.status === "CASHED" ? "bounce" : "reject";
+  return tPost<Check>(`/checks/${id}/${route}`, { reason });
 }
 
 export async function cancelCheck(id: string): Promise<Check> {

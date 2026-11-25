@@ -57,7 +57,7 @@ interface StatementLinesTableProps {
     pending: number;
     percentage: number;
   };
-  /** Code devise pour le formatage (défaut: EUR) */
+  /** Code devise pour le formatage (défaut: XAF) */
   currencyCode?: string;
   /** Titre personnalisé pour la carte */
   title?: string;
@@ -87,7 +87,7 @@ function formatDate(dateString: string): string {
 /**
  * Formate un montant en devise
  */
-function formatCurrency(amount: number, currencyCode: string = 'EUR'): string {
+function formatCurrency(amount: number, currencyCode: string = 'XAF'): string {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: currencyCode,
@@ -147,7 +147,7 @@ export function StatementLinesTable({
   isLoading,
   selectedLineId,
   onSelectLine,
-  currencyCode = 'EUR',
+  currencyCode = 'XAF',
   title = 'Transactions du relevé',
   description
 }: StatementLinesTableProps) {
@@ -276,7 +276,7 @@ export function StatementLinesTable({
                 <ArrowUpCircle className="h-3 w-3 text-red-600" />
               )}
               <span className={cn("text-xs", isCredit ? "text-green-600" : "text-red-600")}>
-                {isCredit ? 'Credit' : 'Debit'}
+                {isCredit ? 'Crédit' : 'Débit'}
               </span>
             </div>
           </div>
@@ -288,12 +288,12 @@ export function StatementLinesTable({
             {isCredit ? (
               <>
                 <ArrowDownCircle className="h-4 w-4 text-green-600" />
-                <span className="text-xs text-green-600 font-medium">Credit</span>
+                <span className="text-xs text-green-600 font-medium">Crédit</span>
               </>
             ) : (
               <>
                 <ArrowUpCircle className="h-4 w-4 text-red-600" />
-                <span className="text-xs text-red-600 font-medium">Debit</span>
+                <span className="text-xs text-red-600 font-medium">Débit</span>
               </>
             )}
           </div>
@@ -368,7 +368,7 @@ export function StatementLinesTable({
               <TableRow className="bg-muted/50">
                 <TableHead className="hidden sm:table-cell w-[50px] sm:w-[60px] text-center">#</TableHead>
                 <TableHead className="w-[100px] sm:w-[120px]">Date</TableHead>
-                <TableHead>Libelle</TableHead>
+                <TableHead>Libellé</TableHead>
                 <TableHead className="hidden md:table-cell w-[80px] sm:w-[100px]">Type</TableHead>
                 <TableHead className="text-right w-[120px] sm:w-[150px]">Montant</TableHead>
                 <TableHead className="w-[100px] sm:w-[130px]">Statut</TableHead>

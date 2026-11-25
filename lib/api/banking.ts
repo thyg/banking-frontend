@@ -39,12 +39,17 @@ import type {
 export function mapBankAccount(r: any): BankAccount {
   return {
     ...r,
-    name: r.name ?? r.bankName ?? r.accountNumber ?? "Compte",
+    // Libellé saisi par l'utilisateur, sinon nom de la banque (comptes créés avant le libellé).
+    name: r.label ?? r.name ?? r.bankName ?? r.accountNumber ?? "Compte",
     bankName: r.bankName,
     bankId: r.bankId ?? r.bankThirdPartyId ?? "",
     isActive: r.isActive ?? (r.status ? r.status === "ACTIVE" : true),
     currentBalance: r.currentBalance ?? 0,
     reconciledBalance: r.reconciledBalance ?? 0,
+    overdraftAllowed: r.overdraftAllowed ?? false,
+    // Alias lu par le formulaire de chèque (indicateur de provision).
+    overdraftAuthorized: r.overdraftAllowed ?? r.overdraftAuthorized ?? false,
+    overdraftLimit: r.overdraftLimit ?? 0,
     currency: r.currency ?? "XAF",
     createdAt: r.createdAt ?? "",
     updatedAt: r.updatedAt ?? "",
@@ -93,8 +98,25 @@ export async function getBankById(id: string): Promise<Bank | null> {
 export async function createBank(data: CreateBankRequest): Promise<Bank> {
   return tPost<Bank>("/banks", data);
 }
-export async function updateBank(_id: string, _d: UpdateBankRequest): Promise<Bank> {
-  throw new Error("La modification d'une banque n'est pas disponible. Utilisez désactiver.");
+/**
+ * Modification d'une banque (PUT, le code est immuable). Le backend attend l'objet complet :
+ * on fusionne l'état actuel et les champs modifiés pour ne rien effacer.
+ */
+export async function updateBank(id: string, d: UpdateBankRequest): Promise<Bank> {
+  const current: any = await getBankById(id);
+  const merged = { ...current, ...d };
+  const updated = await tPut<Bank>(`/banks/${id}`, {
+    name: merged.name,
+    swiftCode: merged.swiftCode || undefined,
+    bankCode: merged.bankCode || undefined,
+    country: merged.country || undefined,
+    address: merged.address || undefined,
+    bankCategoryId: merged.bankCategoryId || undefined,
+  });
+  if (d.isActive === false && current?.active !== false && current?.isActive !== false) {
+    await tPost(`/banks/${id}/deactivate`, {});
+  }
+  return updated;
 }
 export async function deleteBank(id: string): Promise<void> {
   await tPost(`/banks/${id}/deactivate`, {});
@@ -111,8 +133,9 @@ export async function getBankCategoryById(id: string): Promise<BankCategory> {
 export async function createBankCategory(data: BankCategoryRequest): Promise<BankCategory> {
   return tPost<BankCategory>("/bank-categories", data);
 }
-export async function updateBankCategory(_id: string, _d: BankCategoryRequest): Promise<BankCategory> {
-  throw new Error("La modification d'une catégorie n'est pas disponible. Utilisez désactiver.");
+/** Modification du libellé d'une catégorie (le code est immuable). */
+export async function updateBankCategory(id: string, d: BankCategoryRequest): Promise<BankCategory> {
+  return tPut<BankCategory>(`/bank-categories/${id}`, { label: d.label });
 }
 export async function deleteBankCategory(id: string): Promise<void> {
   await tPost(`/bank-categories/${id}/deactivate`, {});
@@ -156,11 +179,16 @@ export async function getConnectorTypeWithFields(id: string): Promise<AccountCon
 
 // ─── TRANSACTION TYPES ───────────────────────────────────────────────────────
 
-export async function getTransactionTypes(_activeOnly = false): Promise<TransactionType[]> {
-  return tGet<TransactionType[]>("/transaction-types");
+/** Le backend expose « active » ; l'UI lit « isActive » (sans ce mapping, tous les types étaient filtrés). */
+function mapTransactionType(r: any): TransactionType {
+  return { ...r, isActive: r.isActive ?? r.active ?? true, active: r.active ?? r.isActive ?? true } as TransactionType;
+}
+export async function getTransactionTypes(activeOnly = false): Promise<TransactionType[]> {
+  const types = ((await tGet<any[]>("/transaction-types")) ?? []).map(mapTransactionType);
+  return activeOnly ? types.filter(t => t.isActive) : types;
 }
 export async function getTransactionTypeById(id: string): Promise<TransactionType> {
-  return tGet<TransactionType>(`/transaction-types/${id}`);
+  return mapTransactionType(await tGet<any>(`/transaction-types/${id}`));
 }
 export async function createTransactionType(data: CreateTransactionTypeRequest): Promise<TransactionType> {
   return tPost<TransactionType>("/transaction-types", data);
@@ -185,24 +213,44 @@ function mapAccountType<T extends { isActive?: boolean }>(r: any): T {
   return { ...r, isActive: r.isActive ?? r.active ?? true } as T;
 }
 
-export async function getAccountTypes(_activeOnly = false): Promise<AccountType[]> {
-  const types = await tGet<any[]>("/account-types");
-  return (types ?? []).map(r => mapAccountType<AccountType>(r));
+export async function getAccountTypes(activeOnly = false): Promise<AccountType[]> {
+  const types = (await tGet<any[]>("/account-types") ?? []).map(r => mapAccountType<AccountType>(r));
+  return activeOnly ? types.filter(t => t.isActive !== false) : types;
 }
 export async function getAccountTypeById(id: string): Promise<AccountType> {
   return mapAccountType<AccountType>(await tGet<any>(`/account-types/${id}`));
 }
 export async function getAccountTypeByCode(_code: string): Promise<AccountType | null> { return null; }
-export async function getCheckEmitterTypes(): Promise<AccountType[]> { return getAccountTypes(); }
-export async function getCheckReceiverTypes(): Promise<AccountType[]> { return getAccountTypes(); }
-export async function getCashEnabledTypes(): Promise<AccountType[]> { return getAccountTypes(); }
-export async function getOverdraftEnabledTypes(): Promise<AccountType[]> { return getAccountTypes(); }
+export async function getCheckEmitterTypes(): Promise<AccountType[]> {
+  return (await getAccountTypes(true)).filter(t => t.peutEmettreCheques);
+}
+export async function getCheckReceiverTypes(): Promise<AccountType[]> {
+  return (await getAccountTypes(true)).filter(t => t.peutRecevoirCheques);
+}
+export async function getCashEnabledTypes(): Promise<AccountType[]> {
+  return (await getAccountTypes(true)).filter(t => t.peutTransactionsEspeces);
+}
+export async function getOverdraftEnabledTypes(): Promise<AccountType[]> {
+  return (await getAccountTypes(true)).filter(t => t.decouvertAutorise);
+}
 
 export async function createAccountType(data: CreateAccountTypeRequest): Promise<AccountType> {
   return mapAccountType<AccountType>(await tPost<any>("/account-types", data));
 }
-export async function updateAccountType(_id: string, _d: UpdateAccountTypeRequest): Promise<AccountType> {
-  throw new Error("La modification d'un type de compte n'est pas disponible.");
+/** Modification d'un type de compte (le code est immuable) ; fusion avec l'état actuel. */
+export async function updateAccountType(id: string, d: UpdateAccountTypeRequest): Promise<AccountType> {
+  const current: any = await getAccountTypeById(id);
+  const m = { ...current, ...d };
+  return mapAccountType<AccountType>(await tPut<any>(`/account-types/${id}`, {
+    libelle: m.libelle,
+    description: m.description || undefined,
+    peutEmettreCheques: !!m.peutEmettreCheques,
+    peutRecevoirCheques: !!m.peutRecevoirCheques,
+    peutTransactionsEspeces: !!m.peutTransactionsEspeces,
+    decouvertAutorise: !!m.decouvertAutorise,
+    decouvertParDefaut: m.decouvertParDefaut ?? 0,
+    ordreAffichage: m.ordreAffichage ?? 0,
+  }));
 }
 export async function deleteAccountType(id: string): Promise<void> {
   await tPost(`/account-types/${id}/deactivate`, {});
@@ -230,26 +278,16 @@ export async function deleteAccountSubType(_atId: string, _stId: string): Promis
 // Backend: GET/POST /api/treasury/bank-accounts   (organizationId requis)
 //          GET      /api/treasury/bank-accounts/{id}
 //          GET      /api/treasury/bank-accounts/{id}/balance
-// La réponse de liste ne contient pas le solde : on le complète via /balance.
+// La réponse « compte » porte le solde stocké (currentBalance, mis à jour à la validation) : plus
+// besoin d'un appel /balance par compte. Ce N+1 saturait la file du navigateur (6 requêtes
+// simultanées par hôte) dès quelques dizaines de comptes et figeait les formulaires ouverts ensuite.
 
 export async function getBankAccounts(_activeOnly = false): Promise<BankAccount[]> {
   const raw = await tGet<any[]>(`/bank-accounts${qs({ organizationId: requireOrg() })}`);
-  const accounts = (raw ?? []).map(mapBankAccount);
-  await Promise.all(accounts.map(async (a) => {
-    try {
-      const res = await tGet<{ balance: number }>(`/bank-accounts/${a.id}/balance`);
-      a.currentBalance = res?.balance ?? 0;
-    } catch { /* solde indisponible : on laisse 0 */ }
-  }));
-  return accounts;
+  return (raw ?? []).map(mapBankAccount);
 }
 export async function getBankAccountById(id: string): Promise<BankAccount> {
-  const account = mapBankAccount(await tGet<any>(`/bank-accounts/${id}`));
-  try {
-    const res = await tGet<{ balance: number }>(`/bank-accounts/${id}/balance`);
-    account.currentBalance = res?.balance ?? 0;
-  } catch { /* solde indisponible */ }
-  return account;
+  return mapBankAccount(await tGet<any>(`/bank-accounts/${id}`));
 }
 export async function getBankAccountBalance(id: string): Promise<number> {
   const res = await tGet<{ balance: number }>(`/bank-accounts/${id}/balance`);
@@ -268,28 +306,64 @@ export async function createBankAccount(data: CreateBankAccountRequest): Promise
   const accountNumber =
     data.accountNumber ||
     (data.details?.phoneNumber as string | undefined) ||
-    iban ||
-    data.name;
+    iban;
+  // Avant : à défaut, le NOM du compte servait de numéro et d'IBAN (doublons, numéro affiché faux).
+  if (!accountNumber) throw new Error("Le numéro de compte est requis.");
   const payload = {
     organizationId: requireOrg(),
     bankName: bankName || data.name,
     accountNumber,
     iban: iban || accountNumber,
     currency: data.currency || "XAF",
+    label: data.name || undefined,
   };
-  return mapBankAccount(await tPost<any>("/bank-accounts", payload));
+  const created = mapBankAccount(await tPost<any>("/bank-accounts", payload));
+  // Le découvert saisi dans le formulaire était perdu : il s'applique via la route dédiée (Q3).
+  if ((data as any).overdraftAllowed) {
+    return mapBankAccount(await tPut<any>(`/bank-accounts/${created.id}/overdraft`, {
+      overdraftAllowed: true,
+      overdraftLimit: Number((data as any).overdraftLimit ?? 0),
+    }));
+  }
+  return created;
 }
-export async function updateBankAccount(_id: string, _d: UpdateBankAccountRequest): Promise<BankAccount> {
-  throw new Error("La modification d'un compte bancaire n'est pas disponible dans cette version.");
+/**
+ * Modification d'un compte : le backend gère le découvert et le statut (Q3). Banque, numéro et IBAN
+ * sont l'identité du compte et ne se modifient pas (un compte erroné se désactive et se recrée).
+ */
+export async function updateBankAccount(id: string, d: UpdateBankAccountRequest): Promise<BankAccount> {
+  const data: any = d ?? {};
+  let account: BankAccount | null = null;
+  if (data.overdraftAllowed !== undefined || data.overdraftLimit !== undefined) {
+    account = mapBankAccount(await tPut<any>(`/bank-accounts/${id}/overdraft`, {
+      overdraftAllowed: !!data.overdraftAllowed,
+      overdraftLimit: data.overdraftAllowed ? Number(data.overdraftLimit ?? 0) : 0,
+    }));
+  }
+  if (data.isActive !== undefined) {
+    account = mapBankAccount(await tPut<any>(`/bank-accounts/${id}/status`, {
+      status: data.isActive ? "ACTIVE" : "INACTIVE",
+    }));
+  }
+  return account ?? mapBankAccount(await tGet<any>(`/bank-accounts/${id}`));
 }
-export async function deleteBankAccount(_id: string): Promise<void> {
-  throw new Error("La suppression d'un compte bancaire n'est pas disponible dans cette version.");
+/** Un compte bancaire ne se supprime pas (historique financier) : il est désactivé. */
+export async function deleteBankAccount(id: string): Promise<void> {
+  await tPut(`/bank-accounts/${id}/status`, { status: "INACTIVE" });
 }
 
 // ─── BANK TRANSACTIONS ───────────────────────────────────────────────────────
 // Implémentation unique dans lib/api/bank-transaction.ts (montant signé, code du type).
 
-export async function getBankTransactions(): Promise<BankTransaction[]> { return []; }
+/** Transactions de tous les comptes de l'organisation, les plus récentes d'abord. */
+export async function getBankTransactions(): Promise<BankTransaction[]> {
+  const accounts = await getBankAccounts();
+  const lists = await Promise.all(
+    accounts.map((a) => getBankTransactionsByAccountId(a.id).catch(() => [] as BankTransaction[])),
+  );
+  return lists.flat().sort((a, b) =>
+    String(b.transactionDate ?? "").localeCompare(String(a.transactionDate ?? "")));
+}
 export async function getBankTransactionById(id: string): Promise<BankTransaction | null> {
   try { return mapBankTransaction(await tGet<any>(`/transactions/${id}`)); } catch { return null; }
 }
@@ -297,7 +371,10 @@ export async function getBankTransactionsByAccountId(accountId: string): Promise
   const txns = await tGet<any[]>(`/bank-accounts/${accountId}/transactions`);
   return (txns ?? []).map(mapBankTransaction);
 }
-export async function getBankTransactionsByStatus(_status: string): Promise<BankTransaction[]> { return []; }
+/** Filtre par statut frontend (DRAFT = brouillon RECORDED côté backend, VALIDATED, CANCELLED). */
+export async function getBankTransactionsByStatus(status: string): Promise<BankTransaction[]> {
+  return (await getBankTransactions()).filter((t) => t.status === status);
+}
 export async function createBankTransaction(data: CreateBankTransactionRequest): Promise<BankTransaction> {
   return createBankTransactionCore(data);
 }
@@ -310,8 +387,8 @@ export async function validateBankTransaction(id: string): Promise<BankTransacti
 export async function cancelBankTransaction(id: string, reason = "Annulation manuelle"): Promise<BankTransaction> {
   return cancelBankTransactionCore(id, reason);
 }
-export async function deleteBankTransaction(_id: string): Promise<void> {
-  throw new Error("La suppression d'une transaction n'est pas disponible.");
+export async function deleteBankTransaction(id: string): Promise<void> {
+  await tPost(`/transactions/${id}/cancel`, { reason: "Brouillon annulé par l'utilisateur" });
 }
 
 // ─── CHECKS ──────────────────────────────────────────────────────────────────
@@ -326,8 +403,12 @@ export async function getChecks(): Promise<Check[]> {
 export async function getCheckById(id: string): Promise<Check> {
   return tGet<Check>(`/checks/${id}`);
 }
-export async function getChecksByType(_type: string): Promise<Check[]> { return getChecks(); }
-export async function getChecksByStatus(_status: string): Promise<Check[]> { return getChecks(); }
+export async function getChecksByType(type: string): Promise<Check[]> {
+  return (await getChecks()).filter((c) => c.checkType === type);
+}
+export async function getChecksByStatus(status: string): Promise<Check[]> {
+  return (await getChecks()).filter((c) => c.status === status);
+}
 export async function getChecksByAccountId(accountId: string): Promise<Check[]> {
   return tGet<Check[]>(`/checks${qs({ organizationId: requireOrg(), bankAccountId: accountId })}`);
 }
@@ -364,7 +445,24 @@ export async function deleteCheck(_id: string): Promise<void> {
 
 export async function getBankStatements(): Promise<BankStatement[]> {
   const raw = await tGet<any[]>(`/statements${qs({ organizationId: requireOrg() })}`);
-  return (raw ?? []).map(mapStatement);
+  return withLineCounts((raw ?? []).map(mapStatement));
+}
+
+/**
+ * Le relevé ne porte pas ses compteurs de lignes : la progression affichait « 0/0 ». On lit le
+ * résumé de rapprochement de chaque relevé (lignes traitées = rapprochées + ignorées) et on trie
+ * du plus récent au plus ancien.
+ */
+export async function withLineCounts(statements: BankStatement[]): Promise<BankStatement[]> {
+  await Promise.all(statements.map(async (st: any) => {
+    try {
+      const sum = await tGet<any>(`/reconciliation/summary${qs({ statementId: st.id })}`);
+      st.lineCount = sum?.totalLines ?? 0;
+      st.reconciledCount = (sum?.matchedCount ?? 0) + (sum?.ignoredCount ?? 0);
+    } catch { /* résumé indisponible : on garde 0 */ }
+  }));
+  return statements.sort((a: any, b: any) =>
+    String(b.createdAt ?? b.statementDate ?? "").localeCompare(String(a.createdAt ?? a.statementDate ?? "")));
 }
 export async function getBankStatementById(id: string): Promise<BankStatement> {
   return mapStatement(await tGet<any>(`/statements/${id}`));
@@ -373,8 +471,8 @@ export async function getBankStatementsByAccountId(accountId: string): Promise<B
   const raw = await tGet<any[]>(`/statements${qs({ organizationId: requireOrg(), bankAccountId: accountId })}`);
   return (raw ?? []).map(mapStatement);
 }
-export async function getBankStatementsByStatus(_status: string): Promise<BankStatement[]> {
-  return getBankStatements();
+export async function getBankStatementsByStatus(status: string): Promise<BankStatement[]> {
+  return (await getBankStatements()).filter((st) => st.status === status);
 }
 export async function createBankStatement(data: CreateBankStatementRequest): Promise<BankStatement> {
   // Backend: RegisterBankStatementRequest { organizationId, bankAccountId, statementNumber?, statementDate, openingBalance, closingBalance }
@@ -505,4 +603,23 @@ export async function getBankingStats(): Promise<BankingStats> {
     monthlyCredits: 0,
     monthlyDebits: 0,
   };
+}
+
+/**
+ * Import d'un relevé CSV via le backend (/statements/upload) : un seul parseur (sens « Crédit »/
+ * « Débit » accentués, ligne « Solde initial » traitée comme ouverture), relevé et lignes créés
+ * dans une même transaction. Remplace le parseur dupliqué côté navigateur.
+ */
+export async function uploadStatementCsv(file: File, bankAccountId: string, statementName?: string): Promise<{
+  statement: BankStatement; linesImported: number;
+}> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("bankAccountId", bankAccountId);
+  if (statementName?.trim()) form.append("statementNumber", statementName.trim());
+  const res = await fetch("/api/kernel/treasury/statements/upload", { method: "POST", body: form, credentials: "include" });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json?.message || "L'import du relevé a échoué.");
+  const data = json?.data ?? json;
+  return { statement: mapStatement(data.statement), linesImported: data.linesImported ?? 0 };
 }

@@ -21,6 +21,26 @@ export interface AuditLogFilters {
   size?: number;
 }
 
+/** « 09/10/2026 10:04 » (et non l'horodatage ISO brut). */
+function formatDateTime(iso: string): string {
+  const d = new Date(iso);
+  return isNaN(d.getTime())
+    ? iso
+    : d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+/** « il y a 3 heures », « hier »… */
+function relativeTime(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const rtf = new Intl.RelativeTimeFormat("fr-FR", { numeric: "auto" });
+  const minutes = Math.round((d.getTime() - Date.now()) / 60000);
+  if (Math.abs(minutes) < 60) return rtf.format(minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return rtf.format(hours, "hour");
+  return rtf.format(Math.round(hours / 24), "day");
+}
+
 /** Réponse backend → forme UI (timestamp→createdAt, entityReference, labels). */
 function mapAuditLog(r: any): AuditLog {
   const createdAt = r.createdAt ?? r.timestamp ?? "";
@@ -39,9 +59,11 @@ function mapAuditLog(r: any): AuditLog {
     hasChanges: r.hasChanges ?? !!r.newValue,
     ipAddress: r.ipAddress ?? null,
     userAgent: r.userAgent ?? null,
-    description: r.description ?? "",
-    formattedDate: r.formattedDate ?? createdAt,
-    relativeTime: r.relativeTime ?? "",
+    // Les entrées historiques portent un code court (ex. code banque) dans newValue : on l'affiche.
+    description: r.description
+      ?? (typeof r.newValue === "string" && r.newValue.length <= 80 && !r.newValue.trim().startsWith("{") ? r.newValue : ""),
+    formattedDate: r.formattedDate ?? formatDateTime(createdAt),
+    relativeTime: r.relativeTime ?? relativeTime(createdAt),
   } as AuditLog;
 }
 

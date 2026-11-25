@@ -63,6 +63,7 @@ import {
   ArrowRightLeft,
   Eye,
 } from 'lucide-react';
+import { accountOptionLabel } from '@/lib/banking/account-label';
 
 // =============================================================================
 // UTILITAIRES
@@ -291,7 +292,7 @@ export function BankTransactionList({
                 </TableCell>
                 {showAccountColumn && (
                   <TableCell className="hidden lg:table-cell text-gray-600 text-sm">
-                    {txn.bankAccountName}
+                    {txn.bankAccountName ?? accounts.find(a => a.id === txn.bankAccountId)?.name}
                   </TableCell>
                 )}
                 <TableCell>
@@ -375,18 +376,8 @@ export function BankTransactionList({
                         </DropdownMenuItem>
                       )}
 
-                      {/* Modifier - seulement pour brouillons */}
-                      <DropdownMenuItem
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEdit(txn);
-                        }}
-                        disabled={txn.status === 'VALIDATED' || txn.status === 'CANCELLED'}
-                      >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Modifier
-                      </DropdownMenuItem>
-
+                      {/* Pas de « Modifier » : le backend ne permet pas de modifier une transaction ; un
+                          brouillon erroné s'annule et se ressaisit. */}
                       {/* Valider - seulement pour brouillons */}
                       {txn.status === 'DRAFT' && onValidate && (
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onValidate(txn); }}>
@@ -410,7 +401,7 @@ export function BankTransactionList({
                           className="text-red-600 focus:text-red-600"
                         >
                           <XCircle className="mr-2 h-4 w-4" />
-                          Supprimer
+                          Annuler le brouillon
                         </DropdownMenuItem>
                       )}
 
@@ -556,7 +547,7 @@ export function BankTransactionList({
                 <SelectItem value="__all__">Tous les comptes</SelectItem>
                 {accounts.map(a => (
                   <SelectItem key={a.id} value={a.id}>
-                    {a.name} — {a.currency}
+                    {accountOptionLabel(a)}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -9,7 +9,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { BankAccount, CreateBankStatementRequest, CreateStatementLineRequest, TransactionDirection } from '@/types/banking';
-import { createBankStatement, createStatementLinesBatch } from '@/lib/api/banking';
+import { uploadStatementCsv } from '@/lib/api/banking';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,7 @@ import {
   X,
   FileSpreadsheet,
 } from 'lucide-react';
+import { accountOptionLabel } from '@/lib/banking/account-label';
 
 // =============================================================================
 // TYPES
@@ -84,7 +85,7 @@ function parseDateFR(dateStr: string): string {
 
 /**
  * Parse le contenu d'un fichier CSV de releve bancaire.
- * Format attendu: date;date_valeur;montant;sens;reference;libelle;nom_tiers
+ * Format attendu : date;date_valeur;montant;sens;reference;libelle;nom_tiers
  */
 function parseCSV(content: string): {
   lines: Array<{
@@ -214,21 +215,22 @@ export function StatementUploader({
   // Reference au fichier reel pour le parsing
   const fileRef = useRef<File | null>(null);
 
-  const acceptedFormats = '.csv,.ofx,.qif,.txt';
+  // Le backend ne lit que le CSV (pas d'OFX/QIF) et refuse au-delà de 5 Mo.
+  const acceptedFormats = '.csv,.txt';
 
   const handleFileChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const maxSize = 10 * 1024 * 1024;
+    const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      setErrorMessage('Le fichier est trop volumineux (max 10 Mo)');
+      setErrorMessage('Le fichier est trop volumineux (max 5 Mo)');
       setUploadState('error');
       return;
     }
 
-    const validTypes = ['text/csv', 'application/x-ofx', 'text/plain'];
-    const validExtensions = ['.csv', '.ofx', '.qif', '.txt'];
+    const validTypes = ['text/csv', 'text/plain', 'application/vnd.ms-excel'];
+    const validExtensions = ['.csv', '.txt'];
     const hasValidExtension = validExtensions.some(ext => 
       file.name.toLowerCase().endsWith(ext)
     );
@@ -281,59 +283,15 @@ export function StatementUploader({
     setUploadProgress(0);
 
     try {
-      // Etape 1: Lire le contenu du fichier
-      setUploadProgress(10);
-      const fileContent = await fileRef.current.text();
-
-      // Etape 2: Parser le CSV
-      setUploadProgress(20);
-      const parsed = parseCSV(fileContent);
-
-      if (parsed.lines.length === 0) {
-        throw new Error('Aucune transaction trouvee dans le fichier');
-      }
-
+      // Import par le backend (/statements/upload) : un seul parseur CSV, testé (sens « Crédit » /
+      // « Débit » accentués, ligne « Solde initial » = ouverture), et relevé + lignes créés en une
+      // seule transaction. L'ancien parseur du navigateur lisait « Crédit » comme un débit.
       setUploadState('processing');
       setUploadProgress(40);
-
-      // Etape 3: Creer le releve dans le backend
-      const today = new Date();
-
-      const request: CreateBankStatementRequest = {
-        bankAccountId: effectiveAccountId,
-        reference: statementName || selectedFile.name.replace(/\.[^/.]+$/, ''),
-        statementDate: today.toISOString().split('T')[0],
-        periodStart: parsed.startDate,
-        periodEnd: parsed.endDate,
-        openingBalance: parsed.openingBalance,
-        closingBalance: parsed.closingBalance,
-        importSource: 'CSV_UPLOAD',
-        fileName: selectedFile.name,
-      };
-
-      setUploadProgress(50);
-
-      const statement = await createBankStatement(request);
-
-      setUploadProgress(60);
-
-      // Etape 4: Creer les lignes du releve
-      const lineRequests: CreateStatementLineRequest[] = parsed.lines.map((line, index) => ({
-        bankStatementId: statement.id,
-        lineNumber: index + 1,
-        transactionDate: line.date,
-        valueDate: line.valueDate,
-        amount: line.amount,
-        direction: line.direction,
-        reference: line.reference,
-        description: line.description,
-        partnerName: line.partnerName,
-      }));
-
-      setUploadProgress(70);
-
-      // Creer les lignes par batch
-      await createStatementLinesBatch(statement.id, lineRequests);
+      const result = await uploadStatementCsv(fileRef.current, effectiveAccountId, statementName);
+      if (result.linesImported === 0) {
+        throw new Error('Aucune opération trouvée dans le fichier (vérifiez le format).');
+      }
 
       setUploadProgress(100);
       setUploadState('success');
@@ -341,10 +299,10 @@ export function StatementUploader({
       // Attendre un peu avant de rediriger pour montrer le succes
       setTimeout(() => {
         if (onUploadComplete) {
-          onUploadComplete(statement.id);
+          onUploadComplete(result.statement.id);
         }
         if (onUploadSuccess) {
-          onUploadSuccess({ id: statement.id });
+          onUploadSuccess({ id: result.statement.id });
         }
       }, 1000);
     } catch (error) {
@@ -371,7 +329,7 @@ export function StatementUploader({
           <CheckCircle className="h-8 w-8 text-green-600" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Import reussi !
+          Import réussi !
         </h3>
         <p className="text-gray-500">
           Le releve a ete importe et est pret pour le rapprochement.
@@ -436,10 +394,10 @@ export function StatementUploader({
             Glissez-deposez votre fichier ici
           </p>
           <p className="text-sm text-gray-400 mb-4">
-            ou cliquez pour selectionner
+            ou cliquez pour sélectionner
           </p>
           <p className="text-xs text-gray-400">
-            Formats acceptes: CSV, OFX, QIF (max 10 Mo)
+            Format accepté : CSV séparé par « ; » ou « , » (max 5 Mo)
           </p>
           <input
             id="file-input"
@@ -477,12 +435,12 @@ export function StatementUploader({
           <Label htmlFor="account">Compte bancaire *</Label>
           <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
             <SelectTrigger id="account">
-              <SelectValue placeholder="Selectionnez le compte..." />
+              <SelectValue placeholder="Sélectionnez le compte..." />
             </SelectTrigger>
             <SelectContent>
               {accounts.map(account => (
                 <SelectItem key={account.id} value={account.id}>
-                  {account.name} ({account.currency})
+                  {accountOptionLabel(account)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -490,9 +448,9 @@ export function StatementUploader({
         </div>
       )}
 
-      {/* Nom du releve */}
+      {/* Nom du relevé */}
       <div className="space-y-2">
-        <Label htmlFor="statementName">Nom du releve</Label>
+        <Label htmlFor="statementName">Nom du relevé</Label>
         <Input
           id="statementName"
           value={statementName}

@@ -117,14 +117,14 @@ function StatusBadge({ status }: { status: CheckDepositStatus }) {
       return (
         <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
           <Building className="mr-1 h-3 w-3" />
-          Deposee
+          Déposée
         </Badge>
       );
     case 'CASHED':
       return (
         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
           <BanknoteIcon className="mr-1 h-3 w-3" />
-          Encaissee
+          Encaissée
         </Badge>
       );
     case 'RECONCILED':
@@ -176,7 +176,7 @@ export default function CheckDepositsPage() {
     } catch (error) {
       toast({
         title: "Erreur",
-        description: "Impossible de charger les remises de cheques.",
+        description: "Impossible de charger les remises de chèques.",
         variant: "destructive",
       });
     } finally {
@@ -189,7 +189,7 @@ export default function CheckDepositsPage() {
   }, [fetchDeposits]);
 
   const handleDepositCreated = () => {
-    toast({ title: "Succes", description: "Nouvelle remise de cheques creee (en attente de depot)." });
+    toast({ title: "Succès", description: "Nouvelle remise de chèques créée (en attente de dépôt)." });
     fetchDeposits();
     setIsFormOpen(false);
   };
@@ -234,8 +234,8 @@ export default function CheckDepositsPage() {
     try {
       await confirmCheckDeposit(depositToConfirm.id, confirmDepositDate);
       toast({
-        title: "Succes",
-        description: `Remise ${depositToConfirm.reference} confirmee comme deposee en banque.`,
+        title: "Succès",
+        description: `Remise ${depositToConfirm.reference} confirmée comme déposée en banque.`,
       });
       setIsConfirmDepositOpen(false);
       setDepositToConfirm(null);
@@ -270,8 +270,8 @@ export default function CheckDepositsPage() {
     try {
       await cashCheckDeposit(depositToCash.id, cashDate);
       toast({
-        title: "Succes",
-        description: `Remise ${depositToCash.reference} encaissee. Transaction bancaire creee.`,
+        title: "Succès",
+        description: `Remise ${depositToCash.reference} encaissée. Transaction bancaire créée.`,
       });
       setIsCashDepositOpen(false);
       setDepositToCash(null);
@@ -305,8 +305,8 @@ export default function CheckDepositsPage() {
     try {
       await cancelCheckDeposit(depositToCancel.id);
       toast({
-        title: "Succes",
-        description: `Remise ${depositToCancel.reference} annulee. Les cheques sont de nouveau disponibles.`,
+        title: "Succès",
+        description: `Remise ${depositToCancel.reference} annulée. Les chèques sont de nouveau disponibles.`,
       });
       setIsCancelOpen(false);
       setDepositToCancel(null);
@@ -347,11 +347,11 @@ export default function CheckDepositsPage() {
   const getDepositActions = (deposit: CheckDeposit) => {
     const actions: React.ReactNode[] = [];
 
-    // Action commune: Voir les details
+    // Action commune : voir les détails
     actions.push(
       <DropdownMenuItem key="view" onClick={() => handleView(deposit)}>
         <Eye className="mr-2 h-4 w-4" />
-        Voir les details
+        Voir les détails
       </DropdownMenuItem>
     );
 
@@ -361,7 +361,7 @@ export default function CheckDepositsPage() {
           <DropdownMenuSeparator key="sep1" />,
           <DropdownMenuItem key="confirm" onClick={() => handleOpenConfirmDeposit(deposit)}>
             <Building className="mr-2 h-4 w-4" />
-            Confirmer le depot
+            Confirmer le dépôt
           </DropdownMenuItem>,
           <DropdownMenuItem key="print" onClick={() => handlePrintSlip(deposit)}>
             <Printer className="mr-2 h-4 w-4" />
@@ -384,11 +384,17 @@ export default function CheckDepositsPage() {
           <DropdownMenuSeparator key="sep1" />,
           <DropdownMenuItem key="cash" onClick={() => handleOpenCashDeposit(deposit)}>
             <BanknoteIcon className="mr-2 h-4 w-4" />
-            Marquer comme encaissee
+            Marquer comme encaissée
           </DropdownMenuItem>,
           <DropdownMenuItem key="print" onClick={() => handlePrintSlip(deposit)}>
             <Printer className="mr-2 h-4 w-4" />
             Imprimer bordereau
+          </DropdownMenuItem>,
+          <DropdownMenuSeparator key="sep2" />,
+          // Bordereau refusé par la banque : les chèques reviennent en portefeuille (non impayés).
+          <DropdownMenuItem key="reject" className="text-red-600" onClick={() => handleOpenCancel(deposit)}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Rejeter (bordereau refusé)
           </DropdownMenuItem>
         );
         break;
@@ -444,7 +450,7 @@ export default function CheckDepositsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold flex items-center">
             <FileStack className="mr-2 sm:mr-4 h-6 w-6 sm:h-8 sm:w-8" />
-            Remises de Cheques
+            Remises de chèques
           </h1>
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
@@ -456,9 +462,9 @@ export default function CheckDepositsPage() {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Creer une remise de cheques</DialogTitle>
+                <DialogTitle>Créer une remise de chèques</DialogTitle>
                 <DialogDescription>
-                  Selectionnez les cheques recus a regrouper dans cette remise.
+                  Sélectionnez les chèques reçus à regrouper dans cette remise.
                 </DialogDescription>
               </DialogHeader>
               <CheckDepositForm
@@ -487,22 +493,22 @@ export default function CheckDepositsPage() {
             </CardHeader>
             <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               <div className="text-xl sm:text-2xl font-bold">{pendingCount}</div>
-              <p className="text-xs text-muted-foreground hidden sm:block">A deposer</p>
+              <p className="text-xs text-muted-foreground hidden sm:block">À déposer</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">Deposees</CardTitle>
+              <CardTitle className="text-xs sm:text-sm font-medium">Déposées</CardTitle>
               <Building className="h-3 w-3 sm:h-4 sm:w-4 text-amber-500" />
             </CardHeader>
             <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               <div className="text-xl sm:text-2xl font-bold">{depositedCount}</div>
-              <p className="text-xs text-muted-foreground hidden sm:block">A encaisser</p>
+              <p className="text-xs text-muted-foreground hidden sm:block">À encaisser</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">Encaissees</CardTitle>
+              <CardTitle className="text-xs sm:text-sm font-medium">Encaissées</CardTitle>
               <BanknoteIcon className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
             </CardHeader>
             <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
@@ -515,7 +521,7 @@ export default function CheckDepositsPage() {
             </CardHeader>
             <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
               <div className="text-xl sm:text-2xl font-bold truncate">{formatCurrency(pendingAmount)}</div>
-              <p className="text-xs text-muted-foreground hidden sm:block">Non encore encaisse</p>
+              <p className="text-xs text-muted-foreground hidden sm:block">Non encore encaissé</p>
             </CardContent>
           </Card>
         </div>
@@ -525,7 +531,7 @@ export default function CheckDepositsPage() {
           <CardHeader>
             <CardTitle>Liste des remises</CardTitle>
             <CardDescription>
-              Workflow: En attente &rarr; Deposee &rarr; Encaissee
+              Étapes : en attente &rarr; déposée &rarr; encaissée
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -537,7 +543,7 @@ export default function CheckDepositsPage() {
               </div>
             ) : deposits.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                Aucune remise de cheques.
+                Aucune remise de chèques.
                 <br />
                 Cliquez sur "Nouvelle Remise" pour creer votre premiere remise.
               </div>
@@ -546,10 +552,10 @@ export default function CheckDepositsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Reference</TableHead>
-                      <TableHead className="hidden sm:table-cell">Date depot</TableHead>
+                      <TableHead>Référence</TableHead>
+                      <TableHead className="hidden sm:table-cell">Date de dépôt</TableHead>
                       <TableHead className="hidden md:table-cell">Compte</TableHead>
-                      <TableHead className="hidden sm:table-cell text-center">Cheques</TableHead>
+                      <TableHead className="hidden sm:table-cell text-center">Chèques</TableHead>
                       <TableHead className="text-right">Montant</TableHead>
                       <TableHead className="hidden sm:table-cell">Statut</TableHead>
                       <TableHead className="text-right w-[50px] sm:w-auto">Actions</TableHead>
@@ -625,14 +631,14 @@ export default function CheckDepositsPage() {
       <Dialog open={isConfirmDepositOpen} onOpenChange={setIsConfirmDepositOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirmer le depot en banque</DialogTitle>
+            <DialogTitle>Confirmer le dépôt en banque</DialogTitle>
             <DialogDescription>
-              Confirmez que la remise {depositToConfirm?.reference} a ete physiquement deposee en banque.
+              Confirmez que la remise {depositToConfirm?.reference} a été physiquement déposée en banque.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="depositDate">Date du depot</Label>
+              <Label htmlFor="depositDate">Date du dépôt</Label>
               <Input
                 id="depositDate"
                 type="date"
@@ -642,9 +648,9 @@ export default function CheckDepositsPage() {
             </div>
             {depositToConfirm && (
               <div className="rounded-lg bg-muted p-4 text-sm">
-                <p><strong>Reference:</strong> {depositToConfirm.reference}</p>
-                <p><strong>Montant:</strong> {formatCurrency(depositToConfirm.totalAmount, depositToConfirm.currency)}</p>
-                <p><strong>Cheques:</strong> {depositToConfirm.checkCount}</p>
+                <p><strong>Référence :</strong> {depositToConfirm.reference}</p>
+                <p><strong>Montant :</strong> {formatCurrency(depositToConfirm.totalAmount, depositToConfirm.currency)}</p>
+                <p><strong>Chèques :</strong> {depositToConfirm.checkCount}</p>
               </div>
             )}
           </div>
@@ -653,7 +659,7 @@ export default function CheckDepositsPage() {
               Annuler
             </Button>
             <Button onClick={handleConfirmDeposit} disabled={isConfirming || !confirmDepositDate}>
-              {isConfirming ? 'Confirmation...' : 'Confirmer le depot'}
+              {isConfirming ? 'Confirmation...' : 'Confirmer le dépôt'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -663,9 +669,9 @@ export default function CheckDepositsPage() {
       <Dialog open={isCashDepositOpen} onOpenChange={setIsCashDepositOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Marquer comme encaissee</DialogTitle>
+            <DialogTitle>Marquer comme encaissée</DialogTitle>
             <DialogDescription>
-              Confirmez que les fonds de la remise {depositToCash?.reference} ont ete recus sur le compte.
+              Confirmez que les fonds de la remise {depositToCash?.reference} ont été reçus sur le compte.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -680,11 +686,11 @@ export default function CheckDepositsPage() {
             </div>
             {depositToCash && (
               <div className="rounded-lg bg-muted p-4 text-sm">
-                <p><strong>Reference:</strong> {depositToCash.reference}</p>
-                <p><strong>Montant:</strong> {formatCurrency(depositToCash.totalAmount, depositToCash.currency)}</p>
-                <p><strong>Cheques:</strong> {depositToCash.checkCount}</p>
+                <p><strong>Référence :</strong> {depositToCash.reference}</p>
+                <p><strong>Montant :</strong> {formatCurrency(depositToCash.totalAmount, depositToCash.currency)}</p>
+                <p><strong>Chèques :</strong> {depositToCash.checkCount}</p>
                 <p className="mt-2 text-muted-foreground">
-                  Une transaction bancaire sera creee automatiquement pour ce montant.
+                  Une transaction bancaire sera créée automatiquement pour ce montant.
                 </p>
               </div>
             )}
@@ -694,7 +700,7 @@ export default function CheckDepositsPage() {
               Annuler
             </Button>
             <Button onClick={handleCashDeposit} disabled={isCashing || !cashDate}>
-              {isCashing ? 'Encaissement...' : 'Marquer comme encaissee'}
+              {isCashing ? 'Encaissement...' : 'Marquer comme encaissée'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -707,7 +713,7 @@ export default function CheckDepositsPage() {
             <AlertDialogTitle>Annuler la remise ?</AlertDialogTitle>
             <AlertDialogDescription>
               Cette action va annuler la remise {depositToCancel?.reference} et liberer les{' '}
-              {depositToCancel?.checkCount} cheques associes. Ils redeviendront disponibles pour
+              {depositToCancel?.checkCount} chèques associés. Ils redeviendront disponibles pour
               une nouvelle remise.
             </AlertDialogDescription>
           </AlertDialogHeader>

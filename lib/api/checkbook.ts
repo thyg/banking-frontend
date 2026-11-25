@@ -81,7 +81,8 @@ export async function getActiveCheckbooksForAccount(accountId: string): Promise<
 }
 
 export async function createCheckbook(data: CreateCheckbookData): Promise<Checkbook> {
-  return mapCheckbook(await tPost<any>("/checkbooks", withOrg(data)));
+  // Un chéquier créé depuis l'interface est un carnet physique : numérotation automatique.
+  return mapCheckbook(await tPost<any>("/checkbooks", withOrg({ type: "REEL", ...data })));
 }
 
 export async function cancelCheckbook(id: string): Promise<Checkbook> {

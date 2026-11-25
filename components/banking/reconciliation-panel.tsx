@@ -60,6 +60,8 @@ import {
   Sparkles,
   Link2,
   X,
+  Unlink,
+  EyeOff,
 } from 'lucide-react';
 
 // =============================================================================
@@ -73,7 +75,7 @@ const formatDate = (dateString: string) =>
     year: 'numeric' 
   });
 
-const formatCurrency = (amount: number, currency: string = 'EUR') => 
+const formatCurrency = (amount: number, currency: string = 'XAF') => 
   new Intl.NumberFormat('fr-FR', { 
     style: 'currency', 
     currency,
@@ -94,10 +96,13 @@ function getScoreColor(score: number): string {
  * Retourne l'icône selon le type de cible.
  */
 function getTypeIcon(type: ReconciliationTargetType) {
-  switch (type) {
+  switch (type as string) {
     case 'transaction':
+    case 'BANK_TRANSACTION':
       return <Receipt className="h-4 w-4" />;
     case 'check':
+    case 'CHECK_PAYMENT':
+    case 'CHECK_DEPOSIT':
       return <FileText className="h-4 w-4" />;
     case 'invoice':
       return <ArrowDownLeft className="h-4 w-4 text-green-600" />;
@@ -112,11 +117,18 @@ function getTypeIcon(type: ReconciliationTargetType) {
  * Retourne le label selon le type de cible.
  */
 function getTypeLabel(type: ReconciliationTargetType): string {
-  switch (type) {
+  // Le backend renvoie ses propres codes d'entité (BANK_TRANSACTION…) : on les traduit aussi.
+  switch (type as string) {
     case 'transaction':
+    case 'BANK_TRANSACTION':
       return 'Transaction';
     case 'check':
+    case 'CHECK_PAYMENT':
       return 'Chèque';
+    case 'CHECK_DEPOSIT':
+      return 'Remise de chèques';
+    case 'INVOICE_SETTLEMENT':
+      return 'Règlement de facture';
     case 'invoice':
       return 'Facture client';
     case 'bill':
@@ -282,6 +294,12 @@ interface ReconciliationPanelProps {
   transactionTypes: TransactionType[];
   onReconcileWithSuggestion: (lineId: string, suggestion: ReconciliationSuggestion) => Promise<void>;
   onReconcileManually: (lineId: string, data: ManualReconciliationData) => Promise<void>;
+  /** Annule le rapprochement d'une ligne traitée (relevé ouvert uniquement). */
+  onUnmatch?: (lineId: string) => Promise<void>;
+  /** Marque une ligne comme ignorée (hors rapprochement), avec un motif. */
+  onIgnore?: (lineId: string, reason: string) => Promise<void>;
+  /** Relevé clôturé : consultation seule. */
+  readOnly?: boolean;
   onClose?: () => void;
 }
 
@@ -299,8 +317,12 @@ export function ReconciliationPanel({
   transactionTypes,
   onReconcileWithSuggestion,
   onReconcileManually,
+  onUnmatch,
+  onIgnore,
+  readOnly = false,
   onClose,
 }: ReconciliationPanelProps) {
+  const [ignoreReason, setIgnoreReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'suggestions' | 'manual'>('suggestions');
   
@@ -550,6 +572,62 @@ export function ReconciliationPanel({
     );
   };
 
+  /** Ligne déjà rapprochée ou ignorée : état + annulation possible tant que le relevé est ouvert. */
+  const renderProcessedSection = () => {
+    const status = selectedLine?.reconciliationStatus;
+    return (
+      <div className="space-y-4">
+        <div className={`p-3 rounded-lg text-sm ${status === 'IGNORED' ? 'bg-gray-50 text-gray-700' : 'bg-green-50 text-green-700'}`}>
+          {status === 'IGNORED' ? (
+            <><EyeOff className="h-4 w-4 inline mr-1" />Ligne ignorée{selectedLine?.ignoredReason ? ` : ${selectedLine.ignoredReason}` : ''}.</>
+          ) : (
+            <><CheckCircle className="h-4 w-4 inline mr-1" />Ligne rapprochée.</>
+          )}
+        </div>
+        {readOnly ? (
+          <p className="text-sm text-gray-500">Le relevé est clôturé : aucune modification possible.</p>
+        ) : status === 'MATCHED' && onUnmatch ? (
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={isSubmitting}
+            onClick={() => handleSubmit(() => onUnmatch(selectedLine!.id))}
+          >
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Unlink className="mr-2 h-4 w-4" />}
+            Annuler le rapprochement
+          </Button>
+        ) : null}
+      </div>
+    );
+  };
+
+  /** Ignorer une ligne sans contrepartie (agios déjà comptés ailleurs, doublon de la banque…). */
+  const renderIgnoreSection = () => (
+    onIgnore && !readOnly ? (
+      <div className="pt-4 mt-2 border-t space-y-2">
+        <Label htmlFor="ignoreReason">Ignorer cette ligne</Label>
+        <Input
+          id="ignoreReason"
+          value={ignoreReason}
+          onChange={(e) => setIgnoreReason(e.target.value)}
+          placeholder="Motif (obligatoire)"
+        />
+        <Button
+          variant="outline"
+          className="w-full"
+          disabled={isSubmitting || !ignoreReason.trim()}
+          onClick={() => handleSubmit(async () => {
+            await onIgnore(selectedLine!.id, ignoreReason.trim());
+            setIgnoreReason('');
+          })}
+        >
+          <EyeOff className="mr-2 h-4 w-4" />
+          Ignorer la ligne
+        </Button>
+      </div>
+    ) : null
+  );
+
   // --- Rendu principal ---
 
   return (
@@ -601,6 +679,8 @@ export function ReconciliationPanel({
       <CardContent>
         {!selectedLine ? (
           renderPlaceholder()
+        ) : selectedLine.reconciliationStatus !== 'UNMATCHED' || readOnly ? (
+          renderProcessedSection()
         ) : (
           <div className="space-y-4">
             {/* Onglets */}
@@ -635,6 +715,7 @@ export function ReconciliationPanel({
             {/* Contenu */}
             <div className="min-h-[300px]">
               {activeTab === 'suggestions' ? renderSuggestionsSection() : renderManualSection()}
+              {activeTab === 'manual' && renderIgnoreSection()}
             </div>
           </div>
         )}

@@ -245,7 +245,7 @@ function TypeRow({ type, isExpanded, onToggleExpand, onEdit, onAddSubType, onDel
                             <DropdownMenuItem onClick={() => onEdit(type)}><Pencil className="h-4 w-4 mr-2" />Modifier</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => onAddSubType(type)}><Layers className="h-4 w-4 mr-2" />Ajouter un sous-type</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => onDelete(type)} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" />Supprimer</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => onDelete(type)} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" />Désactiver</DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </TableCell>
@@ -263,14 +263,8 @@ function TypeRow({ type, isExpanded, onToggleExpand, onEdit, onAddSubType, onDel
                     <TableCell className="hidden lg:table-cell text-center"><DecouvertBadge autorise={subType.decouvertAutorise} montant={subType.decouvertParDefaut} /></TableCell>
                     <TableCell className="text-center"><Badge variant={subType.isActive ? 'default' : 'secondary'} className="text-xs">{subType.isActive ? "Actif" : "Inactif"}</Badge></TableCell>
                     <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-6 w-6 sm:h-8 sm:w-8"><MoreHorizontal className="h-3 w-3 sm:h-4 sm:w-4" /></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => onEditSubType(type, subType)}><Pencil className="h-4 w-4 mr-2" />Modifier</DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => onDeleteSubType(type, subType)} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" />Supprimer</DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        {/* Pas de modification / suppression de sous-type côté backend : aucune action
+                            proposée plutôt que des boutons qui échouent systématiquement. */}
                     </TableCell>
                 </TableRow>
             ))}

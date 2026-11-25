@@ -77,11 +77,19 @@ export async function apiDelete(path: string): Promise<void> {
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let message = `Erreur ${res.status}`;
+    let errorCode: string | undefined;
     try {
       const err = await res.json();
       message = err?.message || err?.error || message;
+      errorCode = err?.errorCode;
     } catch {
       /* ignore */
+    }
+    // Session absente ou expirée (refresh échoué) : retour à la connexion plutôt que des écrans
+    // vides et des toasts d'erreur incompréhensibles.
+    if (res.status === 401 && (errorCode === "SESSION_REQUIRED" || errorCode === "SESSION_EXPIRED")
+        && typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      window.location.href = `/login?expired=1&next=${encodeURIComponent(window.location.pathname)}`;
     }
     throw new Error(message);
   }

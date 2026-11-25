@@ -20,13 +20,15 @@ import {
   Loader2,
   AlertCircle,
   ArrowRight,
+  ShieldCheck,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { loginApi, registerApi } from "@/lib/api/auth";
+import { confirmMfaApi, loginApi, MfaRequiredError, registerApi } from "@/lib/api/auth";
 import { useAuth } from "@/hooks/use-auth";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +36,8 @@ export const dynamic = "force-dynamic";
 // ─── Schémas Zod ────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
-  email: z.string().email("Email invalide"),
+  // Identifiant Yowyob (ex. prenom.nom@yowyob.com) : l'email personnel n'est plus un identifiant.
+  email: z.string().trim().min(1, "Identifiant requis"),
   password: z.string().min(1, "Mot de passe requis"),
 });
 
@@ -60,10 +63,16 @@ export default function LoginPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Étape MFA : le kernel a envoyé un code ; la session ne s'ouvre qu'après sa confirmation.
+  const [mfa, setMfa] = useState<MfaRequiredError | null>(null);
+  const [mfaCode, setMfaCode] = useState("");
 
   useEffect(() => {
     if (searchParams.get("tab") === "register") {
       setTab("register");
+    }
+    if (searchParams.get("expired") === "1") {
+      setError("Votre session a expiré. Reconnectez-vous pour continuer.");
     }
   }, [searchParams]);
 
@@ -83,7 +92,33 @@ export default function LoginPage() {
     try {
       const user = await loginApi(data);
       login(user);
-      router.push("/banking");
+      router.push("/select-organization");
+    } catch (e: any) {
+      if (e instanceof MfaRequiredError && e.mfaToken) {
+        setMfa(e);
+        setMfaCode(e.devCode ?? "");
+      } else {
+        setError(e.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmMfa = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!mfa?.mfaToken) return;
+    if (!/^\d{4,8}$/.test(mfaCode.trim())) {
+      setError("Saisissez le code à chiffres reçu.");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const user = await confirmMfaApi(mfa.mfaToken, mfaCode.trim());
+      login(user);
+      // L'organisation de travail se choisit après l'authentification (une seule : sélection auto).
+      router.push("/select-organization");
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -143,17 +178,62 @@ export default function LoginPage() {
           </Alert>
         )}
 
+        {/* ── ÉTAPE MFA ── */}
+        {tab === "login" && mfa && (
+          <form onSubmit={handleConfirmMfa} className="space-y-5">
+            <div className="flex items-start gap-3 rounded-lg bg-muted p-3 text-sm">
+              <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <p>
+                Un code de vérification vous a été envoyé
+                {mfa.channel ? ` par ${mfa.channel === "EMAIL" ? "email" : mfa.channel.toLowerCase()}` : ""}
+                {mfa.expiresInSeconds ? ` (valable ${Math.round(mfa.expiresInSeconds / 60)} min)` : ""}.
+                Saisissez-le pour terminer la connexion.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="login-mfa-code">Code de vérification</Label>
+              <Input
+                id="login-mfa-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={8}
+                placeholder="123456"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ""))}
+              />
+              {mfa.devCode && (
+                <p className="text-xs text-muted-foreground">Environnement de développement : code pré-rempli.</p>
+              )}
+            </div>
+            <Button type="submit" className="w-full h-11" disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+              {loading ? "Vérification..." : "Valider le code"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={() => { setMfa(null); setMfaCode(""); setError(null); }}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Retour à la connexion
+            </Button>
+          </form>
+        )}
+
         {/* ── FORMULAIRE CONNEXION ── */}
-        {tab === "login" && (
+        {tab === "login" && !mfa && (
           <form onSubmit={loginForm.handleSubmit(handleLogin)} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="login-email">Email</Label>
+              <Label htmlFor="login-email">Identifiant Yowyob</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="login-email"
-                  type="email"
-                  placeholder="vous@entreprise.com"
+                  type="text"
+                  autoComplete="username"
+                  placeholder="prenom.nom@yowyob.com"
                   className="pl-10"
                   {...loginForm.register("email")}
                 />

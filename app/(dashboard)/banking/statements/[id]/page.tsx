@@ -31,8 +31,10 @@ import {
   reconcileLine,
   reconcileWithNewTransaction,
   bulkReconcile,
+  unmatchLine,
+  ignoreStatementLine,
 } from '@/lib/api/reconciliation';
-import { getTransactionTypes } from '@/lib/api/banking';
+import { getTransactionTypes, closeBankStatement } from '@/lib/api/banking';
 
 // Composants
 import { ReconciliationPanel, ManualReconciliationData } from '@/components/banking/reconciliation-panel';
@@ -60,6 +62,7 @@ import {
   Sparkles,
   CheckCircle,
   Loader2,
+  Lock,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -120,6 +123,8 @@ export default function StatementReconciliationPage() {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [isAutoReconciling, setIsAutoReconciling] = useState(false);
   const [showAutoReconcileDialog, setShowAutoReconcileDialog] = useState(false);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
 
   // ---------------------------------------------------------------------------
   // CHARGEMENT INITIAL
@@ -233,12 +238,10 @@ export default function StatementReconciliationPage() {
   // HANDLERS
   // ---------------------------------------------------------------------------
   
+  // Un clic sélectionne toujours : la 1re ligne à traiter est présélectionnée au chargement, et
+  // un clic « pour l'ouvrir » la désélectionnait. La fermeture passe par le ✕ du panneau.
   const handleSelectLine = (lineId: string) => {
-    if (selectedLineId === lineId) {
-      setSelectedLineId(null);
-    } else {
-      setSelectedLineId(lineId);
-    }
+    setSelectedLineId(lineId);
   };
 
   const handleReconcileWithSuggestion = async (
@@ -312,7 +315,9 @@ export default function StatementReconciliationPage() {
       
       toast({
         title: 'Rapprochement automatique terminé',
-        description: `${result.reconciled} lignes rapprochées, ${result.skipped} ignorées`,
+        // « ignorée » est un statut de ligne (mise à l'écart volontaire) : une ligne que
+        // l'automate n'a pas su apparier reste simplement à traiter.
+        description: `${result.reconciled} ligne(s) rapprochée(s), ${result.skipped} restante(s) à traiter`,
       });
       
       await refreshLines();
@@ -338,6 +343,57 @@ export default function StatementReconciliationPage() {
     }
   };
 
+  const handleUnmatch = async (lineId: string) => {
+    try {
+      const count = await unmatchLine(lineId);
+      toast({
+        title: 'Rapprochement annulé',
+        description: count > 0 ? 'La ligne est de nouveau à traiter.' : 'Aucun rapprochement actif sur cette ligne.',
+      });
+      await refreshLines();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: error instanceof Error ? error.message : "Impossible d'annuler le rapprochement.",
+      });
+    }
+  };
+
+  const handleIgnore = async (lineId: string, reason: string) => {
+    try {
+      await ignoreStatementLine(lineId, reason);
+      toast({ title: 'Ligne ignorée', description: 'Elle ne sera plus proposée au rapprochement.' });
+      await refreshLines();
+      selectNextUnreconciled(lineId);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: error instanceof Error ? error.message : "Impossible d'ignorer la ligne.",
+      });
+    }
+  };
+
+  const handleCloseStatement = async () => {
+    setShowCloseDialog(false);
+    setIsClosing(true);
+    try {
+      const closed = await closeBankStatement(statementId);
+      setStatement(prev => (prev ? { ...prev, ...closed, bankAccountName: prev.bankAccountName } : closed));
+      setSelectedLineId(null);
+      toast({ title: 'Relevé clôturé', description: 'Le relevé est désormais en lecture seule.' });
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Clôture impossible',
+        description: error instanceof Error ? error.message : 'Échec de la clôture du relevé.',
+      });
+    } finally {
+      setIsClosing(false);
+    }
+  };
+
   const handleClosePanel = () => {
     setSelectedLineId(null);
     setSuggestions([]);
@@ -355,6 +411,9 @@ export default function StatementReconciliationPage() {
   // DONNÉES DÉRIVÉES
   // ---------------------------------------------------------------------------
   
+  const isClosed = statement?.status === 'CLOSED';
+  const unmatchedCount = lines.filter(l => l.reconciliationStatus === 'UNMATCHED').length;
+
   // Ligne sélectionnée
   const selectedLine = selectedLineId 
     ? lines.find(l => l.id === selectedLineId) || null
@@ -457,10 +516,27 @@ export default function StatementReconciliationPage() {
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingPage ? 'animate-spin' : ''}`} />
             Actualiser
           </Button>
+          {isClosed ? (
+            <Badge className="bg-green-100 text-green-700 border-green-200">
+              <Lock className="h-3 w-3 mr-1" />
+              Clôturé
+            </Badge>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCloseDialog(true)}
+              disabled={isClosing || unmatchedCount > 0}
+              title={unmatchedCount > 0 ? `${unmatchedCount} ligne(s) encore à traiter` : undefined}
+            >
+              {isClosing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Lock className="h-4 w-4 mr-2" />}
+              Clôturer le relevé
+            </Button>
+          )}
           <Button
             size="sm"
             onClick={() => setShowAutoReconcileDialog(true)}
-            disabled={isAutoReconciling || stats?.pendingLines === 0}
+            disabled={isClosed || isAutoReconciling || unmatchedCount === 0}
           >
             {isAutoReconciling ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -516,6 +592,9 @@ export default function StatementReconciliationPage() {
             transactionTypes={transactionTypes}
             onReconcileWithSuggestion={handleReconcileWithSuggestion}
             onReconcileManually={handleReconcileManually}
+            onUnmatch={handleUnmatch}
+            onIgnore={handleIgnore}
+            readOnly={isClosed}
             onClose={handleClosePanel}
           />
         </div>
@@ -538,6 +617,26 @@ export default function StatementReconciliationPage() {
             <AlertDialogAction onClick={handleAutoReconcile}>
               <Sparkles className="h-4 w-4 mr-2" />
               Lancer le rapprochement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog confirmation clôture */}
+      <AlertDialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clôturer ce relevé ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Toutes les lignes sont traitées. Une fois clôturé, le relevé passe en lecture seule :
+              plus aucun rapprochement ne pourra y être ajouté ni annulé.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Retour</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCloseStatement}>
+              <Lock className="h-4 w-4 mr-2" />
+              Clôturer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

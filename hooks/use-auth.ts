@@ -18,6 +18,8 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (user: AuthUser) => void;
   logout: () => void;
+  /** Organisation de travail choisie (miroir client de l'organisation de la session BFF). */
+  setOrganization: (organizationId: string | null) => void;
   getToken: () => string | null;
   getTenantId: () => string | null;
 }
@@ -43,6 +45,11 @@ export const useAuth = create<AuthState>()(
           document.cookie = "iwm-token=; path=/; max-age=0";
           document.cookie = "iwm-tenant=; path=/; max-age=0";
         }
+      },
+
+      setOrganization: (organizationId: string | null) => {
+        const user = get().user;
+        if (user) set({ user: { ...user, organizationId: organizationId ?? undefined } });
       },
 
       getToken: () => get().user?.token ?? null,

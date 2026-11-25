@@ -39,7 +39,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { Loader2, Building2 } from 'lucide-react';
+import { Loader2, Building2, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea'
 
 // =============================================================================
@@ -120,6 +121,7 @@ interface BankFormProps {
 export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
   // État de soumission
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [categories, setCategories] = useState<BankCategory[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(true);
 
@@ -131,7 +133,8 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
     async function loadCategories() {
       try {
         const data = await getBankCategories();
-        setCategories(data);
+        // Une catégorie désactivée n'est plus proposée, sauf si c'est celle de la banque éditée.
+        setCategories(data.filter((c: any) => c.isActive !== false || c.id === (initialData as any)?.bankCategoryId));
       } catch (error) {
         console.error("[BankForm] Erreur chargement catégories:", error);
       } finally {
@@ -160,7 +163,8 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
    */
   const handleSubmit = async (data: BankFormData) => {
     setIsSubmitting(true);
-    
+    setSubmitError(null);
+
     try {
       // Préparer les données pour l'API
       const saveData: CreateBankData = {
@@ -174,9 +178,12 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
       };
       
       await onSave(saveData);
-    } catch (error) {
-      // L'erreur est gérée par le parent, mais on log pour le debug
-      console.error("[BankForm] Erreur lors de la sauvegarde:", error);
+    } catch (error: any) {
+      // Avant : l'erreur n'était que journalisée — l'utilisateur cliquait et rien ne se passait.
+      const message: string = error?.message ?? '';
+      setSubmitError(/conflit|existe déjà|duplicate/i.test(message)
+        ? `Une banque avec le code « ${data.code} » existe déjà.`
+        : message || "L'enregistrement a échoué. Réessayez.");
     } finally {
       setIsSubmitting(false);
     }
@@ -381,6 +388,13 @@ export function BankForm({ initialData, onSave, onCancel }: BankFormProps) {
             </FormItem>
           )}
         />
+
+        {submitError && (
+          <Alert variant="destructive" className="py-3">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Pied de page avec boutons d'action - responsives */}
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t">

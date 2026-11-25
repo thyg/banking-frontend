@@ -82,6 +82,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { accountOptionLabel } from '@/lib/banking/account-label';
 
 // =============================================================================
 // UTILITAIRES
@@ -94,7 +95,7 @@ const formatDate = (dateString: string) =>
     year: 'numeric',
   });
 
-const formatCurrency = (amount: number, currency: string = 'EUR') =>
+const formatCurrency = (amount: number, currency: string = 'XAF') =>
   new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency,
@@ -107,13 +108,17 @@ const formatCurrency = (amount: number, currency: string = 'EUR') =>
 
 function StatementStatusBadge({ status }: { status: string }) {
   switch (status) {
+    // Statuts réels du backend : OPEN (mappé IN_PROGRESS) et CLOSED. Avant, seuls RECONCILED et
+    // PARTIAL étaient reconnus : tous les relevés s'affichaient « Non traité ».
     case 'RECONCILED':
+    case 'CLOSED':
       return (
         <Badge className="bg-green-100 text-green-700 border-green-200">
           <CheckCircle className="h-3 w-3 mr-1" />
-          Complet
+          Clôturé
         </Badge>
       );
+    case 'IN_PROGRESS':
     case 'PARTIAL':
       return (
         <Badge className="bg-amber-100 text-amber-700 border-amber-200">
@@ -125,7 +130,7 @@ function StatementStatusBadge({ status }: { status: string }) {
       return (
         <Badge className="bg-gray-100 text-gray-700 border-gray-200">
           <AlertTriangle className="h-3 w-3 mr-1" />
-          Non traite
+          Non traité
         </Badge>
       );
   }
@@ -221,15 +226,16 @@ export default function StatementsPage() {
     setShowUploadDialog(false);
     fetchData();
     toast({
-      title: 'Import reussi',
-      description: 'Le releve a ete importe avec succes.',
+      title: 'Import réussi',
+      description: 'Le relevé a été importé avec succès.',
     });
   };
 
   // Statistiques
   const stats = {
     total: statements.length,
-    reconciled: statements.filter(s => s.status === 'RECONCILED').length,
+    // Un relevé clôturé l'est forcément après traitement de toutes ses lignes : il est rapproché.
+    reconciled: statements.filter(s => s.status === 'RECONCILED' || s.status === 'CLOSED').length,
     partial: statements.filter(s => s.status === 'IN_PROGRESS').length,
     draft: statements.filter(s => s.status === 'IMPORTED').length,
   };
@@ -240,10 +246,10 @@ export default function StatementsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            Releves Bancaires
+            Relevés bancaires
           </h1>
           <p className="text-gray-500 mt-1">
-            Gerez et importez vos releves bancaires.
+            Gérez et importez vos relevés bancaires.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -257,7 +263,7 @@ export default function StatementsPage() {
           </Button>
           <Button onClick={() => setShowUploadDialog(true)}>
             <Upload className="mr-2 h-4 w-4" />
-            Importer un releve
+            Importer un relevé
           </Button>
         </div>
       </div>
@@ -279,7 +285,7 @@ export default function StatementsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Rapproches</p>
+                <p className="text-sm text-gray-500">Rapprochés</p>
                 <p className="text-2xl font-bold text-green-600">{stats.reconciled}</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-200" />
@@ -301,7 +307,7 @@ export default function StatementsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Non traites</p>
+                <p className="text-sm text-gray-500">Non traités</p>
                 <p className="text-2xl font-bold text-gray-600">{stats.draft}</p>
               </div>
               <AlertTriangle className="h-8 w-8 text-gray-200" />
@@ -333,7 +339,7 @@ export default function StatementsPage() {
                 <SelectItem value="all">Tous les comptes</SelectItem>
                 {accounts.map(account => (
                   <SelectItem key={account.id} value={account.id}>
-                    {account.name}
+                    {accountOptionLabel(account)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -346,19 +352,19 @@ export default function StatementsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="DRAFT">Non traites</SelectItem>
+                <SelectItem value="DRAFT">Non traités</SelectItem>
                 <SelectItem value="PARTIAL">En cours</SelectItem>
-                <SelectItem value="RECONCILED">Rapproches</SelectItem>
+                <SelectItem value="RECONCILED">Rapprochés</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Liste des releves */}
+      {/* Liste des relevés */}
       <Card>
         <CardHeader>
-          <CardTitle>Liste des releves</CardTitle>
+          <CardTitle>Liste des relevés</CardTitle>
           <CardDescription>
             {filteredStatements.length} releve{filteredStatements.length > 1 ? 's' : ''} trouve{filteredStatements.length > 1 ? 's' : ''}
           </CardDescription>
@@ -393,7 +399,7 @@ export default function StatementsPage() {
               {statements.length === 0 && (
                 <Button onClick={() => setShowUploadDialog(true)}>
                   <Upload className="mr-2 h-4 w-4" />
-                  Importer un releve
+                  Importer un relevé
                 </Button>
               )}
             </div>
@@ -401,9 +407,9 @@ export default function StatementsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Releve</TableHead>
+                  <TableHead>Relevé</TableHead>
                   <TableHead>Compte</TableHead>
-                  <TableHead>Periode</TableHead>
+                  <TableHead>Période</TableHead>
                   <TableHead className="text-right">Solde initial</TableHead>
                   <TableHead className="text-right">Solde final</TableHead>
                   <TableHead>Progression</TableHead>
@@ -504,7 +510,7 @@ export default function StatementsPage() {
       <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
         <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Importer un releve bancaire</DialogTitle>
+            <DialogTitle>Importer un relevé bancaire</DialogTitle>
             <DialogDescription>
               Selectionnez un fichier CSV ou OFX pour importer vos transactions.
             </DialogDescription>

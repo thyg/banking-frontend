@@ -20,17 +20,28 @@ export interface RegisterPayload {
   password: string;
   username?: string;
   tenantId?: string;
+  /** Acteur à associer au compte. À créer au préalable : `register` n'en crée pas. */
+  actorId?: string;
 }
 
 export interface RegisteredUser {
   id: string;
   username: string;
   email: string;
+  /** Identifiant de l'acteur métier lié à l'utilisateur (requis pour le rattacher à une organisation). */
+  actorId?: string;
 }
 
 /** Erreur spécifique signalant qu'une étape MFA est requise. */
 export class MfaRequiredError extends Error {
-  constructor(public mfaToken?: string) {
+  constructor(
+    public mfaToken?: string,
+    /** Canal d'envoi du code (EMAIL, SMS…). */
+    public channel?: string,
+    public expiresInSeconds?: number,
+    /** Code renvoyé par le kernel en développement uniquement (jamais en production). */
+    public devCode?: string,
+  ) {
     super("Vérification MFA requise.");
     this.name = "MfaRequiredError";
   }
@@ -51,16 +62,34 @@ export async function loginApi(payload: LoginPayload): Promise<AuthUser> {
 
   if (res.status === 202) {
     const data = await res.json().catch(() => ({}));
-    throw new MfaRequiredError(data?.mfaToken);
+    throw new MfaRequiredError(data?.mfaToken, data?.channel, data?.expiresInSeconds, data?.devCode);
   }
-  if (res.status === 401) throw new Error("Email ou mot de passe incorrect.");
   if (!res.ok) {
     let msg = "Erreur de connexion.";
     try { const e = await res.json(); msg = e?.message || msg; } catch { /* ignore */ }
     throw new Error(msg);
   }
 
-  const json = await res.json();
+  return toAuthUser(await res.json(), payload.email);
+}
+
+/** Confirme le code MFA reçu ; ouvre la session comme un login direct. */
+export async function confirmMfaApi(mfaToken: string, code: string, tenantId?: string): Promise<AuthUser> {
+  const res = await fetch("/api/auth/login/mfa", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ mfaToken, code, tenantId }),
+  });
+  if (!res.ok) {
+    let msg = "Code invalide ou expiré.";
+    try { const e = await res.json(); msg = e?.message || msg; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  return toAuthUser(await res.json());
+}
+
+function toAuthUser(json: any, fallbackEmail?: string): AuthUser {
   const user = json?.user ?? {};
   return {
     userId: user.userId,
@@ -69,7 +98,7 @@ export async function loginApi(payload: LoginPayload): Promise<AuthUser> {
     actorId: user.actorId,
     // Le token réel reste côté serveur (cookie httpOnly). Marqueur de session.
     token: "session",
-    email: user.email ?? payload.email,
+    email: user.email ?? fallbackEmail,
   };
 }
 
@@ -84,6 +113,9 @@ export async function registerApi(payload: RegisterPayload): Promise<RegisteredU
       email: payload.email,
       password: payload.password,
       authProvider: "LOCAL",
+      // `register` ne crée pas d'acteur (contrairement à `signUp`) : sans cet actorId, le
+      // compte reste avec actor_id NULL et ne peut pas être rattaché à une organisation.
+      ...(payload.actorId ? { actorId: payload.actorId } : {}),
     }),
   });
 
@@ -96,7 +128,7 @@ export async function registerApi(payload: RegisterPayload): Promise<RegisteredU
 
   const json = await res.json();
   const data = json?.data ?? json;
-  return { id: data.id, username: data.username, email: data.email };
+  return { id: data.id, username: data.username, email: data.email, actorId: data.actorId ?? data.actor_id };
 }
 
 /** Déconnexion : efface la session côté serveur. */

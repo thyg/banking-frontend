@@ -27,7 +27,7 @@ import {
 import { MoreVertical, Upload, Pencil, Trash2 } from 'lucide-react';
 
 // Fonctions utilitaires - Idéalement, celles-ci devraient vivre dans un fichier partagé comme `lib/utils.ts`
-const formatCurrency = (amount: number, currencyCode: string = 'EUR') => {
+const formatCurrency = (amount: number, currencyCode: string = 'XAF') => {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: currencyCode,
@@ -93,7 +93,12 @@ export function BankAccountCard({ account, onEdit, onDelete, onUpload }: BankAcc
       <CardHeader className="flex-row items-start justify-between">
         <div>
           <CardTitle className="text-lg font-semibold">{account.name}</CardTitle>
-          <CardDescription>{account.bankName}</CardDescription>
+          <CardDescription>
+            {account.bankName}
+            {account.isActive === false && (
+              <span className="ml-2 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs text-red-700">Inactif</span>
+            )}
+          </CardDescription>
         </div>
         {/* Menu d'actions secondaires */}
         <DropdownMenu>
@@ -107,10 +112,12 @@ export function BankAccountCard({ account, onEdit, onDelete, onUpload }: BankAcc
               <Pencil className="mr-2 h-4 w-4" />
               <span>Modifier</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDelete(account)} className="text-red-600 focus:text-red-600">
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Supprimer</span>
-            </DropdownMenuItem>
+            {account.isActive !== false && (
+              <DropdownMenuItem onClick={() => onDelete(account)} className="text-red-600 focus:text-red-600">
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>Désactiver</span>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </CardHeader>

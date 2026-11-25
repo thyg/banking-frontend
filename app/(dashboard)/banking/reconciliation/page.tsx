@@ -53,6 +53,7 @@ import {
   TrendingDown,
   Loader2,
 } from 'lucide-react';
+import { accountOptionLabel } from '@/lib/banking/account-label';
 
 // =============================================================================
 // UTILITAIRES
@@ -65,7 +66,7 @@ const formatDate = (dateString: string) =>
     year: 'numeric',
   });
 
-const formatCurrency = (amount: number, currency: string = 'EUR') =>
+const formatCurrency = (amount: number, currency: string = 'XAF') =>
   new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency,
@@ -77,14 +78,17 @@ const formatCurrency = (amount: number, currency: string = 'EUR') =>
 // =============================================================================
 
 function StatementStatusBadge({ status }: { status: string }) {
+  // Statuts réels du backend : OPEN (mappé IN_PROGRESS) et CLOSED.
   switch (status) {
+    case 'CLOSED':
     case 'RECONCILED':
       return (
         <Badge className="bg-green-100 text-green-700 border-green-200">
           <CheckCircle className="h-3 w-3 mr-1" />
-          Complet
+          Clôturé
         </Badge>
       );
+    case 'IN_PROGRESS':
     case 'PARTIAL':
       return (
         <Badge className="bg-amber-100 text-amber-700 border-amber-200">
@@ -216,7 +220,7 @@ export default function ReconciliationPage() {
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => router.push('/banking/statements')}>
             <Upload className="mr-2 h-4 w-4" />
             Importer un relevé
           </Button>
@@ -240,7 +244,7 @@ export default function ReconciliationPage() {
                   <SelectItem value="all">Tous les comptes</SelectItem>
                   {accounts.map(account => (
                     <SelectItem key={account.id} value={account.id}>
-                      {account.name} ({account.currency})
+                      {accountOptionLabel(account)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -356,15 +360,15 @@ export default function ReconciliationPage() {
                       {formatDate(statement.periodStart)} - {formatDate(statement.periodEnd)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(statement.openingBalance)}
+                      {formatCurrency(statement.openingBalance, (statement as any).currency)}
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(statement.closingBalance)}
+                      {formatCurrency(statement.closingBalance, (statement as any).currency)}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Progress 
-                          value={(statement.reconciledCount / statement.lineCount) * 100} 
+                          value={statement.lineCount ? (statement.reconciledCount / statement.lineCount) * 100 : 0} 
                           className="h-2 w-20"
                         />
                         <span className="text-xs text-gray-500">

@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/form';
 import { Loader2, Calculator, Info, Wallet, AlertTriangle } from 'lucide-react';
 import { getBankAccounts } from '@/lib/api/banking';
+import { accountOptionLabel } from '@/lib/banking/account-label';
 
 // Schéma de validation Zod (IBAN n'est pas inclus car récupéré automatiquement du compte bancaire)
 const checkbookFormSchema = z.object({
@@ -186,7 +187,7 @@ export function CheckbookForm({ initialData, onSave, onCancel }: CheckbookFormPr
                 <SelectContent>
                   {bankAccounts.map(acc => (
                     <SelectItem key={acc.id} value={acc.id}>
-                      {acc.name} ({acc.currency})
+                      {accountOptionLabel(acc)}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -48,7 +48,8 @@ import { cn } from '@/lib/utils';
 // API
 import { getBankAccounts } from '@/lib/api/banking';
 import { getChecks } from '@/lib/api/check';
-import { createCheckDeposit } from '@/lib/api/check-deposit';
+import { createCheckDeposit, getCheckIdsInOpenDeposits } from '@/lib/api/check-deposit';
+import { accountOptionLabel } from '@/lib/banking/account-label';
 
 interface CheckDepositFormProps {
   onSuccess: () => void;
@@ -113,11 +114,12 @@ export function CheckDepositForm({ onSuccess, onCancel }: CheckDepositFormProps)
       setError(null);
       try {
         // Récupérer les chèques RECEIVED pour ce compte
-        const checks = await getChecks({
-          bankAccountId: selectedAccountId,
-          status: 'RECEIVED',
-        });
-        setEligibleChecks(checks);
+        const [checks, engaged] = await Promise.all([
+          getChecks({ bankAccountId: selectedAccountId, status: 'RECEIVED' }),
+          // Un chèque déjà placé dans une autre remise en cours n'est pas proposé.
+          getCheckIdsInOpenDeposits(selectedAccountId).catch(() => new Set<string>()),
+        ]);
+        setEligibleChecks(checks.filter(c => !engaged.has(c.id)));
         // Réinitialiser la sélection
         setSelectedCheckIds(new Set());
       } catch (err) {
@@ -222,7 +224,7 @@ export function CheckDepositForm({ onSuccess, onCancel }: CheckDepositFormProps)
             <SelectContent>
               {accounts.map((account) => (
                 <SelectItem key={account.id} value={account.id}>
-                  {account.name} ({account.currency})
+                  {accountOptionLabel(account)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -305,15 +307,18 @@ export function CheckDepositForm({ onSuccess, onCancel }: CheckDepositFormProps)
                     <TableRow
                       key={check.id}
                       className="cursor-pointer"
-                      onClick={() => toggleCheckSelection(check.id)}
+                      onClick={(e) => {
+                        // Dans un <form>, la case Radix émet un « click » sur un <input> caché à chaque
+                        // changement d'état ; remonté jusqu'ici, il ré-inversait la sélection → boucle
+                        // de rendu infinie (« Maximum update depth exceeded ») dès qu'on cochait.
+                        if ((e.target as HTMLElement).tagName === 'INPUT') return;
+                        toggleCheckSelection(check.id);
+                      }}
                     >
-                      <TableCell className="p-2 sm:p-4">
+                      <TableCell className="p-2 sm:p-4" onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={selectedCheckIds.has(check.id)}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleCheckSelection(check.id);
-                          }}
+                          onCheckedChange={() => toggleCheckSelection(check.id)}
                         />
                       </TableCell>
                       <TableCell className="font-medium">

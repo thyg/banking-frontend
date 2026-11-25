@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { OrganizationList } from "@/components/organizations/organization-list";
 import { OrganizationForm } from "@/components/organizations/organization-form";
+import { OrganizationMembers } from "@/components/organizations/organization-members";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ export default function OrganizationsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Organization | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Organization | null>(null);
+  const [membersTarget, setMembersTarget] = useState<Organization | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,6 +134,7 @@ export default function OrganizationsPage() {
           isLoading={isLoading}
           onAdd={openCreate}
           onEdit={openEdit}
+          onManageMembers={setMembersTarget}
           onDelete={setDeleteTarget}
           onApprove={handleApprove}
           onReject={handleReject}
@@ -156,6 +159,13 @@ export default function OrganizationsPage() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Members management */}
+      <OrganizationMembers
+        organization={membersTarget}
+        open={!!membersTarget}
+        onClose={() => setMembersTarget(null)}
+      />
 
       {/* Delete confirmation */}
       {deleteTarget && (

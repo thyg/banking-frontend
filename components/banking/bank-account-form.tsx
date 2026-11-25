@@ -94,6 +94,10 @@ const bankAccountSchema = z.object({
 
   generatedIban: z.string().optional(),
 
+  // Numéro de compte saisi librement quand la banque n'a ni code banque (IBAN généré) ni
+  // connecteur : sans lui, le nom du compte servait de numéro (doublons, numéro faux).
+  manualAccountNumber: z.string().trim().max(64).optional(),
+
   // 4b. Connecteur dynamique (pour autres types)
   connectorTypeId: z.string().optional(),
 
@@ -149,6 +153,7 @@ export function BankAccountForm({
   // ---------------------------------------------------------------------------
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [banks, setBanks] = useState<Bank[]>([]);
   const [accountTypes, setAccountTypes] = useState<AccountType[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(true);
@@ -331,7 +336,8 @@ export function BankAccountForm({
 
       try {
         setIsLoadingAccountTypes(true);
-        const typesData = await getAccountTypes();
+        // Seuls les types actifs sont proposés pour un nouveau compte.
+        const typesData = await getAccountTypes(true);
         setAccountTypes(typesData);
       } catch (error) {
         console.error("[BankAccountForm] Erreur chargement types de compte:", error);
@@ -348,6 +354,12 @@ export function BankAccountForm({
   // ---------------------------------------------------------------------------
 
   const onSubmit = async (data: BankAccountFormData) => {
+    setSubmitError(null);
+    const needsManualNumber = !isBanqueTraditionnelle && connectorFields.length === 0;
+    if (needsManualNumber && !data.manualAccountNumber) {
+      form.setError('manualAccountNumber', { message: 'Le numéro de compte est requis.' });
+      return;
+    }
     // Valider les champs dynamiques seulement si pas banque traditionnelle
     if (!isBanqueTraditionnelle && connectorFields.length > 0) {
       const fieldErrors = validateConnectorFields(connectorFields, detailsValues);
@@ -398,12 +410,18 @@ export function BankAccountForm({
         if (connectorFields.length > 0 && Object.keys(detailsValues).length > 0) {
           enrichedData.details = detailsValues;
         }
+        if (needsManualNumber) {
+          enrichedData.accountNumber = data.manualAccountNumber;
+        }
       }
 
-      console.log("[BankAccountForm] Données envoyées:", enrichedData);
       await onSave(enrichedData as any);
-    } catch (error) {
-      console.error("[BankAccountForm] Erreur lors de la sauvegarde:", error);
+    } catch (error: any) {
+      // Avant : erreur seulement journalisée — le clic sur « Créer » ne produisait rien de visible.
+      const message: string = error?.message ?? '';
+      setSubmitError(/conflit|existe déjà|déjà utilisé|duplicate/i.test(message)
+        ? "Un compte avec ce numéro existe déjà dans cette organisation."
+        : message || "La création du compte a échoué. Réessayez.");
     } finally {
       setIsSubmitting(false);
     }
@@ -766,9 +784,23 @@ export function BankAccountForm({
                     Chargement de la configuration...
                   </div>
                 ) : connectorTypes.length === 0 ? (
-                  <p className="text-sm text-gray-600">
-                    Aucune configuration spécifique requise pour ce type de compte.
-                  </p>
+                  <FormField
+                    control={form.control}
+                    name="manualAccountNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Numéro de compte *</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Ex : 00012345678 ou RIB complet" {...field} value={field.value ?? ''} />
+                        </FormControl>
+                        <FormDescription className="text-xs">
+                          Cette banque n&apos;a pas de code banque à 5 chiffres : l&apos;IBAN ne peut pas être généré,
+                          saisissez le numéro tel qu&apos;il figure sur vos relevés.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 ) : (
                   <>
                     {connectorTypes.length > 1 && (
@@ -865,50 +897,15 @@ export function BankAccountForm({
                   )}
                 />
 
-                {/* Solde initial */}
-                <FormField
-                  control={form.control}
-                  name="initialBalance"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Solde initial</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0.00"
-                            {...field}
-                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                            className="pr-16"
-                          />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">
-                            {watchCurrency || 'XAF'}
-                          </span>
-                        </div>
-                      </FormControl>
-                      <FormDescription className="text-xs">
-                        Solde à la date d'ouverture.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Pas de « solde initial » : le solde d'un compte part de 0 et se constitue uniquement
+                    par les transactions VALIDÉES (décision Q1). L'ancien champ était ignoré en silence. */}
+                <div className="rounded-md border bg-muted/40 p-3 text-xs text-muted-foreground self-end">
+                  Le solde démarre à 0. Pour reprendre un solde existant, enregistrez puis validez une
+                  transaction d&apos;ouverture une fois le compte créé.
+                </div>
               </div>
 
-              {/* Montant en lettres */}
-              {watchInitialBalance > 0 && (
-                <FormItem>
-                  <FormLabel className="text-xs sm:text-sm">Montant en lettres</FormLabel>
-                  <FormControl>
-                    <Input
-                      readOnly
-                      value={initialBalanceInWords}
-                      className="bg-muted italic text-muted-foreground text-xs sm:text-sm"
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
+
             </div>
           )}
 
@@ -1002,6 +999,13 @@ export function BankAccountForm({
 
         </div>
         {/* Fin zone scrollable */}
+
+        {submitError && (
+          <Alert variant="destructive" className="py-3">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{submitError}</AlertDescription>
+          </Alert>
+        )}
 
         {/* Boutons d'action - responsives */}
         <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-4 border-t mt-4 flex-shrink-0 bg-background">

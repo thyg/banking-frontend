@@ -46,6 +46,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, FileText, ArrowUpRight, ArrowDownLeft, Calendar, Building2, Clock, Camera, X, Image as ImageIcon, Download } from 'lucide-react';
 import { BalanceIndicator } from '@/components/banking/balance-indicator';
 import { Card } from '@/components/ui/card';
+import { accountOptionLabel } from '@/lib/banking/account-label';
 
 // =============================================================================
 // VALIDATION SCHEMA
@@ -228,8 +229,10 @@ export function CheckForm({
   const handleCheckbookChange = async (checkbookId: string) => {
     const checkbook = checkbooks.find(cb => cb.id === checkbookId);
     if (checkbook) {
-      // Si c'est un chéquier physique (REEL), le numéro est automatique et non modifiable
-      if (checkbook.type === 'REEL') {
+      // Chéquier physique (non système) : le numéro est attribué par le chéquier côté backend,
+      // la saisie manuelle serait ignorée. Avant, seul le type « REEL » était reconnu, si bien
+      // qu'un chéquier sans type exigeait un numéro qui ne servait à rien.
+      if (!checkbook.isSystem) {
         setIsCheckNumberManual(false);
         try {
           const checkNumber = await peekNextCheckNumber(checkbookId);
@@ -335,7 +338,7 @@ const handleSubmit = async (data: CheckFormData) => {
             <FormLabel>Compte bancaire *</FormLabel>
             <Select onValueChange={(value) => { field.onChange(value); handleAccountChange(value); }} value={field.value} disabled={isEditMode}>
               <FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un compte..." /></SelectTrigger></FormControl>
-              <SelectContent>{accounts.map(account => (<SelectItem key={account.id} value={account.id}>{account.name} ({account.currency})</SelectItem>))}</SelectContent>
+              <SelectContent>{accounts.map(account => (<SelectItem key={account.id} value={account.id}>{accountOptionLabel(account)}</SelectItem>))}</SelectContent>
             </Select>
             {selectedAccount && watchType === 'ISSUED' && <div className="mt-3"><BalanceIndicator balanceInfo={{ currentBalance: selectedAccount.currentBalance || 0, overdraftLimit: selectedAccount.overdraftLimit || 0, availableBalance: (selectedAccount.currentBalance || 0) + ((selectedAccount.overdraftAuthorized ? (selectedAccount.overdraftLimit || 0) : 0)), overdraftUsed: ((selectedAccount.currentBalance || 0) < 0 ? Math.abs(selectedAccount.currentBalance || 0) : 0), overdraftAuthorized: selectedAccount.overdraftAuthorized || false, }} pendingAmount={watchAmount > 0 ? watchAmount : 0} currency={selectedAccount.currency || 'XAF'} /></div>}
             {selectedAccount && watchType === 'RECEIVED' && <div className="mt-2 p-3 rounded-lg border bg-blue-50 border-blue-200 text-blue-700"><div className="flex justify-between items-center"><span className="text-sm font-medium">Solde actuel :</span><span className="font-bold">{new Intl.NumberFormat('fr-FR', { style: 'currency', currency: selectedAccount.currency || 'XAF', minimumFractionDigits: selectedAccount.currency === 'XAF' ? 0 : 2 }).format(selectedAccount.currentBalance || 0)}</span></div></div>}
@@ -388,7 +391,8 @@ const handleSubmit = async (data: CheckFormData) => {
                   onSelect={(tp) => {
                     if (tp) {
                       form.setValue('partnerName', tp.displayName, { shouldValidate: true });
-                      form.setValue('partnerId', tp.id);
+                      // Saisie libre : pas d'identifiant de tiers.
+                      form.setValue('partnerId', tp.id || undefined);
                     } else {
                       form.setValue('partnerName', '');
                       form.setValue('partnerId', undefined);
@@ -419,9 +423,9 @@ const handleSubmit = async (data: CheckFormData) => {
                 <FormMessage />
               </FormItem>
             )} />
-            {!isEditMode && (<FormField control={form.control} name="initialStatus" render={({ field }) => (
-              <FormItem><FormLabel>État initial *</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez l'état..." /></SelectTrigger></FormControl><SelectContent><SelectItem value="PENDING"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-gray-400" />Créé (en attente)</div></SelectItem><SelectItem value="RECEIVED"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-blue-500" />Reçu (en main)</div></SelectItem><SelectItem value="DEPOSITED"><div className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-amber-500" />Déjà déposé en banque</div></SelectItem></SelectContent></Select><FormDescription>L'état actuel du chèque au moment de l'enregistrement</FormDescription><FormMessage /></FormItem>
-            )} />)}
+            {/* « État initial » retiré : le backend fixe le statut (reçu → « Reçu », émis → « En attente »)
+                et ignorait ce choix. Le dépôt en banque se fait ensuite depuis la liste. */}
+            {!isEditMode && (<p className="text-xs text-muted-foreground">Un chèque reçu est enregistré « en portefeuille » ; utilisez ensuite « Déposer en banque » depuis la liste.</p>)}
           </>
         )}
 
@@ -453,7 +457,7 @@ const handleSubmit = async (data: CheckFormData) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <FormField control={form.control} name="amount" render={({ field }) => (
-            <FormItem><FormLabel>Montant *</FormLabel><FormControl><div className="flex h-10 items-center rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:outline-none"><Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={isProcessed} className="h-full flex-1 border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none" /><span className="text-gray-500 text-xs sm:text-sm">{selectedAccount?.currency || 'EUR'}</span></div></FormControl><FormMessage /></FormItem>
+            <FormItem><FormLabel>Montant *</FormLabel><FormControl><div className="flex h-10 items-center rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:outline-none"><Input type="number" step="0.01" min="0" placeholder="0.00" {...field} onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)} disabled={isProcessed} className="h-full flex-1 border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none" /><span className="text-gray-500 text-xs sm:text-sm">{selectedAccount?.currency || 'XAF'}</span></div></FormControl><FormMessage /></FormItem>
           )} />
           <FormItem><FormLabel className="text-xs sm:text-sm">Montant en lettres</FormLabel><FormControl><Input readOnly value={amountInWordsText} className="bg-gray-100 italic text-xs sm:text-sm" /></FormControl></FormItem>
         </div>

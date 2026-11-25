@@ -55,7 +55,7 @@ interface AccountChecksListProps {
 // HELPERS
 // ============================================================================
 
-function formatCurrency(amount: number, currency: string = 'EUR'): string {
+function formatCurrency(amount: number, currency: string = 'XAF'): string {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
     currency: currency

@@ -12,6 +12,7 @@
 
 import { tGet, tPost, requireOrg } from "@/lib/api/treasury-client";
 import type { BankTransaction, TransactionType } from "@/types/banking";
+import { withAccountNames } from "@/lib/banking/account-directory";
 
 export interface CreateBankTransactionData {
   bankAccountId: string;
@@ -56,6 +57,8 @@ export function mapBankTransaction(r: any): BankTransaction {
     direction: r.direction ?? (rawAmount < 0 ? "DEBIT" : "CREDIT"),
     status,
     reference: r.reference ?? r.referenceNumber,
+    // Le backend expose « description » : c'est le libellé affiché dans la liste.
+    label: r.label ?? r.description,
     transactionTypeId: r.transactionTypeId ?? "",
     transactionTypeCode: r.transactionTypeCode ?? r.transactionType,
     transactionTypeLabel: r.transactionTypeLabel ?? r.transactionType,
@@ -68,7 +71,7 @@ export function mapBankTransaction(r: any): BankTransaction {
 export async function getBankTransactions(filters?: TransactionFilters): Promise<BankTransaction[]> {
   if (!filters?.bankAccountId) return [];
   const txns = await tGet<any[]>(`/bank-accounts/${filters.bankAccountId}/transactions`);
-  return (txns ?? []).map(mapBankTransaction);
+  return withAccountNames((txns ?? []).map(mapBankTransaction));
 }
 
 export async function getBankTransactionsWithBalance(
@@ -80,13 +83,25 @@ export async function getBankTransactionsWithBalance(
 
 export async function getBankTransactionById(id: string): Promise<BankTransaction | null> {
   try {
-    return mapBankTransaction(await tGet<any>(`/transactions/${id}`));
+    return (await withAccountNames([mapBankTransaction(await tGet<any>(`/transactions/${id}`))]))[0];
   } catch {
     return null;
   }
 }
 
 export async function createBankTransaction(data: CreateBankTransactionData): Promise<BankTransaction> {
+  // Règlement par chèque : c'est l'encaissement du chèque qui crée le mouvement bancaire
+  // (transaction VALIDATED, solde impacté). Créer AUSSI une transaction manuelle comptait
+  // le mouvement deux fois une fois celle-ci validée.
+  if (data.checkId) {
+    const cashed = await tPost<any>(`/checks/${data.checkId}/cash`);
+    const created = cashed?.bankTransactionId
+      ? await getBankTransactionById(cashed.bankTransactionId)
+      : null;
+    if (!created) throw new Error("Le chèque a été encaissé mais sa transaction est introuvable.");
+    return created;
+  }
+
   // Le backend attend le CODE du type ; l'UI manipule son UUID.
   const type = await tGet<TransactionType>(`/transaction-types/${data.transactionTypeId}`);
   const signedAmount =
@@ -105,26 +120,16 @@ export async function createBankTransaction(data: CreateBankTransactionData): Pr
     referenceNumber: data.reference || data.externalReference || undefined,
   };
 
-  const created = mapBankTransaction(await tPost<any>("/transactions", payload));
-
-  // Règlement par chèque : on encaisse le chèque lié (meilleur effort).
-  if (data.checkId) {
-    try {
-      await tPost(`/checks/${data.checkId}/cash`);
-    } catch (e) {
-      console.warn("[bank-transaction] Chèque lié non encaissé :", e);
-    }
-  }
-
-  return created;
+  return mapBankTransaction(await tPost<any>("/transactions", payload));
 }
 
 export async function updateBankTransaction(_id: string, _data: UpdateBankTransactionData): Promise<BankTransaction> {
   throw new Error("La modification d'une transaction n'est pas disponible.");
 }
 
-export async function deleteBankTransaction(_id: string): Promise<void> {
-  throw new Error("La suppression d'une transaction n'est pas disponible.");
+/** Un brouillon ne se supprime pas (traçabilité) : il est annulé côté backend. */
+export async function deleteBankTransaction(id: string): Promise<void> {
+  await tPost(`/transactions/${id}/cancel`, { reason: "Brouillon annulé par l'utilisateur" });
 }
 
 export async function validateBankTransaction(id: string): Promise<BankTransaction> {

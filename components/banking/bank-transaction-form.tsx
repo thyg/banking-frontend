@@ -51,6 +51,7 @@ import {
 } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Loader2, ArrowDownLeft, ArrowUpRight, Receipt, CreditCard } from 'lucide-react';
+import { accountOptionLabel } from '@/lib/banking/account-label';
 
 // =============================================================================
 // VALIDATION SCHEMA
@@ -435,7 +436,7 @@ export function BankTransactionForm({
                     <SelectContent>
                       {accounts.map(account => (
                         <SelectItem key={account.id} value={account.id} className="text-xs">
-                          {account.name} — {account.currency}
+                          {accountOptionLabel(account)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -674,7 +675,7 @@ export function BankTransactionForm({
                   onSelect={(tp) => {
                     if (tp) {
                       form.setValue('partnerName', tp.displayName, { shouldValidate: true });
-                      form.setValue('partnerId', tp.id);
+                      form.setValue('partnerId', tp.id || undefined);
                     } else {
                       form.setValue('partnerName', '');
                       form.setValue('partnerId', undefined);
