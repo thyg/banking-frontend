@@ -168,18 +168,22 @@ export async function depositCheck(id: string, depositIdOrDate?: string): Promis
   return (await getCheckById(id)) ?? check;
 }
 
-export async function cashCheck(id: string, _cashDate?: string): Promise<Check> {
-  return tPost<Check>(`/checks/${id}/cash`);
+/** Encaissement à la date indiquée (AAAA-MM-JJ) ; sans date, le backend retient aujourd'hui. */
+export async function cashCheck(id: string, cashDate?: string): Promise<Check> {
+  return tPost<Check>(`/checks/${id}/cash${qs({ operationDate: cashDate || undefined })}`);
 }
 
 /**
  * Chèque impayé. Avant encaissement : rejet simple. Après encaissement : retour impayé (Q5) via
  * /bounce, qui extourne le mouvement sur le solde.
  */
-export async function rejectCheck(id: string, reason = "Rejet", _rejectDate?: string): Promise<Check> {
+export async function rejectCheck(id: string, reason = "Rejet", rejectDate?: string): Promise<Check> {
   const current = await getCheckById(id);
-  const route = current?.status === "CASHED" ? "bounce" : "reject";
-  return tPost<Check>(`/checks/${id}/${route}`, { reason });
+  // Impayé après encaissement : l'extourne est datée du retour bancaire (AAAA-MM-JJ).
+  if (current?.status === "CASHED") {
+    return tPost<Check>(`/checks/${id}/bounce${qs({ operationDate: rejectDate || undefined })}`, { reason });
+  }
+  return tPost<Check>(`/checks/${id}/reject`, { reason });
 }
 
 export async function cancelCheck(id: string): Promise<Check> {

@@ -160,6 +160,11 @@ export interface BankAccount {
 
 export interface BankTransaction {
   id: string;
+  /**
+   * Objet métier qui a produit la transaction : MANUAL, STATEMENT_LINE, CHECK, CHECK_DEPOSIT,
+   * CHECK_BOUNCE, SETTLEMENT. Seules MANUAL et STATEMENT_LINE s'annulent directement.
+   */
+  origin?: string;
   bankAccountId: string;
   bankAccountName?: string;
   transactionTypeId: string;

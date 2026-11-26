@@ -129,8 +129,9 @@ export async function confirmCheckDeposit(id: string, _depositDate?: string): Pr
   return mapCheckDeposit(await tPost<any>(`/check-deposits/${id}/submit`));
 }
 
-export async function cashCheckDeposit(id: string, _cashDate?: string): Promise<CheckDeposit> {
-  return mapCheckDeposit(await tPost<any>(`/check-deposits/${id}/validate`));
+/** Validation de la remise à la date du crédit par la banque (AAAA-MM-JJ) ; aujourd'hui sinon. */
+export async function cashCheckDeposit(id: string, cashDate?: string): Promise<CheckDeposit> {
+  return mapCheckDeposit(await tPost<any>(`/check-deposits/${id}/validate${qs({ operationDate: cashDate || undefined })}`));
 }
 
 export async function deleteCheckDeposit(id: string): Promise<void> {

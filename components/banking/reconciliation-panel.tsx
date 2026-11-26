@@ -62,6 +62,7 @@ import {
   X,
   Unlink,
   EyeOff,
+  Undo2,
 } from 'lucide-react';
 
 // =============================================================================
@@ -298,6 +299,8 @@ interface ReconciliationPanelProps {
   onUnmatch?: (lineId: string) => Promise<void>;
   /** Marque une ligne comme ignorée (hors rapprochement), avec un motif. */
   onIgnore?: (lineId: string, reason: string) => Promise<void>;
+  /** Réactive une ligne ignorée par erreur (relevé ouvert uniquement). */
+  onReopen?: (lineId: string) => Promise<void>;
   /** Relevé clôturé : consultation seule. */
   readOnly?: boolean;
   onClose?: () => void;
@@ -319,6 +322,7 @@ export function ReconciliationPanel({
   onReconcileManually,
   onUnmatch,
   onIgnore,
+  onReopen,
   readOnly = false,
   onClose,
 }: ReconciliationPanelProps) {
@@ -595,6 +599,16 @@ export function ReconciliationPanel({
           >
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Unlink className="mr-2 h-4 w-4" />}
             Annuler le rapprochement
+          </Button>
+        ) : status === 'IGNORED' && onReopen ? (
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={isSubmitting}
+            onClick={() => handleSubmit(() => onReopen(selectedLine!.id))}
+          >
+            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Undo2 className="mr-2 h-4 w-4" />}
+            Réactiver la ligne
           </Button>
         ) : null}
       </div>

@@ -91,7 +91,12 @@ async function handleResponse<T>(res: Response): Promise<T> {
         && typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
       window.location.href = `/login?expired=1&next=${encodeURIComponent(window.location.pathname)}`;
     }
-    throw new Error(message);
+    // Code métier et statut joints à l'erreur : l'appelant peut proposer une confirmation
+    // (ex. 409 STATEMENT_IGNORED_LINES_UNCONFIRMED) au lieu d'un simple message.
+    const error = new Error(message) as Error & { code?: string; status?: number };
+    error.code = errorCode;
+    error.status = res.status;
+    throw error;
   }
   if (res.status === 204) return undefined as unknown as T;
   const json = await res.json();

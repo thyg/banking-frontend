@@ -24,7 +24,6 @@ export interface CreateBankTransactionData {
   reference?: string;
   externalReference?: string;
   valueDate?: string;
-  paymentMethod?: string;
   partnerName?: string;
   partnerId?: string;
   /** Chèque à encaisser en même temps que la transaction (POST /checks/{id}/cash). */
@@ -45,6 +44,14 @@ export interface TransactionFilters {
  * Convertit une BankTransactionResponse backend vers la forme attendue par l'UI :
  * direction déduite du signe, montant absolu, statut RECORDED→DRAFT / RECONCILED→VALIDATED.
  */
+/** Origines dont la transaction s'annule par le parcours de son objet (impayé du chèque…), pas directement. */
+const BUSINESS_ORIGINS = new Set(["CHECK", "CHECK_DEPOSIT", "CHECK_BOUNCE", "SETTLEMENT"]);
+
+/** Vrai si la transaction peut être annulée directement (selon son origine, jamais selon son type). */
+export function isDirectlyCancellable(t: Pick<BankTransaction, "origin">): boolean {
+  return !t.origin || !BUSINESS_ORIGINS.has(t.origin);
+}
+
 export function mapBankTransaction(r: any): BankTransaction {
   const rawAmount = Number(r.amount ?? 0);
   const status =
@@ -117,7 +124,13 @@ export async function createBankTransaction(data: CreateBankTransactionData): Pr
       data.description?.trim() ||
       [type?.label, data.partnerName].filter(Boolean).join(" — ") ||
       "Transaction bancaire",
-    referenceNumber: data.reference || data.externalReference || undefined,
+    // Référence interne : numérotée par le serveur. La référence externe (« Vos réf. ») est
+    // conservée à part : elle n'a pas à être unique (un même n° de facture peut revenir).
+    referenceNumber: data.reference || undefined,
+    valueDate: data.valueDate || undefined,
+    externalReference: data.externalReference?.trim() || undefined,
+    partnerId: data.partnerId || undefined,
+    partnerName: data.partnerName?.trim() || undefined,
   };
 
   return mapBankTransaction(await tPost<any>("/transactions", payload));

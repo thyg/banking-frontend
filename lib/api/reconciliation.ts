@@ -53,12 +53,18 @@ export async function getMatchedStatementLines(statementId: string): Promise<Sta
   return lines.filter(l => l.reconciliationStatus === "MATCHED");
 }
 
-export async function ignoreStatementLine(id: string, reason = "Ignoré"): Promise<StatementLine> {
+/** Le motif est obligatoire (le backend refuse un motif vide) : c'est la trace de la mise à l'écart. */
+export async function ignoreStatementLine(id: string, reason: string): Promise<StatementLine> {
   return mapStatementLine(await tPost<any>(`/statement-lines/${id}/ignore`, { reason }));
 }
 
-export async function resetStatementLine(_id: string): Promise<StatementLine> {
-  throw new Error("La réinitialisation d'une ligne n'est pas disponible.");
+/** Réactive une ligne ignorée par erreur (relevé ouvert) : elle redevient à rapprocher. */
+export async function reopenStatementLine(id: string): Promise<StatementLine> {
+  return mapStatementLine(await tPost<any>(`/statement-lines/${id}/reopen`));
+}
+
+export async function resetStatementLine(id: string): Promise<StatementLine> {
+  return reopenStatementLine(id);
 }
 
 export async function getBankTransactions(accountId: string): Promise<BankTransaction[]> {

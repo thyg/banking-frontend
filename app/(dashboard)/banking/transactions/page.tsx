@@ -30,6 +30,7 @@ import {
   cancelBankTransaction,
 } from '@/lib/api/bank-transaction';
 import { getBankAccounts } from '@/lib/api/banking';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 // Utilitaires PDF
 import { generateTransactionPDF } from '@/lib/utils/pdf-generator';
@@ -69,6 +70,9 @@ export default function BankTransactionsPage() {
   // ---------------------------------------------------------------------------
   
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
+  // Comptes dont les transactions n'ont pas pu être chargées : la liste est alors incomplète
+  // (un compte en erreur ne doit jamais apparaître comme « sans mouvement »).
+  const [failedAccounts, setFailedAccounts] = useState<string[]>([]);
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState<TransactionFilters>({});
@@ -166,22 +170,26 @@ export default function BankTransactionsPage() {
     setIsLoading(true);
     try {
       let data: BankTransaction[];
+      let failed: string[] = [];
       if (activeFilters.bankAccountId) {
         // Un seul compte sélectionné
         data = await getBankTransactions(activeFilters);
       } else if (accounts.length > 0) {
         // "Tous les comptes" : fetch parallèle sur tous les comptes puis fusion
-        const results = await Promise.all(
-          accounts.map(a => getBankTransactions({ ...activeFilters, bankAccountId: a.id }).catch(() => []))
+        const results = await Promise.allSettled(
+          accounts.map(a => getBankTransactions({ ...activeFilters, bankAccountId: a.id }))
         );
+        failed = results.flatMap((r, i) =>
+          r.status === 'rejected' ? [accounts[i].name || accounts[i].accountNumber || accounts[i].id] : []);
         data = results
-          .flat()
+          .flatMap(r => (r.status === 'fulfilled' ? r.value : []))
           .sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
       } else {
         // Comptes pas encore chargés
         data = [];
       }
       setTransactions(data);
+      setFailedAccounts(failed);
     } catch (error) {
       console.error('[TransactionsPage] Erreur chargement:', error);
       toast({
@@ -352,6 +360,17 @@ export default function BankTransactionsPage() {
 
   return (
     <>
+      {failedAccounts.length > 0 && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Liste incomplète</AlertTitle>
+          <AlertDescription>
+            Les transactions de {failedAccounts.length} compte(s) n&apos;ont pas pu être chargées
+            ({failedAccounts.join(', ')}). Elles n&apos;apparaissent pas ci-dessous : ces comptes ne sont pas
+            forcément sans mouvement. Réessayez ou ouvrez le compte concerné.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Liste des transactions */}
       <BankTransactionList
         transactions={transactions}

@@ -211,6 +211,9 @@ export function StatementUploader({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [statementName, setStatementName] = useState<string>('');
+  // Solde de clôture du relevé de la banque : le backend refuse un fichier qui ne s'équilibre pas
+  // avec lui (ligne manquante ou mal lue) au lieu d'importer un relevé faux.
+  const [closingBalance, setClosingBalance] = useState<string>('');
 
   // Reference au fichier reel pour le parsing
   const fileRef = useRef<File | null>(null);
@@ -275,7 +278,7 @@ export function StatementUploader({
     event.stopPropagation();
   }, []);
 
-  const handleUpload = async () => {
+  const handleUpload = async (allowDuplicates = false) => {
     const effectiveAccountId = accountId || selectedAccountId;
     if (!selectedFile || !effectiveAccountId || !fileRef.current) return;
 
@@ -288,7 +291,8 @@ export function StatementUploader({
       // seule transaction. L'ancien parseur du navigateur lisait « Crédit » comme un débit.
       setUploadState('processing');
       setUploadProgress(40);
-      const result = await uploadStatementCsv(fileRef.current, effectiveAccountId, statementName);
+      const result = await uploadStatementCsv(fileRef.current, effectiveAccountId, statementName,
+        { closingBalance, allowDuplicates });
       if (result.linesImported === 0) {
         throw new Error('Aucune opération trouvée dans le fichier (vérifiez le format).');
       }
@@ -306,6 +310,13 @@ export function StatementUploader({
         }
       }, 1000);
     } catch (error) {
+      // Opérations déjà présentes sur un relevé du compte (même fichier importé deux fois ?) :
+      // l'utilisateur confirme explicitement s'il s'agit bien d'opérations distinctes.
+      if ((error as { code?: string })?.code === 'STATEMENT_LINES_DUPLICATE' && !allowDuplicates
+          && typeof window !== 'undefined'
+          && window.confirm(`${(error as Error).message}\n\nImporter quand même ?`)) {
+        return handleUpload(true);
+      }
       console.error('Erreur lors de l\'upload:', error);
       setErrorMessage(error instanceof Error ? error.message : 'Erreur lors de l\'upload');
       setUploadState('error');
@@ -319,6 +330,7 @@ export function StatementUploader({
     setUploadProgress(0);
     setErrorMessage('');
     setStatementName('');
+    setClosingBalance('');
   };
 
   // Etat succes
@@ -459,13 +471,29 @@ export function StatementUploader({
         />
       </div>
 
+      {/* Solde de clôture de la banque : contrôle que le fichier est complet et bien lu */}
+      <div className="space-y-2">
+        <Label htmlFor="closingBalance">Solde de clôture indiqué par la banque (recommandé)</Label>
+        <Input
+          id="closingBalance"
+          inputMode="decimal"
+          value={closingBalance}
+          onChange={(e) => setClosingBalance(e.target.value)}
+          placeholder="Ex: 1 250 000"
+        />
+        <p className="text-xs text-muted-foreground">
+          Le solde final imprimé sur le relevé. L&apos;import est refusé s&apos;il ne correspond pas au
+          fichier : une opération manquerait ou aurait été mal lue.
+        </p>
+      </div>
+
       {/* Actions */}
       <div className="flex justify-end gap-3 pt-4 border-t">
         <Button variant="outline" onClick={onCancel}>
           Annuler
         </Button>
         <Button
-          onClick={handleUpload}
+          onClick={() => handleUpload()}
           disabled={!selectedFile || (!accountId && !selectedAccountId)}
         >
           <Upload className="mr-2 h-4 w-4" />

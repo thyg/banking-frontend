@@ -355,14 +355,50 @@ export async function deleteBankAccount(id: string): Promise<void> {
 // ─── BANK TRANSACTIONS ───────────────────────────────────────────────────────
 // Implémentation unique dans lib/api/bank-transaction.ts (montant signé, code du type).
 
-/** Transactions de tous les comptes de l'organisation, les plus récentes d'abord. */
-export async function getBankTransactions(): Promise<BankTransaction[]> {
+/** Compte dont les transactions n'ont pas pu être chargées (la liste affichée est incomplète). */
+export interface FailedAccountLoad {
+  accountId: string;
+  accountName: string;
+  message: string;
+}
+
+/**
+ * Transactions de tous les comptes, les plus récentes d'abord, AVEC les comptes en échec.
+ * Un compte en erreur n'est plus présenté comme « sans mouvement » : l'appelant doit signaler
+ * que les résultats sont incomplets.
+ */
+export async function getBankTransactionsWithFailures(): Promise<{
+  transactions: BankTransaction[];
+  failedAccounts: FailedAccountLoad[];
+}> {
   const accounts = await getBankAccounts();
-  const lists = await Promise.all(
-    accounts.map((a) => getBankTransactionsByAccountId(a.id).catch(() => [] as BankTransaction[])),
-  );
-  return lists.flat().sort((a, b) =>
-    String(b.transactionDate ?? "").localeCompare(String(a.transactionDate ?? "")));
+  const results = await Promise.allSettled(accounts.map((a) => getBankTransactionsByAccountId(a.id)));
+  const transactions: BankTransaction[] = [];
+  const failedAccounts: FailedAccountLoad[] = [];
+  results.forEach((result, index) => {
+    if (result.status === "fulfilled") {
+      transactions.push(...result.value);
+    } else {
+      const account = accounts[index];
+      failedAccounts.push({
+        accountId: account.id,
+        accountName: account.name || account.accountNumber || account.id,
+        message: result.reason instanceof Error ? result.reason.message : String(result.reason),
+      });
+    }
+  });
+  transactions.sort((a, b) => String(b.transactionDate ?? "").localeCompare(String(a.transactionDate ?? "")));
+  return { transactions, failedAccounts };
+}
+
+/** Transactions de tous les comptes ; échoue si un compte n'a pas pu être chargé (jamais de liste tronquée en silence). */
+export async function getBankTransactions(): Promise<BankTransaction[]> {
+  const { transactions, failedAccounts } = await getBankTransactionsWithFailures();
+  if (failedAccounts.length > 0) {
+    throw new Error(`Transactions incomplètes : ${failedAccounts.length} compte(s) n'ont pas pu être chargés (`
+      + failedAccounts.map((f) => f.accountName).join(", ") + ").");
+  }
+  return transactions;
 }
 export async function getBankTransactionById(id: string): Promise<BankTransaction | null> {
   try { return mapBankTransaction(await tGet<any>(`/transactions/${id}`)); } catch { return null; }
@@ -492,8 +528,14 @@ export async function updateBankStatement(_id: string, _d: unknown): Promise<Ban
 export async function updateStatementTotals(_id: string): Promise<BankStatement> {
   throw new Error("Le recalcul des totaux n'est pas disponible.");
 }
-export async function closeBankStatement(id: string): Promise<BankStatement> {
-  return mapStatement(await tPost<any>(`/statements/${id}/close`));
+/**
+ * Clôture d'un relevé. S'il contient des lignes ignorées, le backend refuse (409
+ * STATEMENT_IGNORED_LINES_UNCONFIRMED) en listant chaque ligne et son motif : l'appelant les
+ * présente puis rappelle avec confirmIgnored = true.
+ */
+export async function closeBankStatement(id: string, confirmIgnored = false): Promise<BankStatement> {
+  const qs = confirmIgnored ? "?confirmIgnored=true" : "";
+  return mapStatement(await tPost<any>(`/statements/${id}/close${qs}`));
 }
 export async function deleteBankStatement(_id: string): Promise<void> {
   throw new Error("La suppression d'un relevé n'est pas disponible.");
@@ -535,11 +577,16 @@ export async function createStatementLinesBatch(statementId: string, lines: Crea
   const raw = await tPost<any[]>(`/statements/${statementId}/lines`, payload);
   return (raw ?? []).map(mapStatementLine);
 }
-export async function ignoreStatementLine(id: string, reason = "Ignoré"): Promise<StatementLine> {
+/** Le motif est obligatoire (le backend refuse un motif vide) : c'est la trace de la mise à l'écart. */
+export async function ignoreStatementLine(id: string, reason: string): Promise<StatementLine> {
   return mapStatementLine(await tPost<any>(`/statement-lines/${id}/ignore`, { reason }));
 }
-export async function resetStatementLine(_id: string): Promise<StatementLine> {
-  throw new Error("La réinitialisation d'une ligne n'est pas disponible.");
+/** Réactive une ligne ignorée par erreur (relevé ouvert) : elle redevient à rapprocher. */
+export async function reopenStatementLine(id: string): Promise<StatementLine> {
+  return mapStatementLine(await tPost<any>(`/statement-lines/${id}/reopen`));
+}
+export async function resetStatementLine(id: string): Promise<StatementLine> {
+  return reopenStatementLine(id);
 }
 export async function deleteStatementLine(_id: string): Promise<void> {
   throw new Error("La suppression d'une ligne n'est pas disponible.");
@@ -610,16 +657,32 @@ export async function getBankingStats(): Promise<BankingStats> {
  * « Débit » accentués, ligne « Solde initial » traitée comme ouverture), relevé et lignes créés
  * dans une même transaction. Remplace le parseur dupliqué côté navigateur.
  */
-export async function uploadStatementCsv(file: File, bankAccountId: string, statementName?: string): Promise<{
-  statement: BankStatement; linesImported: number;
+export async function uploadStatementCsv(file: File, bankAccountId: string, statementName?: string, options?: {
+  /** Solde de clôture indiqué par la banque : le backend refuse l'import s'il ne colle pas au fichier. */
+  closingBalance?: string;
+  /** Confirmation après un refus « opérations déjà importées » (STATEMENT_LINES_DUPLICATE). */
+  allowDuplicates?: boolean;
+}): Promise<{
+  statement: BankStatement; linesImported: number; closingBalanceVerified: boolean;
 }> {
   const form = new FormData();
   form.append("file", file);
   form.append("bankAccountId", bankAccountId);
   if (statementName?.trim()) form.append("statementNumber", statementName.trim());
+  if (options?.closingBalance?.trim()) form.append("closingBalance", options.closingBalance.trim());
+  if (options?.allowDuplicates) form.append("allowDuplicates", "true");
   const res = await fetch("/api/kernel/treasury/statements/upload", { method: "POST", body: form, credentials: "include" });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json?.message || "L'import du relevé a échoué.");
+  if (!res.ok) {
+    // Le code d'erreur permet à l'écran de proposer « importer quand même » sur un doublon.
+    const error = new Error(json?.message || "L'import du relevé a échoué.") as Error & { code?: string };
+    error.code = json?.errorCode;
+    throw error;
+  }
   const data = json?.data ?? json;
-  return { statement: mapStatement(data.statement), linesImported: data.linesImported ?? 0 };
+  return {
+    statement: mapStatement(data.statement),
+    linesImported: data.linesImported ?? 0,
+    closingBalanceVerified: Boolean(data.closingBalanceVerified),
+  };
 }

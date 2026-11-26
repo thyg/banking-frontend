@@ -33,6 +33,7 @@ import {
   bulkReconcile,
   unmatchLine,
   ignoreStatementLine,
+  reopenStatementLine,
 } from '@/lib/api/reconciliation';
 import { getTransactionTypes, closeBankStatement } from '@/lib/api/banking';
 
@@ -375,11 +376,35 @@ export default function StatementReconciliationPage() {
     }
   };
 
+  const handleReopen = async (lineId: string) => {
+    try {
+      await reopenStatementLine(lineId);
+      toast({ title: 'Ligne réactivée', description: 'Elle est de nouveau à rapprocher.' });
+      await refreshLines();
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erreur',
+        description: error instanceof Error ? error.message : 'Impossible de réactiver la ligne.',
+      });
+    }
+  };
+
   const handleCloseStatement = async () => {
     setShowCloseDialog(false);
     setIsClosing(true);
     try {
-      const closed = await closeBankStatement(statementId);
+      let closed;
+      try {
+        closed = await closeBankStatement(statementId);
+      } catch (error) {
+        // Lignes ignorées : le backend les liste avec leur motif ; elles doivent être revues
+        // et confirmées explicitement avant la clôture.
+        if ((error as { code?: string })?.code !== 'STATEMENT_IGNORED_LINES_UNCONFIRMED') throw error;
+        const confirmed = window.confirm(`${(error as Error).message}\n\nClôturer quand même ?`);
+        if (!confirmed) return;
+        closed = await closeBankStatement(statementId, true);
+      }
       setStatement(prev => (prev ? { ...prev, ...closed, bankAccountName: prev.bankAccountName } : closed));
       setSelectedLineId(null);
       toast({ title: 'Relevé clôturé', description: 'Le relevé est désormais en lecture seule.' });
@@ -594,6 +619,7 @@ export default function StatementReconciliationPage() {
             onReconcileManually={handleReconcileManually}
             onUnmatch={handleUnmatch}
             onIgnore={handleIgnore}
+            onReopen={handleReopen}
             readOnly={isClosed}
             onClose={handleClosePanel}
           />

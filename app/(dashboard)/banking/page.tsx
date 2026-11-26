@@ -40,7 +40,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { BankAccount, BankTransaction, Check, BankStatement, BankingStats } from '@/types/banking';
 import {
   getBankAccounts,
-  getBankTransactions,
+  getBankTransactionsWithFailures,
   getBankTransactionsByStatus,
   getChecks,
   getChecksByStatus,
@@ -103,7 +103,8 @@ export default function BankingDashboardPage() {
       ] = await Promise.all([
         getBankAccounts(),
         getBankTransactionsByStatus('DRAFT'),
-        getBankTransactions().catch(() => []),
+        getBankTransactionsWithFailures()
+          .catch((e) => ({ transactions: [] as BankTransaction[], failedAccounts: [{ accountId: '', accountName: 'tous les comptes', message: String(e) }] })),
         getChecksByStatus('PENDING'),
         getChecks().catch(() => []),
         getBankStatementsByStatus('IN_PROGRESS'),
@@ -114,7 +115,7 @@ export default function BankingDashboardPage() {
 
       setAccounts(accountsData);
       setPendingTransactions(transactionsData);
-      setRecentTransactions(allTransactionsData.slice(0, 10)); // 10 dernières transactions
+      setRecentTransactions(allTransactionsData.transactions.slice(0, 10)); // 10 dernières transactions
       setPendingChecks(checksData);
       setAllChecks(allChecksData);
       setUnreconciledStatements(statementsData);
@@ -122,6 +123,17 @@ export default function BankingDashboardPage() {
       // Générer les alertes
       const newAlerts: Alert[] = [];
       
+      if (allTransactionsData.failedAccounts.length > 0) {
+        newAlerts.push({
+          id: 'transactions-incomplete',
+          type: 'error',
+          title: 'Transactions incomplètes',
+          message: `Les transactions de ${allTransactionsData.failedAccounts.map(f => f.accountName).join(', ')}`
+            + " n'ont pas pu être chargées : ces comptes ne sont pas forcément sans mouvement.",
+          link: '/banking/transactions',
+        });
+      }
+
       if (dueSoonChecks.length > 0) {
         newAlerts.push({
           id: 'checks-due',

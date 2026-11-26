@@ -54,6 +54,7 @@ import { Separator } from '@/components/ui/separator';
 
 // Utilitaires
 import { amountToWords } from '@/lib/utils/number-to-words';
+import { isDirectlyCancellable } from '@/lib/api/bank-transaction';
 
 // =============================================================================
 // PROPS
@@ -469,7 +470,7 @@ export function BankTransactionDetailDialog({
                 Comptabiliser
               </Button>
             )}
-            {onCancel && transaction.status === 'VALIDATED' && !transaction.isReconciled && (
+            {onCancel && transaction.status === 'VALIDATED' && !transaction.isReconciled && isDirectlyCancellable(transaction) && (
               <Button
                 variant="outline"
                 className="text-red-600 hover:text-red-700 hover:bg-red-50"

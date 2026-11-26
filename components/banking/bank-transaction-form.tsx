@@ -50,7 +50,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, ArrowDownLeft, ArrowUpRight, Receipt, CreditCard } from 'lucide-react';
+import { Loader2, ArrowDownLeft, ArrowUpRight, Receipt } from 'lucide-react';
 import { accountOptionLabel } from '@/lib/banking/account-label';
 
 // =============================================================================
@@ -88,8 +88,6 @@ const bankTransactionFormSchema = z.object({
   
   valueDate: z.string().optional(),
   
-  paymentMethod: z.enum(['BANK_TRANSFER', 'CHECK', 'CASH', 'MOBILE_MONEY', 'OTHER']).optional(),
-
   externalReference: z
     .string()
     .max(50, { message: "La reference ne peut pas depasser 50 caracteres." })
@@ -163,7 +161,6 @@ export function BankTransactionForm({
       bankAccountId: initialData?.bankAccountId ?? preselectedAccountId ?? '',
       transactionTypeId: initialData?.transactionTypeId ?? '',
       direction: initialData?.direction ?? 'DEBIT',
-      paymentMethod: initialData?.paymentMethod ?? undefined,
       amount: initialData?.amount ?? 0,
       transactionDate: initialData?.transactionDate ?? new Date().toISOString().split('T')[0],
       valueDate: initialData?.valueDate ?? '',
@@ -249,7 +246,6 @@ export function BankTransactionForm({
       if (selectedCheck.partnerId) form.setValue('partnerId', selectedCheck.partnerId);
       form.setValue('description', `Règlement par chèque n°${selectedCheck.checkNumber}`);
       form.setValue('direction', selectedCheck.checkType === 'RECEIVED' ? 'CREDIT' : 'DEBIT');
-      form.setValue('paymentMethod', 'CHECK');
     }
   }, [watchCheckId, availableChecks, form]);
 
@@ -277,7 +273,6 @@ export function BankTransactionForm({
         description: data.description || undefined,
         amount: data.amount,
         direction: data.direction,
-        paymentMethod: data.paymentMethod || undefined,
         partnerName: data.partnerName || undefined,
         partnerId: data.partnerId || undefined,
         checkId: data.checkId || undefined,
@@ -504,34 +499,8 @@ export function BankTransactionForm({
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Règlement</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField
-              control={form.control}
-              name="paymentMethod"
-              render={({ field }) => (
-                <FormItem className="min-w-0">
-                  <FormLabel className="text-xs flex items-center gap-1.5">
-                    <CreditCard className="h-3.5 w-3.5" /> Moyen de paiement
-                  </FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={isValidated}>
-                    <FormControl>
-                      <SelectTrigger className="w-full text-xs h-9">
-                        <SelectValue placeholder="Sélectionnez..." />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="BANK_TRANSFER" className="text-xs">Virement bancaire</SelectItem>
-                      <SelectItem value="CHECK" className="text-xs">Chèque</SelectItem>
-                      <SelectItem value="CASH" className="text-xs">Espèces</SelectItem>
-                      <SelectItem value="MOBILE_MONEY" className="text-xs">Mobile Money</SelectItem>
-                      <SelectItem value="OTHER" className="text-xs">Autre</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription className="text-[10px]">Mode de règlement (optionnel)</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+            {/* Moyen de paiement retiré : le type de transaction (virement, chèque, espèces…) le dit déjà,
+                et il n'était enregistré nulle part. */}
             {!isEditMode && (
               <FormField
                 control={form.control}

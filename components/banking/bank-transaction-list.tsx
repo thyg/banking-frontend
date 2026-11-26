@@ -64,6 +64,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { accountOptionLabel } from '@/lib/banking/account-label';
+import { isDirectlyCancellable } from '@/lib/api/bank-transaction';
 
 // =============================================================================
 // UTILITAIRES
@@ -387,7 +388,7 @@ export function BankTransactionList({
                       )}
 
                       {/* Annuler - seulement pour transactions validées non rapprochées */}
-                      {txn.status === 'VALIDATED' && onCancel && !txn.isReconciled && (
+                      {txn.status === 'VALIDATED' && onCancel && !txn.isReconciled && isDirectlyCancellable(txn) && (
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onCancel(txn); }}>
                           <XCircle className="mr-2 h-4 w-4" />
                           Annuler
